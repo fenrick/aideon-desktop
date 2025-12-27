@@ -20,13 +20,13 @@ export const SpinnerLoadingIndicator = ({
 }) => {
   return (
     <div className="relative">
-      <StatusBorder className="border-blue-700/40">{children}</StatusBorder>
+      <StatusBorder className="border-primary/40">{children}</StatusBorder>
 
       <div className="bg-background/50 absolute inset-0 z-50 rounded-[9px] backdrop-blur-xs" />
       <div className="absolute inset-0 z-50">
-        <span className="absolute top-[calc(50%-1.25rem)] left-[calc(50%-1.25rem)] inline-block h-10 w-10 animate-ping rounded-full bg-blue-700/20" />
+        <span className="absolute top-[calc(50%-1.25rem)] left-[calc(50%-1.25rem)] inline-block h-10 w-10 animate-ping rounded-full bg-primary/20" />
 
-        <LoaderCircle className="absolute top-[calc(50%-0.75rem)] left-[calc(50%-0.75rem)] size-6 animate-spin text-blue-700" />
+        <LoaderCircle className="absolute top-[calc(50%-0.75rem)] left-[calc(50%-0.75rem)] size-6 animate-spin text-primary" />
       </div>
     </div>
   );
@@ -58,7 +58,13 @@ export const BorderLoadingIndicator = ({
       `}
         </style>
         <div className="absolute inset-0 overflow-hidden rounded-[9px]">
-          <div className="spinner rounded-full bg-[conic-gradient(from_0deg_at_50%_50%,rgb(42,67,233)_0deg,rgba(42,138,246,0)_360deg)]" />
+          <div
+            className="spinner rounded-full"
+            style={{
+              background:
+                "conic-gradient(from 0deg at 50% 50%, var(--primary) 0deg, transparent 360deg)",
+            }}
+          />
         </div>
       </div>
       {children}
@@ -107,11 +113,11 @@ export const NodeStatusIndicator = ({
     }
     case "success": {
       return (
-        <StatusBorder className="border-emerald-600">{children}</StatusBorder>
+        <StatusBorder className="border-primary/60">{children}</StatusBorder>
       );
     }
     case "error": {
-      return <StatusBorder className="border-red-400">{children}</StatusBorder>;
+      return <StatusBorder className="border-destructive">{children}</StatusBorder>;
     }
     default: {
       return <>{children}</>;

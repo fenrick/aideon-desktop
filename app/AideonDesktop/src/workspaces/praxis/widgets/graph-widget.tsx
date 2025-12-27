@@ -437,7 +437,9 @@ function GraphWidgetOverlay({ message, isError }: GraphWidgetOverlayProperties) 
  */
 function AlertBadge() {
   return (
-    <span className="mr-2 text-xs font-semibold uppercase tracking-wide text-red-700">Error</span>
+    <span className="mr-2 text-xs font-semibold uppercase tracking-wide text-destructive">
+      Error
+    </span>
   );
 }
 

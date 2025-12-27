@@ -241,12 +241,10 @@ function MatrixCellView({
 }) {
   const intent = cell?.state ?? 'missing';
   const baseClass =
-    intent === 'connected'
-      ? 'bg-emerald-100 text-emerald-900'
-      : 'bg-muted/20 text-muted-foreground';
+    intent === 'connected' ? 'bg-primary/15 text-primary' : 'bg-muted/20 text-muted-foreground';
   let activeClass = '';
   if (active) {
-    activeClass = intent === 'connected' ? 'ring-2 ring-emerald-400' : 'ring-2 ring-primary/40';
+    activeClass = intent === 'connected' ? 'ring-2 ring-primary/50' : 'ring-2 ring-primary/40';
   }
   const connectedValue = `${Math.round((cell?.strength ?? 0) * 100).toString()}%`;
 
@@ -274,7 +272,7 @@ function MatrixCellView({
 function Legend() {
   return (
     <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-      <LegendItem colorClass="bg-emerald-200 text-emerald-900" label="Connected" />
+      <LegendItem colorClass="bg-primary/20 text-primary" label="Connected" />
       <LegendItem colorClass="bg-muted/30" label="Missing" />
       <LegendItem colorClass="ring-2 ring-primary/40" label="Selection overlap" />
     </div>

@@ -256,7 +256,7 @@ export const DevTools = ({ position }: DevToolsProps) => {
 
       {changeLoggerActive && (
         <Panel
-          className="mt-20 max-h-[50%] overflow-y-auto rounded bg-white p-5 text-xs shadow-md"
+          className="mt-20 max-h-[50%] overflow-y-auto rounded bg-popover p-5 text-xs text-popover-foreground shadow-md"
           position="bottom-right"
         >
           <ChangeLogger />

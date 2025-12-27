@@ -112,7 +112,7 @@ function KpiPanel({ summary }: { readonly summary: ChartViewModel['kpi'] }) {
   }
   const trendUp = summary.trend !== 'down';
   const TrendIcon = trendUp ? ArrowUpRight : ArrowDownRight;
-  const trendClass = trendUp ? 'text-emerald-600' : 'text-red-600';
+  const trendClass = trendUp ? 'text-primary' : 'text-destructive';
   return (
     <div className="flex h-full flex-col justify-between">
       <div>
@@ -154,7 +154,7 @@ function LineChart({ series }: { readonly series?: ChartViewModel['series'][numb
       >
         <polyline
           fill="none"
-          stroke={resolvedSeries.color ?? 'hsl(var(--primary))'}
+          stroke={resolvedSeries.color ?? 'var(--primary)'}
           strokeWidth={3}
           points={path}
         />
@@ -191,7 +191,7 @@ function BarChart({ series }: { readonly series: ChartViewModel['series'] }) {
           <span key={entry.id} className="flex items-center gap-1">
             <span
               className="h-2 w-4 rounded-sm"
-              style={{ backgroundColor: entry.color ?? 'hsl(var(--primary))' }}
+              style={{ backgroundColor: entry.color ?? 'var(--primary)' }}
             />
             {entry.label}
           </span>
@@ -210,7 +210,7 @@ function BarChart({ series }: { readonly series: ChartViewModel['series'] }) {
                     className="flex-1 rounded-full"
                     style={{
                       height: `${heightPercent.toString()}%`,
-                      backgroundColor: entry.color ?? 'hsl(var(--primary))',
+                      backgroundColor: entry.color ?? 'var(--primary)',
                     }}
                   />
                 );

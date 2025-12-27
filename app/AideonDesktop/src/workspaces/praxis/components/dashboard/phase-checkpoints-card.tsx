@@ -52,10 +52,10 @@ export function PhaseCheckpointsCard() {
  */
 function statusIconClass(status: string): string {
   if (status === 'complete') {
-    return 'h-4 w-4 text-emerald-500';
+    return 'h-4 w-4 text-primary';
   }
   if (status === 'in-progress') {
-    return 'h-4 w-4 text-blue-500';
+    return 'h-4 w-4 text-primary/70';
   }
   return 'h-4 w-4 text-muted-foreground';
 }

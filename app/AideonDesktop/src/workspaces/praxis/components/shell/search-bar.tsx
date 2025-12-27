@@ -141,7 +141,7 @@ export function SearchBar() {
                 selectResult(index);
               }}
               className={`flex w-full flex-col gap-0.5 px-4 py-3 text-left transition hover:bg-background/70 ${
-                index === highlightedIndex ? 'bg-white/5' : ''
+                index === highlightedIndex ? 'bg-accent/40' : ''
               }`}
             >
               <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">

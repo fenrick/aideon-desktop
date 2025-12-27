@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import type { ScenarioSummary } from 'praxis/praxis-api';
 import { describe, expect, it } from 'vitest';
 
+import { Sidebar, SidebarProvider } from 'design-system/components/ui/sidebar';
 import { AppSidebar } from 'praxis/components/app-sidebar';
 
 const SCENARIOS: ScenarioSummary[] = [
@@ -25,7 +26,13 @@ const SCENARIOS: ScenarioSummary[] = [
 
 describe('AppSidebar', () => {
   it('highlights the default scenario and shows nav controls', () => {
-    render(<AppSidebar scenarios={SCENARIOS} loading={false} />);
+    render(
+      <SidebarProvider>
+        <Sidebar collapsible="icon" className="h-full">
+          <AppSidebar scenarios={SCENARIOS} loading={false} />
+        </Sidebar>
+      </SidebarProvider>,
+    );
 
     expect(screen.getByText('Overview')).toBeInTheDocument();
     expect(screen.getByText('Mainline')).toBeInTheDocument();
@@ -34,7 +41,13 @@ describe('AppSidebar', () => {
   });
 
   it('indicates when scenarios are loading and no data exists yet', () => {
-    render(<AppSidebar scenarios={[]} loading />);
+    render(
+      <SidebarProvider>
+        <Sidebar collapsible="icon" className="h-full">
+          <AppSidebar scenarios={[]} loading />
+        </Sidebar>
+      </SidebarProvider>,
+    );
 
     expect(screen.getByText('Resolving scenario...')).toBeInTheDocument();
     expect(screen.getByText('Loading scenario data...')).toBeInTheDocument();

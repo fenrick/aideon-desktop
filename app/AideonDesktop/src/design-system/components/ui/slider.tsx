@@ -1,9 +1,7 @@
-"use client"
-
 import * as React from "react"
 import * as SliderPrimitive from "@radix-ui/react-slider"
 
-import { cn } from "design-system/lib/utilities"
+import { cn } from "design-system/lib/utils"
 
 function Slider({
   className,
@@ -14,15 +12,12 @@ function Slider({
   ...props
 }: React.ComponentProps<typeof SliderPrimitive.Root>) {
   const _values = React.useMemo(
-    () => {
-      if (Array.isArray(value)) {
-        return value
-      }
-      if (Array.isArray(defaultValue)) {
-        return defaultValue
-      }
-      return [min, max]
-    },
+    () =>
+      Array.isArray(value)
+        ? value
+        : Array.isArray(defaultValue)
+          ? defaultValue
+          : [min, max],
     [value, defaultValue, min, max]
   )
 

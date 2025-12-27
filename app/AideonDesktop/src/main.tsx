@@ -5,7 +5,17 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ThemeProvider } from 'next-themes';
 import { SplashScreen as PraxisSplashScreen } from './components/splash/splash-screen';
+import { Badge } from './design-system/components/ui/badge';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from './design-system/components/ui/card';
+import { RadioGroup, RadioGroupItem } from './design-system/components/ui/radio-group';
 import { Toaster } from './design-system/components/ui/sonner';
+import { ColorThemeProvider, useColorTheme } from './design-system/theme/color-theme';
 import { ErrorBoundary } from './error-boundary';
 import { AideonDesktopRoot } from './root';
 import './styles.css';
@@ -23,12 +33,14 @@ if (!isVitest) {
   createRoot(container).render(
     <RootWrapper>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-        <ErrorBoundary>
-          <>
-            <AppEntry />
-            <Toaster />
-          </>
-        </ErrorBoundary>
+        <ColorThemeProvider>
+          <ErrorBoundary>
+            <>
+              <AppEntry />
+              <Toaster />
+            </>
+          </ErrorBoundary>
+        </ColorThemeProvider>
       </ThemeProvider>
     </RootWrapper>,
   );
@@ -219,12 +231,58 @@ function AboutScreen() {
  *
  */
 function SettingsScreen() {
+  const { colorTheme, options, preloadThemes, setColorTheme } = useColorTheme();
+
+  useEffect(() => {
+    preloadThemes().catch(() => false);
+  }, [preloadThemes]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-      <div className="space-y-3 rounded-lg border border-border/60 bg-card/90 px-6 py-5 shadow">
-        <h1 className="text-lg font-semibold">Settings</h1>
-        <p className="text-sm text-muted-foreground">Settings UI coming soon.</p>
-      </div>
+      <Card className="w-full max-w-2xl">
+        <CardHeader>
+          <CardTitle>Settings</CardTitle>
+          <CardDescription>Personalize the desktop experience.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-semibold">Color theme</p>
+              <p className="text-xs text-muted-foreground">
+                Choose the primary color palette for the UI. Changes persist automatically.
+              </p>
+            </div>
+            <RadioGroup
+              value={colorTheme}
+              onValueChange={(value) => {
+                setColorTheme(value as typeof colorTheme);
+              }}
+              className="space-y-3"
+            >
+              {options.map((option) => (
+                <label
+                  key={option.id}
+                  htmlFor={`color-theme-${option.id}`}
+                  className="flex cursor-pointer items-center gap-4 rounded-lg border border-border/60 bg-card/80 p-4 transition hover:bg-muted/40"
+                >
+                  <RadioGroupItem value={option.id} id={`color-theme-${option.id}`} />
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{option.label}</span>
+                      {option.id === 'corp-blue' ? (
+                        <Badge variant="secondary">Default</Badge>
+                      ) : undefined}
+                      {option.source ? <Badge variant="outline">{option.source}</Badge> : undefined}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{option.description}</p>
+                  </div>
+                  <ThemePreview themeId={option.id} />
+                </label>
+              ))}
+            </RadioGroup>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -239,6 +297,25 @@ function StyleguideScreen() {
         <h1 className="text-lg font-semibold">Styleguide</h1>
         <p className="text-sm text-muted-foreground">Design system documentation pending.</p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Render a compact preview of theme tokens.
+ * @param root0 - Preview props.
+ * @param root0.themeId - Theme identifier to preview.
+ */
+function ThemePreview({ themeId }: { readonly themeId: string }) {
+  const dataTheme = themeId === 'corp-blue' ? undefined : themeId;
+  return (
+    <div
+      data-color-theme={dataTheme}
+      className="grid grid-cols-3 gap-1 rounded-md border border-border/60 bg-background p-2 text-foreground"
+    >
+      <span className="h-3 w-3 rounded-full bg-primary" />
+      <span className="h-3 w-3 rounded-full bg-accent" />
+      <span className="h-3 w-3 rounded-full bg-muted" />
     </div>
   );
 }

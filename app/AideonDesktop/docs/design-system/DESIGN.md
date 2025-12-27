@@ -18,6 +18,53 @@ tokens to keep renderers consistent.
 - `src/reactflow`: React Flow wrapper components for Praxis-specific nodes/edges.
 - `src/styles/globals.css`: CSS variables and Tailwind tokens shared by all consumers.
 
+## Theme tokens (shadcn CSS variables)
+
+Theme tokens live in `src/design-system/styles/globals.css` and follow the shadcn CSS variable
+model. These variables are the single source of truth for color theming, and Tailwind utilities
+resolve through the `@theme inline` mappings.
+
+Core tokens (light + dark):
+
+- `--background`, `--foreground`
+- `--card`, `--card-foreground`
+- `--popover`, `--popover-foreground`
+- `--primary`, `--primary-foreground`
+- `--secondary`, `--secondary-foreground`
+- `--muted`, `--muted-foreground`
+- `--accent`, `--accent-foreground`
+- `--destructive`, `--destructive-foreground`
+- `--border`, `--input`, `--ring`
+- `--chart-1` through `--chart-5`
+- Sidebar tokens: `--sidebar`, `--sidebar-foreground`, `--sidebar-primary`,
+  `--sidebar-primary-foreground`, `--sidebar-accent`, `--sidebar-accent-foreground`,
+  `--sidebar-border`, `--sidebar-ring`
+
+Branding:
+
+- Corporate blue is defined as `--primary` (and `--sidebar-primary`) with the paired foreground
+  tokens (`--primary-foreground`, `--sidebar-primary-foreground`).
+- Avoid hard-coded color utility classes in product code. Use semantic utilities
+  (`bg-primary`, `text-foreground`, `border-border`, `bg-sidebar`, etc.) so themes can be swapped
+  without refactors.
+
+Tailwind v4 mapping:
+
+- All color tokens must be exposed via `@theme inline` to keep utilities consistent.
+- Add new color tokens by defining CSS variables in `:root`/`.dark`, then mapping them to
+  `--color-*` in `@theme inline`. Do not edit `components/ui` for theming.
+
+## Color theme switching
+
+- Color themes are defined in `src/design-system/styles/themes/*.css` as overrides for the core
+  shadcn token set.
+- The runtime applies a `data-color-theme` attribute to the document root; selectors in the theme
+  CSS apply on `:root[data-color-theme=...]` and on descendant previews.
+- Theme CSS is lazily loaded via dynamic import in `ColorThemeProvider`, then persisted to
+  `localStorage` (key `aideon.colorTheme`). Default is `corp-blue`.
+- Theme palettes `claude`, `graphite`, `green`, and `violet` are sourced from shadcn example themes
+  and are kept as override files to make `components:refresh` safe.
+
 ## Desktop shell primitives
 
 For application-level layout, use only the proxied shadcn primitives exposed by the design system:
@@ -53,3 +100,4 @@ No other primitives should be used for the app shell; keep layout composition co
 
 - Generated components must not be edited directly; all customisation happens in wrappers/blocks.
 - Tokens remain centralised in `globals.css` to avoid drift between apps.
+- Keep `src/design-system/lib/utils.ts` as a compatibility shim for shadcn overwrites.

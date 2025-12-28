@@ -2,14 +2,19 @@
 
 ## Purpose
 
-Mneme Core is the persistence layer for Aideon Suite. It provides commit/ref/snapshot storage,
-backed by SQLite today, and exposes shared DTOs used by higher-level engine crates.
+Mneme Core is the persistence layer for Aideon Suite. It provides the op-log, bi-temporal fact
+storage, schema-as-data, and graph projections described in `crates/mneme/DESIGN.md`.
+SQLite is the first implementation; other RDBMS backends are expected to follow the same logical
+schema and APIs.
 
 ## Responsibilities
 
-- Define storage schemas and migrations for commits, refs, snapshots, and analytics events.
-- Provide repository-style APIs to Praxis Engine and related crates.
-- Hide database specifics behind well-defined traits so backends can be swapped.
+- Own the only SQL/RDBMS access layer in the suite.
+- Provide storage APIs for entities, edge existence, typed property facts, schema metadata, and
+  analytics projections (PageRank-ready adjacency).
+- Maintain the operation log used for sync and deterministic replication.
+- Run DDL and migrations for the storage engine.
+- Support scenario overlays via `scenario_id` scoped facts and reads.
 
 ## Relationships
 
@@ -23,6 +28,5 @@ backed by SQLite today, and exposes shared DTOs used by higher-level engine crat
 
 ## Design and architecture
 
-Persistence and schema rules are described at a high level in `docs/storage/sqlite.md` and
-`docs/meta/README.md`. As Mneme evolves, extend `crates/mneme/DESIGN.md` to capture
-table layouts, migration strategy, and performance constraints.
+`crates/mneme/DESIGN.md` is the authoritative design spec. Update it when storage semantics or
+APIs change. Keep `docs/storage/sqlite.md` aligned with the current schema and migration strategy.

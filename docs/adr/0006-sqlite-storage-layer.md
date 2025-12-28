@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Superseded by `crates/mneme/DESIGN.md` (Mneme storage redesign, 2025-12-28). SQLite remains the
+default backend, but the schema and APIs are now the Mneme fact/ops model, implemented via SeaORM.
 
 ## Context
 
@@ -16,13 +17,11 @@ Early experiments stored state in memory or ad-hoc files; we need a more princip
 
 ## Decision
 
-Use **SQLite 3 in WAL mode** as the default storage engine for Mneme Core in desktop builds:
+Use **SQLite 3** as the default storage engine for Mneme Core in desktop builds:
 
-- Configure WAL mode with `synchronous=NORMAL` and `foreign_keys=ON`.
-- Store commits, refs, and snapshots in dedicated tables (`commits`, `refs`, `snapshots`) using
-  `TEXT`/`INTEGER`/`BLOB` columns, with DTOs serialised as JSON blobs where needed.
-- Use `INSERT ... ON CONFLICT ...` upserts and simple, portable indexes so the schema can be mapped
-  to PostgreSQL-family databases later.
+- Store Mneme ops/facts/schema/projections using portable `TEXT`/`INTEGER`/`BLOB` columns and
+  SeaORM migrations (no raw SQL in migrations or runtime paths).
+- Use portable upserts and indexes so the schema can be mapped to PostgreSQL/MySQL backends later.
 
 Mneme Core (`crates/mneme`) is responsible for migrations and DDL; Praxis Engine and
 other crates use only its repository-style APIs.
@@ -38,5 +37,6 @@ other crates use only its repository-style APIs.
 ## References
 
 - `docs/storage/sqlite.md` – schema and migration details
-- `crates/mneme/src/sqlite.rs` – SQLite-specific implementation
+- `crates/mneme/src/store.rs` – SeaORM-backed Mneme store
+- `crates/mneme/src/migration` – schema and migration definitions
 - `docs/DESIGN.md` – high-level data/integration overview

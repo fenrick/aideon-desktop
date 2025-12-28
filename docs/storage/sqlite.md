@@ -1,75 +1,76 @@
-# SQLite Storage Layer
+# SQLite Storage Layer (Mneme)
 
 ## Purpose
 
-Provide a reference for the SQLite-based storage layer used by Mneme Core in desktop mode: table
-schemas, migration approach, and portability considerations. This doc is for contributors touching
-persistence or adding new tables; the decision to use SQLite and the trade-offs involved are
-captured in `docs/adr/0006-sqlite-storage-layer.md`.
+Provide a reference for the SQLite storage layer used by Mneme Core in desktop mode. The
+authoritative design is `crates/mneme/DESIGN.md`; this document highlights SQLite-specific
+implementation details and portability considerations for the SeaORM-backed store.
 
-## Schema (migration v1)
+## Schema overview (Mneme v1)
 
-```sql
-CREATE TABLE commits (
-  commit_id     TEXT PRIMARY KEY,
-  branch        TEXT NOT NULL,
-  parents_json  TEXT NOT NULL,
-  author        TEXT,
-  time          TEXT,
-  message       TEXT NOT NULL,
-  tags_json     TEXT NOT NULL,
-  change_count  INTEGER NOT NULL,
-  summary_json  TEXT NOT NULL,
-  changes_json  TEXT NOT NULL
-);
-CREATE INDEX commits_branch_idx ON commits(branch);
-CREATE INDEX commits_time_idx   ON commits(time);
-CREATE INDEX commits_parent_idx ON commits(parents_json);
+Mneme stores:
 
-CREATE TABLE refs (
-  branch        TEXT PRIMARY KEY,
-  commit_id     TEXT,
-  updated_at_ms INTEGER NOT NULL
-);
+- **Operation log**: `aideon_ops`, `aideon_op_deps`
+- **Entities and edges**: `aideon_entities`, `aideon_edges`, `aideon_edge_exists_facts`
+- **Typed property facts**: `aideon_prop_fact_*` tables
+- **Schema metadata**: `aideon_types`, `aideon_fields`, `aideon_type_fields`, `aideon_type_extends`
+- **Edge semantics**: `aideon_edge_type_rules`
+- **Projection tables**: `aideon_graph_projection_edges`, optional `aideon_pagerank_runs`/`aideon_pagerank_scores`
+- **Indexed fields**: `aideon_idx_field_*`
+- **Partitions/scenarios**: `aideon_partitions` with scenario overlays via `scenario_id` columns
 
-CREATE TABLE snapshots (
-  snapshot_key  TEXT PRIMARY KEY,
-  bytes         BLOB NOT NULL
-);
-```
-
-All JSON blobs hold the canonical DTOs (`CommitSummary`, `ChangeSet`), so migrating to Postgres or
-CockroachDB later only requires replaying migrations + COPY/ingest.
+SQLite DDL is implemented via SeaORM migrations in `crates/mneme/src/migration`. All IDs are stored
+as `TEXT` UUID strings; valid time is stored as `INTEGER` (microseconds), and HLC is stored as
+`INTEGER` (portable i64 encoding).
 
 ## Migration + DDL management
 
-- Implemented with `rusqlite_migration`; see `run_migrations` in `crates/mneme/src/sqlite.rs`.
-- Every schema change gets its own migration entry. Keep SQL portable and avoid SQLite-specific
-  functions in production queries (other than `strftime('%s','now')` used for `updated_at`).
+- Migrations are applied at startup by `MnemeStore::connect`.
+- Schema versions are tracked in `aideon_schema_version` (SeaORM also tracks its own migration
+  table).
+- Keep SQL portable; avoid SQLite-only functions in core logic.
 
 ## Portability checklist
 
 1. Stick to `INTEGER`, `TEXT`, `REAL`, `BLOB` columns.
-2. Keep app-generated IDs (BLAKE3) and ISO-8601 timestamps so other engines do not inject metadata.
-3. Use `INSERT ... ON CONFLICT ...` for upserts—works in both SQLite and PostgreSQL.
-4. Keep JSON logic in views/DAOs, not scattered SQL fragments.
-5. Track snapshot metadata in the `snapshot_tags` table so every logical snapshot maps back to a commit/tag combination instead of storing raw blobs.
-6. Wrap search/full-text needs behind a DAO so we can swap SQLite FTS5 for `tsvector` later.
+2. Keep IDs and HLC encoded in application code.
+3. Use `INSERT ... ON CONFLICT ...` for upserts.
+4. Keep JSON usage limited to metadata fields and non-indexed values.
 
 ## File locations
 
-Desktop mode stores everything under `AppData/AideonPraxis/.praxis/praxis.sqlite`. The Tauri host
-(`crates/desktop/src/worker.rs`) creates the directory and opens the DB at startup via
-`aideon_mneme::SqliteDb::open`.
+Desktop mode stores the database under the Praxis application data directory. The host should
+create the directory and open the DB using `mneme::open_store`, which loads `mneme.json` from the
+app data dir and defaults to SQLite when not configured.
 
-For server/cloud deployments, point `PraxisEngine::with_sqlite` at any mounted volume or swap in a
-new `CommitStore` implementation (e.g., Postgres, FoundationDB) while keeping the same trait.
+Example `mneme.json` (SQLite with explicit pool settings):
+
+```json
+{
+  "database": { "backend": "sqlite", "path": "praxis.sqlite" },
+  "pool": {
+    "max_connections": 10,
+    "min_connections": 1,
+    "connect_timeout_ms": 1000,
+    "acquire_timeout_ms": 1000,
+    "idle_timeout_ms": 60000
+  }
+}
+```
+
+Example `mneme.json` (Postgres/MySQL):
+
+```json
+{
+  "database": { "backend": "postgres", "url": "postgres://user:pass@host/db" }
+}
+```
 
 ## Future swaps
 
-- **Managed Postgres / Distributed SQL**: Recreate the schema, store JSON columns as `jsonb`, add
-  GIN indexes for schema-aware queries, and reuse the same `CommitStore` trait.
-- **FoundationDB**: Map commits/refs/snapshots to hierarchical keys (`/commits/<id>`, etc.) inside a
-  transactional KV store; reuse hashing + serialization logic.
+- **Managed Postgres / MySQL**: Use SeaORM connection URLs in `mneme.json` to point at the target
+  RDBMS while keeping Mneme APIs stable.
+- **FoundationDB**: Map op log + fact tables to transactional key prefixes, maintaining the same
+  resolution rules from Mneme (outside current SeaORM scope).
 
 For rationale and trade-offs behind the SQLite choice, see `docs/adr/0006-sqlite-storage-layer.md`.

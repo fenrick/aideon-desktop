@@ -1,9 +1,15 @@
-'use client';
+"use client";
 
-import { Handle, Position, useNodeId, useReactFlow, type NodeProps } from '@xyflow/react';
-import { useCallback, type ReactNode } from 'react';
+import React, { useCallback, type ReactNode } from "react";
+import {
+  useReactFlow,
+  useNodeId,
+  Handle,
+  Position,
+  type NodeProps,
+} from "@xyflow/react";
 
-import { BaseNode } from 'design-system/components/base-node';
+import { BaseNode } from "design-system/components/base-node";
 
 export type PlaceholderNodeProps = Partial<NodeProps> & {
   children?: ReactNode;
@@ -17,7 +23,9 @@ export function PlaceholderNode({ children }: PlaceholderNodeProps) {
     if (!id) return;
 
     setEdges((edges) =>
-      edges.map((edge) => (edge.target === id ? { ...edge, animated: false } : edge)),
+      edges.map((edge) =>
+        edge.target === id ? { ...edge, animated: false } : edge,
+      ),
     );
 
     setNodes((nodes) => {
@@ -27,8 +35,8 @@ export function PlaceholderNode({ children }: PlaceholderNodeProps) {
           // For example, you can change the label or other properties of the node.
           return {
             ...node,
-            data: { ...node.data, label: 'Node' },
-            type: 'default',
+            data: { ...node.data, label: "Node" },
+            type: "default",
           };
         }
         return node;
@@ -45,13 +53,13 @@ export function PlaceholderNode({ children }: PlaceholderNodeProps) {
       {children}
       <Handle
         type="target"
-        style={{ visibility: 'hidden' }}
+        style={{ visibility: "hidden" }}
         position={Position.Top}
         isConnectable={false}
       />
       <Handle
         type="source"
-        style={{ visibility: 'hidden' }}
+        style={{ visibility: "hidden" }}
         position={Position.Bottom}
         isConnectable={false}
       />

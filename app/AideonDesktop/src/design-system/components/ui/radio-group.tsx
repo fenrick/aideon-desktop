@@ -1,10 +1,10 @@
-'use client';
+"use client"
 
-import { RadioGroup as RadioGroupPrimitive } from 'radix-ui';
-import * as React from 'react';
+import * as React from "react"
+import { RadioGroup as RadioGroupPrimitive } from "radix-ui"
 
-import { CircleIcon } from '@phosphor-icons/react';
-import { cn } from 'design-system/lib/utils';
+import { cn } from "design-system/lib/utils"
+import { CircleIcon } from "@phosphor-icons/react"
 
 function RadioGroup({
   className,
@@ -13,10 +13,10 @@ function RadioGroup({
   return (
     <RadioGroupPrimitive.Root
       data-slot="radio-group"
-      className={cn('grid gap-3 w-full', className)}
+      className={cn("grid gap-3 w-full", className)}
       {...props}
     />
-  );
+  )
 }
 
 function RadioGroupItem({
@@ -27,8 +27,8 @@ function RadioGroupItem({
     <RadioGroupPrimitive.Item
       data-slot="radio-group-item"
       className={cn(
-        'border-input text-primary dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 data-checked:bg-primary data-checked:border-primary flex size-4 rounded-full transition-none focus-visible:ring-[2px] aria-invalid:ring-[2px] group/radio-group-item peer relative aspect-square shrink-0 border outline-none after:absolute after:-inset-x-3 after:-inset-y-2 disabled:cursor-not-allowed disabled:opacity-50',
-        className,
+        "border-input text-primary dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 data-checked:bg-primary data-checked:border-primary flex size-4 rounded-full transition-none focus-visible:ring-[2px] aria-invalid:ring-[2px] group/radio-group-item peer relative aspect-square shrink-0 border outline-none after:absolute after:-inset-x-3 after:-inset-y-2 disabled:cursor-not-allowed disabled:opacity-50",
+        className
       )}
       {...props}
     >
@@ -39,7 +39,7 @@ function RadioGroupItem({
         <CircleIcon className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 fill-current" />
       </RadioGroupPrimitive.Indicator>
     </RadioGroupPrimitive.Item>
-  );
+  )
 }
 
-export { RadioGroup, RadioGroupItem };
+export { RadioGroup, RadioGroupItem }

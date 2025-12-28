@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { Panel, useReactFlow, useStore, type PanelProps } from '@xyflow/react';
-import { useCallback } from 'react';
+import React, { useCallback } from "react";
+import { Panel, useReactFlow, useStore, type PanelProps } from "@xyflow/react";
 
 import {
   Select,
@@ -9,15 +9,18 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from 'design-system/components/ui/select';
-import { cn } from 'design-system/lib/utils';
+} from "design-system/components/ui/select";
+import { cn } from "design-system/lib/utils";
 
-export function ZoomSelect({ className, ...props }: Omit<PanelProps, 'children'>) {
+export function ZoomSelect({
+  className,
+  ...props
+}: Omit<PanelProps, "children">) {
   const { zoomTo, fitView } = useReactFlow();
 
   const handleZoomChange = useCallback(
     (value: string) => {
-      if (value === 'best-fit') {
+      if (value === "best-fit") {
         fitView();
       } else {
         const zoomValue = parseFloat(value);
@@ -34,7 +37,11 @@ export function ZoomSelect({ className, ...props }: Omit<PanelProps, 'children'>
     const levels = [];
     const zoomIncrement = 50;
 
-    for (let i = Math.ceil(minZoom * 100); i <= Math.floor(maxZoom * 100); i += zoomIncrement) {
+    for (
+      let i = Math.ceil(minZoom * 100);
+      i <= Math.floor(maxZoom * 100);
+      i += zoomIncrement
+    ) {
       levels.push((i / 100).toString());
     }
 
@@ -42,7 +49,10 @@ export function ZoomSelect({ className, ...props }: Omit<PanelProps, 'children'>
   });
 
   return (
-    <Panel className={cn('bg-primary-foreground text-foreground flex', className)} {...props}>
+    <Panel
+      className={cn("bg-primary-foreground text-foreground flex", className)}
+      {...props}
+    >
       <Select onValueChange={handleZoomChange}>
         <SelectTrigger className="bg-primary-foreground w-[140px]">
           <SelectValue placeholder="Zoom" />

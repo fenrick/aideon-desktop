@@ -19,6 +19,13 @@ pub enum AideonActors {
 }
 
 #[derive(Iden, Clone, Copy)]
+pub enum AideonHlcState {
+    Table,
+    PartitionId,
+    LastHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
 pub enum AideonOps {
     Table,
     PartitionId,
@@ -38,6 +45,18 @@ pub enum AideonOpDeps {
     PartitionId,
     OpId,
     DepOpId,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonChangeFeed {
+    Table,
+    PartitionId,
+    Sequence,
+    OpId,
+    AssertedAtHlc,
+    EntityId,
+    ChangeKind,
+    PayloadJson,
 }
 
 #[derive(Iden, Clone, Copy)]
@@ -274,6 +293,171 @@ pub enum AideonEffectiveSchemaCache {
 }
 
 #[derive(Iden, Clone, Copy)]
+pub enum AideonMetamodelVersions {
+    Table,
+    PartitionId,
+    Version,
+    Source,
+    OpId,
+    CreatedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonValidationRules {
+    Table,
+    PartitionId,
+    RuleId,
+    ScopeKind,
+    ScopeId,
+    Severity,
+    TemplateKind,
+    ParamsJson,
+    UpdatedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonComputedRules {
+    Table,
+    PartitionId,
+    RuleId,
+    TargetTypeId,
+    OutputFieldId,
+    TemplateKind,
+    ParamsJson,
+    UpdatedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonComputedCacheStr {
+    Table,
+    PartitionId,
+    EntityId,
+    FieldId,
+    ValidFrom,
+    ValidTo,
+    ValueText,
+    RuleVersionHash,
+    ComputedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonComputedCacheI64 {
+    Table,
+    PartitionId,
+    EntityId,
+    FieldId,
+    ValidFrom,
+    ValidTo,
+    ValueI64,
+    RuleVersionHash,
+    ComputedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonComputedCacheF64 {
+    Table,
+    PartitionId,
+    EntityId,
+    FieldId,
+    ValidFrom,
+    ValidTo,
+    ValueF64,
+    RuleVersionHash,
+    ComputedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonComputedCacheBool {
+    Table,
+    PartitionId,
+    EntityId,
+    FieldId,
+    ValidFrom,
+    ValidTo,
+    ValueBool,
+    RuleVersionHash,
+    ComputedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonComputedCacheTime {
+    Table,
+    PartitionId,
+    EntityId,
+    FieldId,
+    ValidFrom,
+    ValidTo,
+    ValueTime,
+    RuleVersionHash,
+    ComputedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonComputedCacheRef {
+    Table,
+    PartitionId,
+    EntityId,
+    FieldId,
+    ValidFrom,
+    ValidTo,
+    ValueRefEntityId,
+    RuleVersionHash,
+    ComputedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonComputedCacheBlob {
+    Table,
+    PartitionId,
+    EntityId,
+    FieldId,
+    ValidFrom,
+    ValidTo,
+    ValueBlob,
+    RuleVersionHash,
+    ComputedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonComputedCacheJson {
+    Table,
+    PartitionId,
+    EntityId,
+    FieldId,
+    ValidFrom,
+    ValidTo,
+    ValueJson,
+    RuleVersionHash,
+    ComputedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonJobs {
+    Table,
+    PartitionId,
+    JobId,
+    JobType,
+    Status,
+    Priority,
+    Attempts,
+    MaxAttempts,
+    LeaseExpiresAt,
+    CreatedAssertedAtHlc,
+    UpdatedAssertedAtHlc,
+    Payload,
+    DedupeKey,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonJobEvents {
+    Table,
+    PartitionId,
+    JobId,
+    EventTime,
+    Message,
+}
+
+#[derive(Iden, Clone, Copy)]
 pub enum AideonEdgeTypeRules {
     Table,
     PartitionId,
@@ -314,6 +498,69 @@ pub enum AideonPagerankScores {
     RunId,
     EntityId,
     Score,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonGraphDegreeStats {
+    Table,
+    PartitionId,
+    ScenarioId,
+    AsOfValidTime,
+    EntityId,
+    OutDegree,
+    InDegree,
+    ComputedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonGraphEdgeTypeCounts {
+    Table,
+    PartitionId,
+    ScenarioId,
+    EdgeTypeId,
+    Count,
+    ComputedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonIntegrityRuns {
+    Table,
+    PartitionId,
+    RunId,
+    ScenarioId,
+    AsOfValidTime,
+    AsOfAssertedAtHlc,
+    ParamsJson,
+    CreatedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonIntegrityFindings {
+    Table,
+    PartitionId,
+    RunId,
+    FindingType,
+    Severity,
+    SubjectEntityId,
+    DetailsJson,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonIntegrityHead {
+    Table,
+    PartitionId,
+    ScenarioId,
+    RunId,
+    UpdatedAssertedAtHlc,
+}
+
+#[derive(Iden, Clone, Copy)]
+pub enum AideonTypeSchemaHead {
+    Table,
+    PartitionId,
+    TypeId,
+    SchemaVersionHash,
+    UpdatedAssertedAtHlc,
 }
 
 #[derive(Iden, Clone, Copy)]

@@ -724,6 +724,527 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
+        manager
+            .create_table(
+                Table::create()
+                    .table(AideonHlcState::Table)
+                    .if_not_exists()
+                    .col(id_col(backend, AideonHlcState::PartitionId, false))
+                    .col(
+                        ColumnDef::new(AideonHlcState::LastHlc)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .primary_key(
+                        Index::create()
+                            .name("pk_aideon_hlc_state")
+                            .col(AideonHlcState::PartitionId),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AideonChangeFeed::Table)
+                    .if_not_exists()
+                    .col(id_col(backend, AideonChangeFeed::PartitionId, false))
+                    .col(
+                        ColumnDef::new(AideonChangeFeed::Sequence)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(id_col(backend, AideonChangeFeed::OpId, false))
+                    .col(
+                        ColumnDef::new(AideonChangeFeed::AssertedAtHlc)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(id_col(backend, AideonChangeFeed::EntityId, true))
+                    .col(
+                        ColumnDef::new(AideonChangeFeed::ChangeKind)
+                            .tiny_integer()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(AideonChangeFeed::PayloadJson).text())
+                    .primary_key(
+                        Index::create()
+                            .name("pk_aideon_change_feed")
+                            .col(AideonChangeFeed::PartitionId)
+                            .col(AideonChangeFeed::Sequence),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AideonJobs::Table)
+                    .if_not_exists()
+                    .col(id_col(backend, AideonJobs::PartitionId, false))
+                    .col(id_col(backend, AideonJobs::JobId, false))
+                    .col(ColumnDef::new(AideonJobs::JobType).string().not_null())
+                    .col(ColumnDef::new(AideonJobs::Status).tiny_integer().not_null())
+                    .col(ColumnDef::new(AideonJobs::Priority).integer().not_null())
+                    .col(ColumnDef::new(AideonJobs::Attempts).integer().not_null())
+                    .col(ColumnDef::new(AideonJobs::MaxAttempts).integer().not_null())
+                    .col(ColumnDef::new(AideonJobs::LeaseExpiresAt).big_integer())
+                    .col(
+                        ColumnDef::new(AideonJobs::CreatedAssertedAtHlc)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AideonJobs::UpdatedAssertedAtHlc)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(AideonJobs::Payload).blob().not_null())
+                    .col(ColumnDef::new(AideonJobs::DedupeKey).string())
+                    .primary_key(
+                        Index::create()
+                            .name("pk_aideon_jobs")
+                            .col(AideonJobs::PartitionId)
+                            .col(AideonJobs::JobId),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AideonJobEvents::Table)
+                    .if_not_exists()
+                    .col(id_col(backend, AideonJobEvents::PartitionId, false))
+                    .col(id_col(backend, AideonJobEvents::JobId, false))
+                    .col(
+                        ColumnDef::new(AideonJobEvents::EventTime)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(AideonJobEvents::Message).text().not_null())
+                    .primary_key(
+                        Index::create()
+                            .name("pk_aideon_job_events")
+                            .col(AideonJobEvents::PartitionId)
+                            .col(AideonJobEvents::JobId)
+                            .col(AideonJobEvents::EventTime),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AideonGraphDegreeStats::Table)
+                    .if_not_exists()
+                    .col(id_col(backend, AideonGraphDegreeStats::PartitionId, false))
+                    .col(id_col(backend, AideonGraphDegreeStats::ScenarioId, true))
+                    .col(ColumnDef::new(AideonGraphDegreeStats::AsOfValidTime).big_integer())
+                    .col(id_col(backend, AideonGraphDegreeStats::EntityId, false))
+                    .col(ColumnDef::new(AideonGraphDegreeStats::OutDegree).integer().not_null())
+                    .col(ColumnDef::new(AideonGraphDegreeStats::InDegree).integer().not_null())
+                    .col(
+                        ColumnDef::new(AideonGraphDegreeStats::ComputedAssertedAtHlc)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .primary_key(
+                        Index::create()
+                            .name("pk_aideon_graph_degree_stats")
+                            .col(AideonGraphDegreeStats::PartitionId)
+                            .col(AideonGraphDegreeStats::EntityId)
+                            .col(AideonGraphDegreeStats::AsOfValidTime),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AideonGraphEdgeTypeCounts::Table)
+                    .if_not_exists()
+                    .col(id_col(backend, AideonGraphEdgeTypeCounts::PartitionId, false))
+                    .col(id_col(backend, AideonGraphEdgeTypeCounts::ScenarioId, true))
+                    .col(id_col(backend, AideonGraphEdgeTypeCounts::EdgeTypeId, true))
+                    .col(ColumnDef::new(AideonGraphEdgeTypeCounts::Count).integer().not_null())
+                    .col(
+                        ColumnDef::new(AideonGraphEdgeTypeCounts::ComputedAssertedAtHlc)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .primary_key(
+                        Index::create()
+                            .name("pk_aideon_graph_edge_type_counts")
+                            .col(AideonGraphEdgeTypeCounts::PartitionId)
+                            .col(AideonGraphEdgeTypeCounts::EdgeTypeId),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AideonIntegrityRuns::Table)
+                    .if_not_exists()
+                    .col(id_col(backend, AideonIntegrityRuns::PartitionId, false))
+                    .col(id_col(backend, AideonIntegrityRuns::RunId, false))
+                    .col(id_col(backend, AideonIntegrityRuns::ScenarioId, true))
+                    .col(ColumnDef::new(AideonIntegrityRuns::AsOfValidTime).big_integer())
+                    .col(ColumnDef::new(AideonIntegrityRuns::AsOfAssertedAtHlc).big_integer())
+                    .col(ColumnDef::new(AideonIntegrityRuns::ParamsJson).text().not_null())
+                    .col(
+                        ColumnDef::new(AideonIntegrityRuns::CreatedAssertedAtHlc)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .primary_key(
+                        Index::create()
+                            .name("pk_aideon_integrity_runs")
+                            .col(AideonIntegrityRuns::PartitionId)
+                            .col(AideonIntegrityRuns::RunId),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AideonIntegrityFindings::Table)
+                    .if_not_exists()
+                    .col(id_col(backend, AideonIntegrityFindings::PartitionId, false))
+                    .col(id_col(backend, AideonIntegrityFindings::RunId, false))
+                    .col(
+                        ColumnDef::new(AideonIntegrityFindings::FindingType)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AideonIntegrityFindings::Severity)
+                            .tiny_integer()
+                            .not_null(),
+                    )
+                    .col(id_col(backend, AideonIntegrityFindings::SubjectEntityId, true))
+                    .col(
+                        ColumnDef::new(AideonIntegrityFindings::DetailsJson)
+                            .text()
+                            .not_null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AideonTypeSchemaHead::Table)
+                    .if_not_exists()
+                    .col(id_col(backend, AideonTypeSchemaHead::PartitionId, false))
+                    .col(id_col(backend, AideonTypeSchemaHead::TypeId, false))
+                    .col(
+                        ColumnDef::new(AideonTypeSchemaHead::SchemaVersionHash)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AideonTypeSchemaHead::UpdatedAssertedAtHlc)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .primary_key(
+                        Index::create()
+                            .name("pk_aideon_type_schema_head")
+                            .col(AideonTypeSchemaHead::PartitionId)
+                            .col(AideonTypeSchemaHead::TypeId),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AideonIntegrityHead::Table)
+                    .if_not_exists()
+                    .col(id_col(backend, AideonIntegrityHead::PartitionId, false))
+                    .col(id_col(backend, AideonIntegrityHead::ScenarioId, true))
+                    .col(id_col(backend, AideonIntegrityHead::RunId, false))
+                    .col(
+                        ColumnDef::new(AideonIntegrityHead::UpdatedAssertedAtHlc)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .primary_key(
+                        Index::create()
+                            .name("pk_aideon_integrity_head")
+                            .col(AideonIntegrityHead::PartitionId)
+                            .col(AideonIntegrityHead::RunId),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AideonMetamodelVersions::Table)
+                    .if_not_exists()
+                    .col(id_col(backend, AideonMetamodelVersions::PartitionId, false))
+                    .col(
+                        ColumnDef::new(AideonMetamodelVersions::Version)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(AideonMetamodelVersions::Source).string())
+                    .col(id_col(backend, AideonMetamodelVersions::OpId, true))
+                    .col(
+                        ColumnDef::new(AideonMetamodelVersions::CreatedAssertedAtHlc)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .primary_key(
+                        Index::create()
+                            .name("pk_aideon_metamodel_versions")
+                            .col(AideonMetamodelVersions::PartitionId)
+                            .col(AideonMetamodelVersions::Version),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AideonValidationRules::Table)
+                    .if_not_exists()
+                    .col(id_col(backend, AideonValidationRules::PartitionId, false))
+                    .col(id_col(backend, AideonValidationRules::RuleId, false))
+                    .col(
+                        ColumnDef::new(AideonValidationRules::ScopeKind)
+                            .tiny_integer()
+                            .not_null(),
+                    )
+                    .col(id_col(backend, AideonValidationRules::ScopeId, true))
+                    .col(
+                        ColumnDef::new(AideonValidationRules::Severity)
+                            .tiny_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AideonValidationRules::TemplateKind)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AideonValidationRules::ParamsJson)
+                            .text()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AideonValidationRules::UpdatedAssertedAtHlc)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .primary_key(
+                        Index::create()
+                            .name("pk_aideon_validation_rules")
+                            .col(AideonValidationRules::PartitionId)
+                            .col(AideonValidationRules::RuleId),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(AideonComputedRules::Table)
+                    .if_not_exists()
+                    .col(id_col(backend, AideonComputedRules::PartitionId, false))
+                    .col(id_col(backend, AideonComputedRules::RuleId, false))
+                    .col(id_col(backend, AideonComputedRules::TargetTypeId, true))
+                    .col(id_col(backend, AideonComputedRules::OutputFieldId, true))
+                    .col(
+                        ColumnDef::new(AideonComputedRules::TemplateKind)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AideonComputedRules::ParamsJson)
+                            .text()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AideonComputedRules::UpdatedAssertedAtHlc)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .primary_key(
+                        Index::create()
+                            .name("pk_aideon_computed_rules")
+                            .col(AideonComputedRules::PartitionId)
+                            .col(AideonComputedRules::RuleId),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        create_computed_cache_table(
+            manager,
+            backend,
+            AideonComputedCacheStr::Table,
+            AideonComputedCacheStr::PartitionId,
+            AideonComputedCacheStr::EntityId,
+            AideonComputedCacheStr::FieldId,
+            AideonComputedCacheStr::ValidFrom,
+            AideonComputedCacheStr::ValidTo,
+            AideonComputedCacheStr::RuleVersionHash,
+            AideonComputedCacheStr::ComputedAssertedAtHlc,
+            ColumnDef::new(AideonComputedCacheStr::ValueText)
+                .text()
+                .not_null()
+                .to_owned(),
+            "pk_aideon_computed_cache_str",
+        )
+        .await?;
+
+        create_computed_cache_table(
+            manager,
+            backend,
+            AideonComputedCacheI64::Table,
+            AideonComputedCacheI64::PartitionId,
+            AideonComputedCacheI64::EntityId,
+            AideonComputedCacheI64::FieldId,
+            AideonComputedCacheI64::ValidFrom,
+            AideonComputedCacheI64::ValidTo,
+            AideonComputedCacheI64::RuleVersionHash,
+            AideonComputedCacheI64::ComputedAssertedAtHlc,
+            ColumnDef::new(AideonComputedCacheI64::ValueI64)
+                .big_integer()
+                .not_null()
+                .to_owned(),
+            "pk_aideon_computed_cache_i64",
+        )
+        .await?;
+
+        create_computed_cache_table(
+            manager,
+            backend,
+            AideonComputedCacheF64::Table,
+            AideonComputedCacheF64::PartitionId,
+            AideonComputedCacheF64::EntityId,
+            AideonComputedCacheF64::FieldId,
+            AideonComputedCacheF64::ValidFrom,
+            AideonComputedCacheF64::ValidTo,
+            AideonComputedCacheF64::RuleVersionHash,
+            AideonComputedCacheF64::ComputedAssertedAtHlc,
+            ColumnDef::new(AideonComputedCacheF64::ValueF64)
+                .double()
+                .not_null()
+                .to_owned(),
+            "pk_aideon_computed_cache_f64",
+        )
+        .await?;
+
+        create_computed_cache_table(
+            manager,
+            backend,
+            AideonComputedCacheBool::Table,
+            AideonComputedCacheBool::PartitionId,
+            AideonComputedCacheBool::EntityId,
+            AideonComputedCacheBool::FieldId,
+            AideonComputedCacheBool::ValidFrom,
+            AideonComputedCacheBool::ValidTo,
+            AideonComputedCacheBool::RuleVersionHash,
+            AideonComputedCacheBool::ComputedAssertedAtHlc,
+            ColumnDef::new(AideonComputedCacheBool::ValueBool)
+                .boolean()
+                .not_null()
+                .to_owned(),
+            "pk_aideon_computed_cache_bool",
+        )
+        .await?;
+
+        create_computed_cache_table(
+            manager,
+            backend,
+            AideonComputedCacheTime::Table,
+            AideonComputedCacheTime::PartitionId,
+            AideonComputedCacheTime::EntityId,
+            AideonComputedCacheTime::FieldId,
+            AideonComputedCacheTime::ValidFrom,
+            AideonComputedCacheTime::ValidTo,
+            AideonComputedCacheTime::RuleVersionHash,
+            AideonComputedCacheTime::ComputedAssertedAtHlc,
+            ColumnDef::new(AideonComputedCacheTime::ValueTime)
+                .big_integer()
+                .not_null()
+                .to_owned(),
+            "pk_aideon_computed_cache_time",
+        )
+        .await?;
+
+        create_computed_cache_table(
+            manager,
+            backend,
+            AideonComputedCacheRef::Table,
+            AideonComputedCacheRef::PartitionId,
+            AideonComputedCacheRef::EntityId,
+            AideonComputedCacheRef::FieldId,
+            AideonComputedCacheRef::ValidFrom,
+            AideonComputedCacheRef::ValidTo,
+            AideonComputedCacheRef::RuleVersionHash,
+            AideonComputedCacheRef::ComputedAssertedAtHlc,
+            id_col(backend, AideonComputedCacheRef::ValueRefEntityId, false),
+            "pk_aideon_computed_cache_ref",
+        )
+        .await?;
+
+        create_computed_cache_table(
+            manager,
+            backend,
+            AideonComputedCacheBlob::Table,
+            AideonComputedCacheBlob::PartitionId,
+            AideonComputedCacheBlob::EntityId,
+            AideonComputedCacheBlob::FieldId,
+            AideonComputedCacheBlob::ValidFrom,
+            AideonComputedCacheBlob::ValidTo,
+            AideonComputedCacheBlob::RuleVersionHash,
+            AideonComputedCacheBlob::ComputedAssertedAtHlc,
+            ColumnDef::new(AideonComputedCacheBlob::ValueBlob)
+                .blob()
+                .not_null()
+                .to_owned(),
+            "pk_aideon_computed_cache_blob",
+        )
+        .await?;
+
+        create_computed_cache_table(
+            manager,
+            backend,
+            AideonComputedCacheJson::Table,
+            AideonComputedCacheJson::PartitionId,
+            AideonComputedCacheJson::EntityId,
+            AideonComputedCacheJson::FieldId,
+            AideonComputedCacheJson::ValidFrom,
+            AideonComputedCacheJson::ValidTo,
+            AideonComputedCacheJson::RuleVersionHash,
+            AideonComputedCacheJson::ComputedAssertedAtHlc,
+            ColumnDef::new(AideonComputedCacheJson::ValueJson)
+                .text()
+                .not_null()
+                .to_owned(),
+            "pk_aideon_computed_cache_json",
+        )
+        .await?;
+
         create_index_field_table(
             manager,
             backend,
@@ -1232,6 +1753,60 @@ async fn create_index_field_table(
     Ok(())
 }
 
+async fn create_computed_cache_table(
+    manager: &SchemaManager<'_>,
+    backend: DatabaseBackend,
+    table: impl Iden + Clone,
+    partition_col: impl Iden + Clone,
+    entity_col: impl Iden + Clone,
+    field_col: impl Iden + Clone,
+    valid_from_col: impl Iden + Clone,
+    valid_to_col: impl Iden + Clone,
+    rule_hash_col: impl Iden + Clone,
+    computed_at_col: impl Iden + Clone,
+    value_col: ColumnDef,
+    pk_name: &str,
+) -> Result<(), DbErr> {
+    manager
+        .create_table(
+            Table::create()
+                .table(table)
+                .if_not_exists()
+                .col(id_col(backend, partition_col.clone(), false))
+                .col(id_col(backend, entity_col.clone(), false))
+                .col(id_col(backend, field_col.clone(), false))
+                .col(
+                    ColumnDef::new(valid_from_col.clone())
+                        .big_integer()
+                        .not_null(),
+                )
+                .col(ColumnDef::new(valid_to_col.clone()).big_integer())
+                .col(value_col)
+                .col(
+                    ColumnDef::new(rule_hash_col.clone())
+                        .string()
+                        .not_null(),
+                )
+                .col(
+                    ColumnDef::new(computed_at_col.clone())
+                        .big_integer()
+                        .not_null(),
+                )
+                .primary_key(
+                    Index::create()
+                        .name(pk_name)
+                        .col(partition_col)
+                        .col(entity_col)
+                        .col(field_col)
+                        .col(valid_from_col)
+                        .col(rule_hash_col),
+                )
+                .to_owned(),
+        )
+        .await?;
+    Ok(())
+}
+
 async fn create_indexes(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
     manager
         .create_index(
@@ -1251,6 +1826,16 @@ async fn create_indexes(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
                 .col(AideonOps::PartitionId)
                 .col(AideonOps::ActorId)
                 .col(AideonOps::AssertedAtHlc)
+                .to_owned(),
+        )
+        .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name("aideon_ops_partition_tx_idx")
+                .table(AideonOps::Table)
+                .col(AideonOps::PartitionId)
+                .col(AideonOps::TxId)
                 .to_owned(),
         )
         .await?;
@@ -1433,6 +2018,7 @@ async fn create_indexes(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
                 .name("aideon_graph_projection_src_idx")
                 .table(AideonGraphProjectionEdges::Table)
                 .col(AideonGraphProjectionEdges::PartitionId)
+                .col(AideonGraphProjectionEdges::ScenarioId)
                 .col(AideonGraphProjectionEdges::SrcEntityId)
                 .to_owned(),
         )
@@ -1443,6 +2029,7 @@ async fn create_indexes(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
                 .name("aideon_graph_projection_dst_idx")
                 .table(AideonGraphProjectionEdges::Table)
                 .col(AideonGraphProjectionEdges::PartitionId)
+                .col(AideonGraphProjectionEdges::ScenarioId)
                 .col(AideonGraphProjectionEdges::DstEntityId)
                 .to_owned(),
         )
@@ -1453,6 +2040,7 @@ async fn create_indexes(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
                 .name("aideon_graph_projection_type_idx")
                 .table(AideonGraphProjectionEdges::Table)
                 .col(AideonGraphProjectionEdges::PartitionId)
+                .col(AideonGraphProjectionEdges::ScenarioId)
                 .col(AideonGraphProjectionEdges::EdgeTypeId)
                 .col(AideonGraphProjectionEdges::SrcEntityId)
                 .to_owned(),
@@ -1499,11 +2087,155 @@ async fn create_indexes(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
     manager
         .create_index(
             Index::create()
+                .name("aideon_idx_field_str_lookup_idx")
+                .table(AideonIdxFieldStr::Table)
+                .col(AideonIdxFieldStr::PartitionId)
+                .col(AideonIdxFieldStr::ScenarioId)
+                .col(AideonIdxFieldStr::FieldId)
+                .col(AideonIdxFieldStr::ValueTextNorm)
+                .to_owned(),
+        )
+        .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name("aideon_idx_field_i64_lookup_idx")
+                .table(AideonIdxFieldI64::Table)
+                .col(AideonIdxFieldI64::PartitionId)
+                .col(AideonIdxFieldI64::ScenarioId)
+                .col(AideonIdxFieldI64::FieldId)
+                .col(AideonIdxFieldI64::ValueI64)
+                .to_owned(),
+        )
+        .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name("aideon_idx_field_f64_lookup_idx")
+                .table(AideonIdxFieldF64::Table)
+                .col(AideonIdxFieldF64::PartitionId)
+                .col(AideonIdxFieldF64::ScenarioId)
+                .col(AideonIdxFieldF64::FieldId)
+                .col(AideonIdxFieldF64::ValueF64)
+                .to_owned(),
+        )
+        .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name("aideon_idx_field_bool_lookup_idx")
+                .table(AideonIdxFieldBool::Table)
+                .col(AideonIdxFieldBool::PartitionId)
+                .col(AideonIdxFieldBool::ScenarioId)
+                .col(AideonIdxFieldBool::FieldId)
+                .col(AideonIdxFieldBool::ValueBool)
+                .to_owned(),
+        )
+        .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name("aideon_idx_field_time_lookup_idx")
+                .table(AideonIdxFieldTime::Table)
+                .col(AideonIdxFieldTime::PartitionId)
+                .col(AideonIdxFieldTime::ScenarioId)
+                .col(AideonIdxFieldTime::FieldId)
+                .col(AideonIdxFieldTime::ValueTime)
+                .to_owned(),
+        )
+        .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name("aideon_idx_field_ref_lookup_idx")
+                .table(AideonIdxFieldRef::Table)
+                .col(AideonIdxFieldRef::PartitionId)
+                .col(AideonIdxFieldRef::ScenarioId)
+                .col(AideonIdxFieldRef::FieldId)
+                .col(AideonIdxFieldRef::ValueRefEntityId)
+                .to_owned(),
+        )
+        .await?;
+
+    manager
+        .create_index(
+            Index::create()
                 .name("aideon_pagerank_scores_run_score_idx")
                 .table(AideonPagerankScores::Table)
                 .col(AideonPagerankScores::PartitionId)
                 .col(AideonPagerankScores::RunId)
                 .col(AideonPagerankScores::Score)
+                .to_owned(),
+        )
+        .await?;
+
+    manager
+        .create_index(
+            Index::create()
+                .name("aideon_graph_degree_out_idx")
+                .table(AideonGraphDegreeStats::Table)
+                .col(AideonGraphDegreeStats::PartitionId)
+                .col(AideonGraphDegreeStats::ScenarioId)
+                .col(AideonGraphDegreeStats::AsOfValidTime)
+                .col(AideonGraphDegreeStats::OutDegree)
+                .to_owned(),
+        )
+        .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name("aideon_graph_degree_in_idx")
+                .table(AideonGraphDegreeStats::Table)
+                .col(AideonGraphDegreeStats::PartitionId)
+                .col(AideonGraphDegreeStats::ScenarioId)
+                .col(AideonGraphDegreeStats::AsOfValidTime)
+                .col(AideonGraphDegreeStats::InDegree)
+                .to_owned(),
+        )
+        .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name("aideon_graph_edge_type_counts_idx")
+                .table(AideonGraphEdgeTypeCounts::Table)
+                .col(AideonGraphEdgeTypeCounts::PartitionId)
+                .col(AideonGraphEdgeTypeCounts::ScenarioId)
+                .col(AideonGraphEdgeTypeCounts::EdgeTypeId)
+                .to_owned(),
+        )
+        .await?;
+
+    manager
+        .create_index(
+            Index::create()
+                .name("aideon_jobs_pending_idx")
+                .table(AideonJobs::Table)
+                .col(AideonJobs::PartitionId)
+                .col(AideonJobs::Status)
+                .col(AideonJobs::Priority)
+                .col(AideonJobs::CreatedAssertedAtHlc)
+                .to_owned(),
+        )
+        .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name("aideon_jobs_lease_idx")
+                .table(AideonJobs::Table)
+                .col(AideonJobs::PartitionId)
+                .col(AideonJobs::LeaseExpiresAt)
+                .to_owned(),
+        )
+        .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name("aideon_jobs_dedupe_idx")
+                .table(AideonJobs::Table)
+                .col(AideonJobs::PartitionId)
+                .col(AideonJobs::JobType)
+                .col(AideonJobs::DedupeKey)
+                .col(AideonJobs::Status)
                 .to_owned(),
         )
         .await?;
@@ -1518,12 +2250,19 @@ async fn create_prop_indexes(
 ) -> Result<(), DbErr> {
     let from_name = format!("{prefix}_from_idx");
     let to_name = format!("{prefix}_to_idx");
+    let field_from_name = format!("{prefix}_field_from_idx");
+    let field_to_name = format!("{prefix}_field_to_idx");
+    let table_from = table.clone();
+    let table_to = table.clone();
+    let table_field_from = table.clone();
+    let table_field_to = table;
     manager
         .create_index(
             Index::create()
                 .name(&from_name)
-                .table(table.clone())
+                .table(table_from)
                 .col(AideonPropFactStr::PartitionId)
+                .col(AideonPropFactStr::ScenarioId)
                 .col(AideonPropFactStr::EntityId)
                 .col(AideonPropFactStr::FieldId)
                 .col(AideonPropFactStr::ValidFrom)
@@ -1534,9 +2273,34 @@ async fn create_prop_indexes(
         .create_index(
             Index::create()
                 .name(&to_name)
-                .table(table)
+                .table(table_to)
                 .col(AideonPropFactStr::PartitionId)
+                .col(AideonPropFactStr::ScenarioId)
                 .col(AideonPropFactStr::EntityId)
+                .col(AideonPropFactStr::FieldId)
+                .col(AideonPropFactStr::ValidTo)
+                .to_owned(),
+        )
+        .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name(&field_from_name)
+                .table(table_field_from)
+                .col(AideonPropFactStr::PartitionId)
+                .col(AideonPropFactStr::ScenarioId)
+                .col(AideonPropFactStr::FieldId)
+                .col(AideonPropFactStr::ValidFrom)
+                .to_owned(),
+        )
+        .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name(&field_to_name)
+                .table(table_field_to)
+                .col(AideonPropFactStr::PartitionId)
+                .col(AideonPropFactStr::ScenarioId)
                 .col(AideonPropFactStr::FieldId)
                 .col(AideonPropFactStr::ValidTo)
                 .to_owned(),
@@ -1556,6 +2320,7 @@ async fn create_index_table_index(
                 .name(name)
                 .table(table)
                 .col(AideonIdxFieldStr::PartitionId)
+                .col(AideonIdxFieldStr::ScenarioId)
                 .col(AideonIdxFieldStr::FieldId)
                 .col(AideonIdxFieldStr::EntityId)
                 .to_owned(),

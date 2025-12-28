@@ -6,7 +6,7 @@ import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
-  Sidebar,
+  SidebarInset,
   SidebarProvider,
 } from 'design-system/desktop-shell';
 import { cn } from 'design-system/lib/utilities';
@@ -59,6 +59,16 @@ export function AideonShellLayout({
       return;
     }
   }, []);
+
+  const layoutDefaults = useMemo(() => {
+    if (!storedLayout || storedLayout.length === 0) {
+      return { content: 60, inspector: 20 };
+    }
+    if (storedLayout.length >= 3) {
+      return { content: storedLayout[1], inspector: storedLayout[2] };
+    }
+    return { content: storedLayout[0], inspector: storedLayout[1] ?? 20 };
+  }, [storedLayout]);
 
   const inspectorCollapsedFromStorage = useMemo<boolean>(() => {
     const storage = (globalThis as unknown as { localStorage?: Storage }).localStorage;
@@ -114,92 +124,78 @@ export function AideonShellLayout({
   return (
     <SidebarProvider>
       <AideonShellControlsProvider value={{ inspectorCollapsed, toggleInspector }}>
-        <div className={cn('flex min-h-screen flex-col bg-background text-foreground', className)}>
-          {toolbar ? (
-            <header
-              data-tauri-drag-region
-              className="border-b border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/60"
-            >
-              {toolbar}
-            </header>
-          ) : undefined}
-          <ResizablePanelGroup
-            direction="horizontal"
-            className="min-h-0 flex-1"
-            onLayout={(sizes) => {
-              try {
-                const storage = (globalThis as unknown as { localStorage?: Storage }).localStorage;
-                if (storage && typeof storage.setItem === 'function') {
-                  storage.setItem('aideon-shell-panels', JSON.stringify(sizes));
+        <div className={cn('flex min-h-screen bg-background text-foreground', className)}>
+          {navigation}
+          <SidebarInset>
+            {toolbar ? (
+              <header
+                data-tauri-drag-region
+                className="bg-background sticky top-0 flex shrink-0 items-center gap-2 border-b border-border p-4"
+              >
+                {toolbar}
+              </header>
+            ) : undefined}
+            <ResizablePanelGroup
+              direction="horizontal"
+              className="min-h-0 flex-1"
+              onLayout={(sizes) => {
+                try {
+                  const storage = (globalThis as unknown as { localStorage?: Storage })
+                    .localStorage;
+                  if (storage && typeof storage.setItem === 'function') {
+                    storage.setItem('aideon-shell-panels', JSON.stringify(sizes));
+                  }
+                } catch {
+                  /* ignore */
                 }
-              } catch {
-                /* ignore */
-              }
-            }}
-          >
-            <ResizablePanel
-              defaultSize={storedLayout?.[0] ?? 20}
-              minSize={14}
-              className="min-w-[220px] max-w-[420px]"
-              data-testid="aideon-shell-panel-navigation"
+              }}
             >
-              <Sidebar
-                collapsible="icon"
-                className="h-full border-r border-border bg-sidebar text-sidebar-foreground shadow-none"
+              <ResizablePanel
+                defaultSize={layoutDefaults.content}
+                minSize={40}
+                className="min-w-[360px]"
+                data-testid="aideon-shell-panel-content"
               >
-                <ScrollArea className="h-full" data-testid="aideon-shell-navigation">
-                  {navigation}
+                <ScrollArea className="h-full" data-testid="aideon-shell-content">
+                  <div className="min-h-full px-6 pb-10 pt-6">{content}</div>
                 </ScrollArea>
-              </Sidebar>
-            </ResizablePanel>
+              </ResizablePanel>
 
-            <ResizableHandle withHandle />
+              <ResizableHandle withHandle />
 
-            <ResizablePanel
-              defaultSize={storedLayout?.[1] ?? 60}
-              minSize={40}
-              className="min-w-[360px]"
-              data-testid="aideon-shell-panel-content"
-            >
-              <ScrollArea className="h-full" data-testid="aideon-shell-content">
-                <div className="min-h-full px-6 pb-10 pt-6">{content}</div>
-              </ScrollArea>
-            </ResizablePanel>
-
-            <ResizableHandle withHandle />
-
-            <ResizablePanel
-              ref={inspectorPanelReference}
-              defaultSize={storedLayout?.[2] ?? 20}
-              minSize={16}
-              collapsible
-              collapsedSize={0}
-              onCollapse={() => {
-                setInspectorCollapsed(true);
-                persistInspectorCollapsed(true);
-              }}
-              onExpand={() => {
-                setInspectorCollapsed(false);
-                persistInspectorCollapsed(false);
-              }}
-              className="min-w-[260px] max-w-[520px]"
-              data-testid="aideon-shell-panel-inspector"
-            >
-              <ScrollArea
-                className="h-full border-l border-border bg-sidebar text-sidebar-foreground shadow-none"
-                data-testid="aideon-shell-inspector"
+              <ResizablePanel
+                ref={inspectorPanelReference}
+                defaultSize={layoutDefaults.inspector}
+                minSize={16}
+                collapsible
+                collapsedSize={0}
+                onCollapse={() => {
+                  setInspectorCollapsed(true);
+                  persistInspectorCollapsed(true);
+                }}
+                onExpand={() => {
+                  setInspectorCollapsed(false);
+                  persistInspectorCollapsed(false);
+                }}
+                className="min-w-[260px] max-w-[520px]"
+                data-testid="aideon-shell-panel-inspector"
               >
-                <div
-                  className={cn(
-                    'p-4',
-                    inspectorCollapsed ? 'pointer-events-none opacity-0' : undefined,
-                  )}
+                <ScrollArea
+                  className="h-full border-l border-border bg-sidebar text-sidebar-foreground shadow-none"
+                  data-testid="aideon-shell-inspector"
                 >
-                  {inspector}
-                </div>
-              </ScrollArea>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+                  <div
+                    className={cn(
+                      'p-4',
+                      inspectorCollapsed ? 'pointer-events-none opacity-0' : undefined,
+                    )}
+                  >
+                    {inspector}
+                  </div>
+                </ScrollArea>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </SidebarInset>
         </div>
       </AideonShellControlsProvider>
     </SidebarProvider>

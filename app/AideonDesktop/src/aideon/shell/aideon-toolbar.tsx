@@ -23,7 +23,6 @@ import {
   CommandIcon,
   LaptopIcon,
   MoonIcon,
-  PanelLeftIcon,
   PanelRightClose,
   PanelRightOpen,
   SunIcon,
@@ -31,7 +30,7 @@ import {
 import { useTheme } from 'next-themes';
 import { useAideonShellControls } from './shell-controls';
 
-import { useSidebar } from 'design-system/desktop-shell';
+import { SidebarTrigger, useSidebar } from 'design-system/desktop-shell';
 import { AideonCommandPalette, type AideonCommandItem } from './command-palette';
 import { KeyboardShortcutsDialog } from './keyboard-shortcuts-dialog';
 
@@ -403,20 +402,7 @@ export function AideonToolbar({
     <div className={cn('flex flex-col gap-2', className)} {...properties}>
       <Toolbar className="h-12 w-full rounded-2xl px-3 py-2">
         <ToolbarSection className="min-w-0 gap-2">
-          {sidebar ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              aria-label="Toggle navigation"
-              onClick={() => {
-                sidebar.toggleSidebar();
-              }}
-            >
-              <PanelLeftIcon className="size-4" />
-            </Button>
-          ) : undefined}
+          {sidebar ? <SidebarTrigger className="size-7" /> : undefined}
           {shell ? (
             <Button
               type="button"

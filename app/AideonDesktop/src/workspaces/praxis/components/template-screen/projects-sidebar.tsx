@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react';
 
 import { Badge } from 'design-system/components/ui/badge';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from 'design-system/components/ui/collapsible';
 import { Skeleton } from 'design-system/components/ui/skeleton';
 import {
+  Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -12,13 +19,34 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
+  SidebarMenuSub,
+  SidebarRail,
+  useSidebar,
 } from 'design-system/desktop-shell';
 
 import { Button } from 'design-system/components/ui/button';
-import { LayersIcon } from 'lucide-react';
+import {
+  ChevronRight,
+  File,
+  Folder,
+  LayersIcon,
+  LayoutPanelTop,
+  Network,
+  Settings2,
+} from 'lucide-react';
 import type { ProjectSummary } from 'praxis/domain-data';
 import type { ScenarioSummary } from 'praxis/praxis-api';
+
+const NAV_SECTIONS = [
+  { id: 'overview', label: 'Overview', icon: LayoutPanelTop },
+  { id: 'scenarios', label: 'Scenarios', icon: LayersIcon },
+  { id: 'canvas', label: 'Canvases', icon: Network },
+  { id: 'settings', label: 'Settings', icon: Settings2 },
+] as const;
+
+type NavigationSectionId = (typeof NAV_SECTIONS)[number]['id'];
+
+type TreeItem = string | TreeItem[];
 
 /**
  * Render menu items for a single project and its scenarios.
@@ -26,13 +54,15 @@ import type { ScenarioSummary } from 'praxis/praxis-api';
  * @param parameters.project
  * @param parameters.activeScenarioId
  * @param parameters.onSelectScenario
+ * @param parameters.onRevealSidebar
  */
 function renderProjectScenarioMenuItems(parameters: {
   project: ProjectSummary;
   activeScenarioId?: string;
   onSelectScenario?: (scenarioId: string) => void;
+  onRevealSidebar?: () => void;
 }) {
-  const { project, activeScenarioId, onSelectScenario } = parameters;
+  const { project, activeScenarioId, onSelectScenario, onRevealSidebar } = parameters;
   const headerId = `project-${project.id}`;
 
   if (project.scenarios.length === 0) {
@@ -63,7 +93,10 @@ function renderProjectScenarioMenuItems(parameters: {
           <SidebarMenuButton
             size="sm"
             className="flex flex-col items-start gap-1 text-left data-[state=active]:bg-sidebar-accent data-[state=active]:text-sidebar-accent-foreground"
-            onClick={() => onSelectScenario?.(scenario.id)}
+            onClick={() => {
+              onSelectScenario?.(scenario.id);
+              onRevealSidebar?.();
+            }}
             data-state={active ? 'active' : undefined}
           >
             <div className="flex w-full items-center justify-between gap-2">
@@ -91,6 +124,7 @@ function renderProjectScenarioMenuItems(parameters: {
  * @param parameters.activeScenarioId
  * @param parameters.onSelectScenario
  * @param parameters.onRetry
+ * @param parameters.onRevealSidebar
  */
 function renderProjectsSidebarMenu(parameters: {
   loading: boolean;
@@ -101,6 +135,7 @@ function renderProjectsSidebarMenu(parameters: {
   activeScenarioId?: string;
   onSelectScenario?: (scenarioId: string) => void;
   onRetry?: () => void;
+  onRevealSidebar?: () => void;
 }) {
   const {
     loading,
@@ -111,6 +146,7 @@ function renderProjectsSidebarMenu(parameters: {
     activeScenarioId,
     onSelectScenario,
     onRetry,
+    onRevealSidebar,
   } = parameters;
 
   if (loading) {
@@ -170,7 +206,12 @@ function renderProjectsSidebarMenu(parameters: {
   return (
     <>
       {filteredProjects.flatMap((project) =>
-        renderProjectScenarioMenuItems({ project, activeScenarioId, onSelectScenario }),
+        renderProjectScenarioMenuItems({
+          project,
+          activeScenarioId,
+          onSelectScenario,
+          onRevealSidebar,
+        }),
       )}
     </>
   );
@@ -207,6 +248,7 @@ export function ProjectsSidebar({
   onSelectScenario,
   onRetry,
 }: ProjectsSidebarProperties) {
+  const { setOpen } = useSidebar();
   const projectList = useMemo(() => {
     return projects?.length ? projects : [{ id: 'default', name: 'Projects', scenarios }];
   }, [projects, scenarios]);
@@ -229,52 +271,182 @@ export function ProjectsSidebar({
   }, [projectList, query]);
 
   const scenarioCount = projectList.reduce((sum, project) => sum + project.scenarios.length, 0);
+  const treeItems = useMemo(() => buildScenarioTree(projectList), [projectList]);
+  const [activeSection, setActiveSection] = useState<NavigationSectionId>('scenarios');
+  const activeSectionLabel =
+    NAV_SECTIONS.find((section) => section.id === activeSection)?.label ?? 'Scenarios';
 
   return (
-    <>
-      <SidebarHeader className="space-y-3 p-3">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <LayersIcon className="h-4 w-4" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium leading-tight">Praxis</p>
-            <p className="truncate text-xs text-muted-foreground">Workspace scenarios</p>
+    <Sidebar
+      variant="inset"
+      collapsible="icon"
+      className="overflow-hidden *:data-[sidebar=sidebar]:flex-row"
+    >
+      <Sidebar collapsible="none" className="w-[calc(var(--sidebar-width-icon)+1px)]! border-r">
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" className="md:h-8 md:p-0">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <LayersIcon className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">Praxis</span>
+                  <span className="truncate text-xs">Workspace</span>
+                </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent className="px-1.5 md:px-0">
+              <SidebarMenu>
+                {NAV_SECTIONS.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      tooltip={{ children: item.label, hidden: false }}
+                      isActive={activeSection === item.id}
+                      onClick={() => {
+                        setActiveSection(item.id);
+                        setOpen(true);
+                      }}
+                      className="px-2.5 md:px-2"
+                    >
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton>
+                <Settings2 />
+                <span>Workspace settings</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+
+      <Sidebar collapsible="none" className="hidden flex-1 md:flex">
+        <SidebarHeader className="gap-3.5 border-b p-4">
+          <div className="flex w-full items-center justify-between">
+            <div className="text-base font-medium text-foreground">{activeSectionLabel}</div>
+            <Badge variant="secondary" className="text-xs">
+              {scenarioCount.toString()} scenarios
+            </Badge>
           </div>
-        </div>
-        <SidebarInput
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-          }}
-          placeholder={`Filter ${scenarioCount.toString()} scenarios…`}
-          aria-label="Filter scenarios"
-          className="bg-background"
-        />
-        <SidebarSeparator className="my-3" />
-      </SidebarHeader>
-      <SidebarContent className="p-3 pt-0">
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-            Projects
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {renderProjectsSidebarMenu({
-                loading,
-                errorMessage,
-                projectList,
-                filteredProjects,
-                query,
-                activeScenarioId,
-                onSelectScenario,
-                onRetry,
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-    </>
+          <SidebarInput
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+            }}
+            placeholder={`Filter ${scenarioCount.toString()} scenarios…`}
+            aria-label="Filter scenarios"
+            className="bg-background"
+          />
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              Projects
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {renderProjectsSidebarMenu({
+                  loading,
+                  errorMessage,
+                  projectList,
+                  filteredProjects,
+                  query,
+                  activeScenarioId,
+                  onSelectScenario,
+                  onRetry,
+                  onRevealSidebar: () => {
+                    setActiveSection('scenarios');
+                    setOpen(true);
+                  },
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              Files
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {treeItems.map((item, index) => (
+                  <Tree key={`${activeSection}-${index.toString()}`} item={item} />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarRail />
+      </Sidebar>
+    </Sidebar>
+  );
+}
+
+/**
+ * Build a simple tree structure from projects and scenarios.
+ * @param projectList - Projects with scenarios.
+ * @returns Tree data for the file-style navigation.
+ */
+function buildScenarioTree(projectList: ProjectSummary[]): TreeItem[] {
+  return projectList.map((project) => [
+    project.name,
+    ...project.scenarios.map((scenario) => scenario.name),
+  ]);
+}
+
+/**
+ * Render a collapsible file tree for scenarios.
+ * @param root0
+ * @param root0.item
+ */
+function Tree({ item }: { readonly item: TreeItem }) {
+  const [nameValue, ...items] = Array.isArray(item) ? item : [item];
+  const name = String(nameValue);
+
+  if (items.length === 0) {
+    return (
+      <SidebarMenuButton>
+        <File />
+        <span>{name}</span>
+      </SidebarMenuButton>
+    );
+  }
+
+  return (
+    <SidebarMenuItem>
+      <Collapsible
+        className="group/collapsible [&[data-state=open]>button>svg:first-child]:rotate-90"
+        defaultOpen={name === 'Projects' || name === 'Default'}
+      >
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton>
+            <ChevronRight className="transition-transform" />
+            <Folder />
+            <span>{name}</span>
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {items.map((subItem, index) => (
+              <Tree key={`${name}-${index.toString()}`} item={subItem} />
+            ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </Collapsible>
+    </SidebarMenuItem>
   );
 }
 

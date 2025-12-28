@@ -4,7 +4,7 @@ import useEmblaCarousel, {
 } from "embla-carousel-react"
 import { ArrowLeft, ArrowRight } from "lucide-react"
 
-import { cn } from "design-system/lib/utilities"
+import { cn } from "design-system/lib/utils"
 import { Button } from "design-system/components/ui/button"
 
 type CarouselApi = UseEmblaCarouselType[1]
@@ -12,7 +12,7 @@ type UseCarouselParameters = Parameters<typeof useEmblaCarousel>
 type CarouselOptions = UseCarouselParameters[0]
 type CarouselPlugin = UseCarouselParameters[1]
 
-interface CarouselProps {
+type CarouselProps = {
   opts?: CarouselOptions
   plugins?: CarouselPlugin
   orientation?: "horizontal" | "vertical"
@@ -102,40 +102,30 @@ function Carousel({
     }
   }, [api, onSelect])
 
-  const contextValue = React.useMemo(
-    () => ({
-      carouselRef,
-      api: api,
-      opts,
-      orientation:
-        orientation || (opts?.axis === "y" ? "vertical" : "horizontal"),
-      scrollPrev,
-      scrollNext,
-      canScrollPrev,
-      canScrollNext,
-    }),
-    [
-      api,
-      canScrollNext,
-      canScrollPrev,
-      opts,
-      orientation,
-      scrollNext,
-      scrollPrev,
-    ]
-  )
-
   return (
-    <CarouselContext.Provider value={contextValue}>
-      <section
+    <CarouselContext.Provider
+      value={{
+        carouselRef,
+        api: api,
+        opts,
+        orientation:
+          orientation || (opts?.axis === "y" ? "vertical" : "horizontal"),
+        scrollPrev,
+        scrollNext,
+        canScrollPrev,
+        canScrollNext,
+      }}
+    >
+      <div
         onKeyDownCapture={handleKeyDown}
         className={cn("relative", className)}
-        aria-label="Carousel"
+        role="region"
+        aria-roledescription="carousel"
         data-slot="carousel"
         {...props}
       >
         {children}
-      </section>
+      </div>
     </CarouselContext.Provider>
   )
 }
@@ -166,6 +156,8 @@ function CarouselItem({ className, ...props }: React.ComponentProps<"div">) {
 
   return (
     <div
+      role="group"
+      aria-roledescription="slide"
       data-slot="carousel-item"
       className={cn(
         "min-w-0 shrink-0 grow-0 basis-full",

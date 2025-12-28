@@ -14,6 +14,15 @@ vi.mock('design-system/desktop-shell', async () => {
     MenubarItem: menubar.MenubarItem,
     MenubarMenu: menubar.MenubarMenu,
     MenubarTrigger: menubar.MenubarTrigger,
+    SidebarTrigger: ({ className }: { readonly className?: string }) => (
+      <button
+        type="button"
+        className={className}
+        onClick={() => {
+          toggleSidebar();
+        }}
+      />
+    ),
     useSidebar: () => ({ toggleSidebar }),
   };
 });

@@ -13,6 +13,7 @@ vi.mock('design-system/components/ui/scroll-area', () => ({
 vi.mock('design-system/desktop-shell', () => ({
   SidebarProvider: ({ children }: PropsWithChildren) => <div>{children}</div>,
   Sidebar: ({ children }: PropsWithChildren) => <div>{children}</div>,
+  SidebarInset: ({ children }: PropsWithChildren) => <div>{children}</div>,
   ResizableHandle: () => <div />,
   ResizablePanel: ({ children }: PropsWithChildren) => <div>{children}</div>,
   ResizablePanelGroup: ({

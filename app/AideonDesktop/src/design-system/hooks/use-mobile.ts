@@ -3,23 +3,25 @@ import * as React from 'react';
 const MOBILE_BREAKPOINT = 768;
 
 /**
- * Detect whether the current viewport width is below the mobile breakpoint.
- * @returns Boolean indicating mobile viewport.
+ * Track whether the viewport is currently within the mobile breakpoint.
+ * @returns True when the viewport is below the breakpoint.
  */
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>();
+  const [isMobile, setIsMobile] = React.useState(false);
 
   React.useEffect(() => {
-    const mql = globalThis.matchMedia(`(max-width: ${String(MOBILE_BREAKPOINT - 1)}px)`);
+    const maxWidth = MOBILE_BREAKPOINT - 1;
+    const query = `(max-width: ${maxWidth.toString()}px)`;
+    const mql = globalThis.matchMedia(query);
     const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+      setIsMobile(globalThis.innerWidth < MOBILE_BREAKPOINT);
     };
     mql.addEventListener('change', onChange);
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    setIsMobile(globalThis.innerWidth < MOBILE_BREAKPOINT);
     return () => {
       mql.removeEventListener('change', onChange);
     };
   }, []);
 
-  return !!isMobile;
+  return isMobile;
 }

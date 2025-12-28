@@ -47,6 +47,8 @@ Branding:
 - Avoid hard-coded color utility classes in product code. Use semantic utilities
   (`bg-primary`, `text-foreground`, `border-border`, `bg-sidebar`, etc.) so themes can be swapped
   without refactors.
+- Maintain the background/foreground pairing convention (`bg-primary` + `text-primary-foreground`,
+  `bg-card` + `text-card-foreground`) to align with shadcn styling expectations.
 
 Tailwind v4 mapping:
 
@@ -70,11 +72,25 @@ Tailwind v4 mapping:
 For application-level layout, use only the proxied shadcn primitives exposed by the design system:
 
 - `Sidebar` (navigation + tree container).
-- `Resizable` (pane splitting between sidebar, main workspace, properties panel).
+- `SidebarInset` + `SidebarTrigger` (main content area + sidebar toggle).
+- `Resizable` (pane splitting between main workspace + properties panel).
 - `Menubar` or `NavigationMenu` + `Toolbar` (top bar composition).
 - `ScrollArea`, `Card`, `Form` for properties panel content.
 
 No other primitives should be used for the app shell; keep layout composition consistent across modules.
+
+### Shadcn-aligned composition
+
+- Follow the shadcn Sidebar layout: `SidebarProvider` wraps the shell; the workspace `Sidebar` sits
+  as a sibling of `SidebarInset`; `SidebarTrigger` lives in the main header.
+- Desktop shell headers mirror the shadcn sidebar blocks: trigger + vertical separator, with the
+  toolbar slot occupying the remaining header space. Keep the collapsible-height transition on
+  the header (`group-has-data-[collapsible=icon]/sidebar-wrapper:h-12`) to match sidebar block
+  behaviour.
+- Avoid editing generated sidebar component code. Instead, align layout and structure to the
+  documented slots and data attributes, and keep custom styling in app-level blocks.
+- When refreshing components, use `pnpm run components:refresh` to pull upstream shadcn defaults
+  without local forks, then adjust usage in app/layout code as needed.
 
 ### Wrapped components
 

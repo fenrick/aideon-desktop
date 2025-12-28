@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from 'design-system/component
 import { toast } from 'sonner';
 import { TimeControlPanel } from '../blocks/time-control-panel';
 import { TemplateToolbar } from './template-toolbar';
+import { WorkspaceActions } from './workspace-actions';
 
 export interface PraxisWorkspaceToolbarProperties {
   readonly scenarioName?: string;
@@ -129,6 +130,8 @@ export function PraxisWorkspaceToolbar({
               <TimeControlPanel state={temporalState} actions={temporalActions} />
             </PopoverContent>
           </Popover>
+
+          <WorkspaceActions />
 
           <TemplateToolbar
             scenarioName={scenarioName}

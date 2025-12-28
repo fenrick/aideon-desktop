@@ -100,7 +100,7 @@ export function NodeSearchInternal({
             <CommandGroup heading="Nodes">
               {searchResults.map((node) => {
                 return (
-                  <CommandItem key={node.id} onSelect={() => { onSelect(node); }}>
+                  <CommandItem key={node.id} onSelect={() => onSelect(node)}>
                     <span>{node.data.label as string}</span>
                   </CommandItem>
                 );

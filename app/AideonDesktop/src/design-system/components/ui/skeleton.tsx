@@ -1,4 +1,4 @@
-import { cn } from "design-system/lib/utilities"
+import { cn } from "design-system/lib/utils"
 
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (

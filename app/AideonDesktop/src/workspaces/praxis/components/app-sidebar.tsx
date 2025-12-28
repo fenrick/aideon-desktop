@@ -1,6 +1,7 @@
 import { Layers, LayoutPanelTop, Network, NotebookTabs, Settings2 } from 'lucide-react';
 
 import {
+  Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
@@ -43,7 +44,7 @@ export function AppSidebar({ scenarios, loading }: AppSidebarProperties) {
     : 'Add a scenario to begin';
 
   return (
-    <>
+    <Sidebar collapsible="icon" variant="inset" className="h-full">
       <SidebarHeader className="gap-3 px-4 py-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-accent/60 text-lg font-semibold text-sidebar-accent-foreground">
@@ -102,7 +103,7 @@ export function AppSidebar({ scenarios, loading }: AppSidebarProperties) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-    </>
+    </Sidebar>
   );
 }
 

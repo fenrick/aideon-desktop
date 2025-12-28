@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
 export interface DesktopShellSlots {
-  tree: ReactNode;
-  toolbar: ReactNode;
-  main: ReactNode;
-  properties: ReactNode;
+  readonly tree: ReactNode;
+  readonly toolbar: ReactNode;
+  readonly main: ReactNode;
+  readonly properties: ReactNode;
 }

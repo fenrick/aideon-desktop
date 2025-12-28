@@ -36,7 +36,11 @@ describe('DesktopShell', () => {
     render(
       <DesktopShell
         toolbar={<div>Toolbar</div>}
-        tree={<div>Tree</div>}
+        tree={
+          <Sidebar collapsible="icon" className="h-full">
+            <div>Tree</div>
+          </Sidebar>
+        }
         main={<div>Main</div>}
         properties={<div>Properties</div>}
       />,

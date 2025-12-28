@@ -1,19 +1,8 @@
 import * as React from "react"
 
-import { cn } from "design-system/lib/utilities"
+import { cn } from "design-system/lib/utils"
 
-function Table({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<"table">) {
-  const childArray = React.Children.toArray(children)
-  const hasHeader = childArray.some((child) => {
-    if (!React.isValidElement(child)) return false
-    const slot = (child as React.ReactElement<{["data-slot"]?: string}>).props?.["data-slot"]
-    return child.type === "thead" || slot === "table-header"
-  })
-
+function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
@@ -23,16 +12,7 @@ function Table({
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}
         {...props}
-      >
-        {!hasHeader && (
-          <thead className="sr-only">
-            <tr>
-              <th scope="col">Label</th>
-            </tr>
-          </thead>
-        )}
-        {children}
-      </table>
+      />
     </div>
   )
 }

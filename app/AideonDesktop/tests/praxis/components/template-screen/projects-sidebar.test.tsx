@@ -38,9 +38,13 @@ describe('ProjectsSidebar', () => {
       </SidebarProvider>,
     );
 
-    const featureButton = screen.getByText('Feature').closest('button');
-    expect(featureButton?.dataset.state).toBe('active');
-    featureButton?.click();
+    const featureButtons = screen
+      .getAllByText('Feature')
+      .map((node) => node.closest('button'))
+      .filter(Boolean);
+    const activeFeatureButton = featureButtons.find((button) => button?.dataset.state === 'active');
+    expect(activeFeatureButton).toBeDefined();
+    activeFeatureButton?.click();
     expect(onSelect).toHaveBeenCalledWith('s2');
   });
 

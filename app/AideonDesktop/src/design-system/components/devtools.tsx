@@ -4,7 +4,6 @@ import {
   useEffect,
   useState,
   useCallback,
-  useRef,
   type Dispatch,
   type SetStateAction,
 } from "react";
@@ -33,57 +32,47 @@ export const ViewportLogger = () => {
   return <div>{viewport}</div>;
 };
 
-interface ChangeLoggerProps {
+type ChangeLoggerProps = {
   color?: string;
   limit?: number;
-}
+};
 
-interface ChangeInfoProps {
+type ChangeInfoProps = {
   change: NodeChange;
-}
+};
 
 const ChangeInfo = ({ change }: ChangeInfoProps) => {
   const id = "id" in change ? change.id : "-";
   const { type } = change;
-  let body: React.ReactNode = null;
-
-  if (type === "add") {
-    body = JSON.stringify(change.item, null, 2);
-  } else if (type === "dimensions") {
-    body = `dimensions: ${change.dimensions?.width} × ${change.dimensions?.height}`;
-  } else if (type === "position") {
-    body = `position: ${change.position?.x.toFixed(1)}, ${change.position?.y.toFixed(1)}`;
-  } else if (type === "remove") {
-    body = "remove";
-  } else if (type === "select") {
-    body = change.selected ? "select" : "unselect";
-  }
 
   return (
     <div className="mb-3">
       <div>node id: {id}</div>
-      <div>{body}</div>
+      <div>
+        {type === "add" ? JSON.stringify(change.item, null, 2) : null}
+        {type === "dimensions"
+          ? `dimensions: ${change.dimensions?.width} × ${change.dimensions?.height}`
+          : null}
+        {type === "position"
+          ? `position: ${change.position?.x.toFixed(1)}, ${change.position?.y.toFixed(1)}`
+          : null}
+        {type === "remove" ? "remove" : null}
+        {type === "select" ? (change.selected ? "select" : "unselect") : null}
+      </div>
     </div>
   );
 };
 
-const NoChanges = () => <div>No Changes Triggered</div>;
-
 export const ChangeLogger = ({ limit = 20 }: ChangeLoggerProps) => {
-  const [changes, setChanges] = useState<Array<{ key: string; change: NodeChange }>>([]);
-  const counter = useRef(0);
+  const [changes, setChanges] = useState<NodeChange[]>([]);
   const store = useStoreApi();
 
   // Memoize the callback for handling node changes
   const handleNodeChanges: OnNodesChange = useCallback(
     (newChanges: NodeChange[]) => {
-      setChanges((prevChanges) => {
-        const stamped = newChanges.map((change) => ({
-          key: `${change.type}-${change["id"] ?? ""}-${counter.current++}`,
-          change,
-        }));
-        return [...stamped, ...prevChanges].slice(0, limit);
-      });
+      setChanges((prevChanges) =>
+        [...newChanges, ...prevChanges].slice(0, limit),
+      );
     },
     [limit],
   );
@@ -91,16 +80,18 @@ export const ChangeLogger = ({ limit = 20 }: ChangeLoggerProps) => {
   useEffect(() => {
     store.setState({ onNodesChange: handleNodeChanges });
 
-    return () => { store.setState({ onNodesChange: undefined }); };
+    return () => store.setState({ onNodesChange: undefined });
   }, [handleNodeChanges, store]);
+
+  const NoChanges = () => <div>No Changes Triggered</div>;
 
   return (
     <>
       {changes.length === 0 ? (
         <NoChanges />
       ) : (
-        changes.map(({ key, change }) => (
-          <ChangeInfo key={key} change={change} />
+        changes.map((change, index) => (
+          <ChangeInfo key={index} change={change} />
         ))
       )}
     </>
@@ -141,7 +132,7 @@ export const NodeInspector = () => {
   );
 };
 
-interface NodeInfoProps {
+type NodeInfoProps = {
   id: string;
   type: string;
   selected: boolean;
@@ -150,7 +141,7 @@ interface NodeInfoProps {
   width?: number;
   height?: number;
   data: any;
-}
+};
 
 const NodeInfo = ({
   id,
@@ -188,17 +179,17 @@ const NodeInfo = ({
   );
 };
 
-interface Tool {
+type Tool = {
   active: boolean;
   setActive: Dispatch<SetStateAction<boolean>>;
   label: string;
   value: string;
-}
+};
 
-interface DevToolsToggleProps {
+type DevToolsToggleProps = {
   tools: Tool[];
   position: PanelPosition;
-}
+};
 
 const DevToolsToggle = ({ tools, position }: DevToolsToggleProps) => {
   return (
@@ -208,7 +199,7 @@ const DevToolsToggle = ({ tools, position }: DevToolsToggleProps) => {
           <ToggleGroupItem
             key={value}
             value={value}
-            onClick={() => { setActive((prev) => !prev); }}
+            onClick={() => setActive((prev) => !prev)}
             aria-pressed={active}
             className="bg-card text-card-foreground hover:bg-secondary hover:text-secondary-foreground transition-colors duration-300"
           >
@@ -220,9 +211,9 @@ const DevToolsToggle = ({ tools, position }: DevToolsToggleProps) => {
   );
 };
 
-interface DevToolsProps {
+type DevToolsProps = {
   position: PanelPosition;
-}
+};
 
 export const DevTools = ({ position }: DevToolsProps) => {
   const [nodeInspectorActive, setNodeInspectorActive] = useState(false);
@@ -256,7 +247,7 @@ export const DevTools = ({ position }: DevToolsProps) => {
 
       {changeLoggerActive && (
         <Panel
-          className="mt-20 max-h-[50%] overflow-y-auto rounded bg-popover p-5 text-xs text-popover-foreground shadow-md"
+          className="mt-20 max-h-[50%] overflow-y-auto rounded bg-white p-5 text-xs shadow-md"
           position="bottom-right"
         >
           <ChangeLogger />

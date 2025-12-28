@@ -2,8 +2,10 @@ import type { ComponentPropsWithoutRef } from 'react';
 
 import { cn } from 'design-system/lib/utilities';
 
+import { Separator } from 'design-system/components/ui/separator';
+
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from './resizable';
-import { Sidebar, SidebarProvider, useSidebar } from './sidebar';
+import { SidebarInset, SidebarProvider, SidebarTrigger } from './sidebar';
 import type { DesktopShellSlots } from './types';
 
 export type DesktopShellProperties = ComponentPropsWithoutRef<'div'> & DesktopShellSlots;
@@ -11,11 +13,23 @@ export type DesktopShellProperties = ComponentPropsWithoutRef<'div'> & DesktopSh
 /**
  * Compose the desktop shell with sidebar, main workspace, and properties panels.
  * @param properties - Slots and layout props for the shell.
+ * @param properties.className - Optional wrapper class.
+ * @param properties.tree - Sidebar tree contents.
+ * @param properties.toolbar - Top toolbar contents.
+ * @param properties.main - Main workspace contents.
+ * @param properties.properties - Properties panel contents.
  */
-export function DesktopShell(properties: DesktopShellProperties) {
+export function DesktopShell({
+  className,
+  tree,
+  toolbar,
+  main,
+  properties,
+  ...rest
+}: DesktopShellProperties) {
   return (
-    <SidebarProvider>
-      <DesktopShellLayout {...properties} />
+    <SidebarProvider className={cn('bg-background text-foreground', className)} {...rest}>
+      <DesktopShellLayout tree={tree} toolbar={toolbar} main={main} properties={properties} />
     </SidebarProvider>
   );
 }
@@ -29,55 +43,33 @@ export function DesktopShell(properties: DesktopShellProperties) {
  * @param root0.properties - Properties panel contents.
  * @param root0.className - Optional wrapper class.
  */
-function DesktopShellLayout({
-  tree,
-  toolbar,
-  main,
-  properties,
-  className,
-  ...rest
-}: DesktopShellProperties) {
-  const { setOpen } = useSidebar();
-
+function DesktopShellLayout({ tree, toolbar, main, properties }: Readonly<DesktopShellSlots>) {
   return (
-    <div
-      className={cn('flex min-h-screen flex-col bg-background text-foreground', className)}
-      {...rest}
-    >
-      <div className="border-b border-border/60 bg-background/95 px-4 py-2">{toolbar}</div>
-
-      <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1">
-        <ResizablePanel
-          defaultSize={20}
-          collapsedSize={4}
-          maxSize={25}
-          onCollapse={() => {
-            setOpen(false);
-          }}
-          onExpand={() => {
-            setOpen(true);
-          }}
-          className="border-r border-border/60"
-        >
-          <Sidebar collapsible="icon" className="h-full">
-            {tree}
-          </Sidebar>
-        </ResizablePanel>
-
-        <ResizableHandle withHandle />
-
-        <ResizablePanel defaultSize={60} minSize={40} className="min-w-[320px]">
-          <div className="flex h-full flex-col overflow-hidden bg-background p-4">{main}</div>
-        </ResizablePanel>
-
-        <ResizableHandle withHandle />
-
-        <ResizablePanel defaultSize={20} minSize={15} className="min-w-[240px] max-w-[520px]">
-          <div className="h-full overflow-hidden border-l border-border/60 bg-card">
-            {properties}
+    <>
+      {tree}
+      <SidebarInset>
+        <header className="bg-background flex h-16 shrink-0 items-center gap-2 border-b border-border transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+          <div className="flex flex-1 items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+            {toolbar}
           </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    </div>
+        </header>
+
+        <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1">
+          <ResizablePanel defaultSize={70} minSize={50} className="min-w-[320px]">
+            <div className="flex h-full flex-col overflow-hidden bg-background p-4">{main}</div>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
+
+          <ResizablePanel defaultSize={30} minSize={20} className="min-w-[240px] max-w-[520px]">
+            <div className="h-full overflow-hidden border-l border-border/60 bg-card">
+              {properties}
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </SidebarInset>
+    </>
   );
 }

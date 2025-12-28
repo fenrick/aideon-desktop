@@ -1,11 +1,6 @@
-import React from "react";
-import type { Edge, EdgeProps, Position } from "@xyflow/react";
-import {
-  BaseEdge,
-  getBezierPath,
-  getStraightPath,
-  getSmoothStepPath,
-} from "@xyflow/react";
+import type { Edge, EdgeProps, Position } from '@xyflow/react';
+import { BaseEdge, getBezierPath, getSmoothStepPath, getStraightPath } from '@xyflow/react';
+import React from 'react';
 
 export type AnimatedSvgEdge = Edge<{
   /**
@@ -29,21 +24,21 @@ export type AnimatedSvgEdge = Edge<{
    *
    * If not provided, this defaults to `"forward"`.
    */
-  direction?: "forward" | "reverse" | "alternate" | "alternate-reverse";
+  direction?: 'forward' | 'reverse' | 'alternate' | 'alternate-reverse';
   /**
    * Which of React Flow's path algorithms to use. Each value corresponds to one
    * of React Flow's built-in edge types.
    *
    * If not provided, this defaults to `"bezier"`.
    */
-  path?: "bezier" | "smoothstep" | "step" | "straight";
+  path?: 'bezier' | 'smoothstep' | 'step' | 'straight';
   /**
    * The number of times to repeat the animation before stopping. If set to
    * `"indefinite"`, the animation will repeat indefinitely.
    *
    * If not provided, this defaults to `"indefinite"`.
    */
-  repeat?: number | "indefinite";
+  repeat?: number | 'indefinite';
   shape: keyof typeof shapes;
 }>;
 
@@ -61,17 +56,17 @@ export function AnimatedSvgEdge({
   targetPosition,
   data = {
     duration: 2,
-    direction: "forward",
-    path: "bezier",
-    repeat: "indefinite",
-    shape: "circle",
+    direction: 'forward',
+    path: 'bezier',
+    repeat: 'indefinite',
+    shape: 'circle',
   },
   ...delegated
 }: EdgeProps<AnimatedSvgEdge>) {
   const Shape = shapes[data.shape];
 
   const [path] = getPath({
-    type: data.path ?? "bezier",
+    type: data.path ?? 'bezier',
     sourceX,
     sourceY,
     sourcePosition,
@@ -82,8 +77,8 @@ export function AnimatedSvgEdge({
 
   const animateMotionProps = getAnimateMotionProps({
     duration: data.duration,
-    direction: data.direction ?? "forward",
-    repeat: data.repeat ?? "indefinite",
+    direction: data.direction ?? 'forward',
+    repeat: data.repeat ?? 'indefinite',
     path,
   });
 
@@ -99,7 +94,7 @@ type AnimateMotionProps = {
   dur: string;
   keyTimes: string;
   keyPoints: string;
-  repeatCount: number | "indefinite";
+  repeatCount: number | 'indefinite';
   path: string;
 };
 
@@ -140,7 +135,7 @@ function getPath({
   sourcePosition,
   targetPosition,
 }: {
-  type: "bezier" | "smoothstep" | "step" | "straight";
+  type: 'bezier' | 'smoothstep' | 'step' | 'straight';
   sourceX: number;
   sourceY: number;
   targetX: number;
@@ -149,7 +144,7 @@ function getPath({
   targetPosition: Position;
 }) {
   switch (type) {
-    case "bezier":
+    case 'bezier':
       return getBezierPath({
         sourceX,
         sourceY,
@@ -159,7 +154,7 @@ function getPath({
         targetPosition,
       });
 
-    case "smoothstep":
+    case 'smoothstep':
       return getSmoothStepPath({
         sourceX,
         sourceY,
@@ -169,7 +164,7 @@ function getPath({
         targetPosition,
       });
 
-    case "step":
+    case 'step':
       return getSmoothStepPath({
         sourceX,
         sourceY,
@@ -180,7 +175,7 @@ function getPath({
         borderRadius: 0,
       });
 
-    case "straight":
+    case 'straight':
       return getStraightPath({
         sourceX,
         sourceY,
@@ -201,8 +196,8 @@ function getAnimateMotionProps({
   path,
 }: {
   duration: number;
-  direction: "forward" | "reverse" | "alternate" | "alternate-reverse";
-  repeat: number | "indefinite";
+  direction: 'forward' | 'reverse' | 'alternate' | 'alternate-reverse';
+  repeat: number | 'indefinite';
   path: string;
 }) {
   const base = {
@@ -211,42 +206,42 @@ function getAnimateMotionProps({
     // The default calcMode for the `<animateMotion />` element is "paced", which
     // is not compatible with the `keyPoints` attribute. Setting this to "linear"
     // ensures that the shape correct follows the path.
-    calcMode: "linear",
+    calcMode: 'linear',
   };
 
   switch (direction) {
-    case "forward":
+    case 'forward':
       return {
         ...base,
         dur: `${duration}s`,
-        keyTimes: "0;1",
-        keyPoints: "0;1",
+        keyTimes: '0;1',
+        keyPoints: '0;1',
       };
 
-    case "reverse":
+    case 'reverse':
       return {
         ...base,
         dur: `${duration}s`,
-        keyTimes: "0;1",
-        keyPoints: "1;0",
+        keyTimes: '0;1',
+        keyPoints: '1;0',
       };
 
-    case "alternate":
+    case 'alternate':
       return {
         ...base,
         // By doubling the animation duration, the time spent moving from one end
         // to the other remains consistent when switching between directions.
         dur: `${duration * 2}s`,
-        keyTimes: "0;0.5;1",
-        keyPoints: "0;1;0",
+        keyTimes: '0;0.5;1',
+        keyPoints: '0;1;0',
       };
 
-    case "alternate-reverse":
+    case 'alternate-reverse':
       return {
         ...base,
         dur: `${duration * 2}s`,
-        keyTimes: "0;0.5;1",
-        keyPoints: "1;0;1",
+        keyTimes: '0;0.5;1',
+        keyPoints: '1;0;1',
       };
   }
 }

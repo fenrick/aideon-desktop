@@ -15,6 +15,7 @@ pub enum OpType {
     UpsertMetamodelBatch = 8,
     CreateScenario = 9,
     DeleteScenario = 10,
+    SetEdgeExistenceInterval = 11,
 }
 
 /// Append-only operation envelope stored in the op log.
@@ -54,6 +55,20 @@ pub struct CreateEdgeInput {
     pub exists_valid_to: Option<ValidTime>,
     pub layer: Layer,
     pub weight: Option<f64>,
+}
+
+/// Modify an edge existence interval without changing endpoints.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SetEdgeExistenceIntervalInput {
+    pub partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub actor: ActorId,
+    pub asserted_at: Hlc,
+    pub edge_id: Id,
+    pub valid_from: ValidTime,
+    pub valid_to: Option<ValidTime>,
+    pub layer: Layer,
+    pub is_tombstone: bool,
 }
 
 /// Set a typed property value over a valid-time interval.
@@ -126,6 +141,7 @@ pub struct CounterUpdateInput {
 pub enum OpPayload {
     CreateNode(CreateNodeInput),
     CreateEdge(CreateEdgeInput),
+    SetEdgeExistenceInterval(SetEdgeExistenceIntervalInput),
     TombstoneEntity {
         partition: PartitionId,
         scenario_id: Option<ScenarioId>,
@@ -158,6 +174,7 @@ impl OpPayload {
         match self {
             OpPayload::CreateNode(_) => OpType::CreateNode,
             OpPayload::CreateEdge(_) => OpType::CreateEdge,
+            OpPayload::SetEdgeExistenceInterval(_) => OpType::SetEdgeExistenceInterval,
             OpPayload::TombstoneEntity { .. } => OpType::TombstoneEntity,
             OpPayload::SetProperty(_) => OpType::SetProperty,
             OpPayload::ClearProperty(_) => OpType::ClearProperty,

@@ -2,7 +2,8 @@ use aideon_mneme::{ActorId, Direction, Hlc, Id, MergePolicy, SyncApi, TraverseAt
 use aideon_mneme::{
     CreateNodeInput, EntityKind, FieldDef, GraphReadApi, GraphWriteApi, Layer, MetamodelApi,
     MetamodelBatch, MnemeConfig, MnemeStore, PartitionId, PropertyWriteApi, ReadEntityAtTimeInput,
-    SetPropIntervalInput, TypeDef, TypeFieldDef, ValidTime, Value, ValueType,
+    SetEdgeExistenceIntervalInput, SetPropIntervalInput, TypeDef, TypeFieldDef, ValidTime, Value,
+    ValueType,
 };
 use tempfile::tempdir;
 
@@ -318,6 +319,98 @@ async fn respects_as_of_asserted_at_for_reads() -> aideon_mneme::MnemeResult<()>
         value,
         &aideon_mneme::ReadValue::Single(Value::Str("alpha".to_string()))
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn edge_existence_intervals_override_at_valid_time() -> aideon_mneme::MnemeResult<()> {
+    let dir = tempdir().expect("tempdir");
+    let base = dir.path();
+    let config = MnemeConfig::default_sqlite(base.join("mneme.sqlite").to_string_lossy());
+    let store = MnemeStore::connect(&config, base).await?;
+    let (partition, actor) = new_ids();
+
+    let node_a = Id::new();
+    let node_b = Id::new();
+    let edge_id = Id::new();
+    store
+        .create_node(CreateNodeInput {
+            partition,
+            scenario_id: None,
+            actor,
+            asserted_at: Hlc::now(),
+            node_id: node_a,
+            type_id: None,
+        })
+        .await?;
+    store
+        .create_node(CreateNodeInput {
+            partition,
+            scenario_id: None,
+            actor,
+            asserted_at: Hlc::now(),
+            node_id: node_b,
+            type_id: None,
+        })
+        .await?;
+    store
+        .create_edge(aideon_mneme::CreateEdgeInput {
+            partition,
+            scenario_id: None,
+            actor,
+            asserted_at: Hlc::now(),
+            edge_id,
+            type_id: None,
+            src_id: node_a,
+            dst_id: node_b,
+            exists_valid_from: ValidTime(0),
+            exists_valid_to: None,
+            layer: Layer::Actual,
+            weight: None,
+        })
+        .await?;
+
+    store
+        .set_edge_existence_interval(SetEdgeExistenceIntervalInput {
+            partition,
+            scenario_id: None,
+            actor,
+            asserted_at: Hlc::now(),
+            edge_id,
+            valid_from: ValidTime(5),
+            valid_to: None,
+            layer: Layer::Actual,
+            is_tombstone: true,
+        })
+        .await?;
+
+    let edges_at_start = store
+        .traverse_at_time(TraverseAtTimeInput {
+            partition,
+            scenario_id: None,
+            from_entity_id: node_a,
+            direction: Direction::Out,
+            edge_type_id: None,
+            at_valid_time: ValidTime(1),
+            as_of_asserted_at: None,
+            limit: 10,
+        })
+        .await?;
+    assert_eq!(edges_at_start.len(), 1);
+
+    let edges_after_tombstone = store
+        .traverse_at_time(TraverseAtTimeInput {
+            partition,
+            scenario_id: None,
+            from_entity_id: node_a,
+            direction: Direction::Out,
+            edge_type_id: None,
+            at_valid_time: ValidTime(6),
+            as_of_asserted_at: None,
+            limit: 10,
+        })
+        .await?;
+    assert!(edges_after_tombstone.is_empty());
     Ok(())
 }
 

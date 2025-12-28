@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ActorId, ClearPropIntervalInput, CounterUpdateInput, CreateEdgeInput, CreateNodeInput,
     EdgeTypeRule, EffectiveSchema, EntityKind, Hlc, Id, MetamodelBatch, MnemeResult, OpEnvelope,
-    OpId, OrSetUpdateInput, PartitionId, ScenarioId, SchemaVersion, SetPropIntervalInput,
-    ValidTime, Value,
+    OpId, OrSetUpdateInput, PartitionId, ScenarioId, SchemaVersion,
+    SetEdgeExistenceIntervalInput, SetPropIntervalInput, ValidTime, Value,
 };
 
 #[async_trait]
@@ -45,6 +45,10 @@ pub trait MetamodelApi {
 pub trait GraphWriteApi {
     async fn create_node(&self, input: CreateNodeInput) -> MnemeResult<OpId>;
     async fn create_edge(&self, input: CreateEdgeInput) -> MnemeResult<OpId>;
+    async fn set_edge_existence_interval(
+        &self,
+        input: SetEdgeExistenceIntervalInput,
+    ) -> MnemeResult<OpId>;
     async fn tombstone_entity(
         &self,
         partition: PartitionId,
@@ -115,6 +119,45 @@ pub struct TraverseEdgeItem {
     pub type_id: Option<Id>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompareOp {
+    Eq,
+    Ne,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
+    Prefix,
+    Contains,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct FieldFilter {
+    pub field_id: Id,
+    pub op: CompareOp,
+    pub value: Value,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ListEntitiesInput {
+    pub partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub kind: Option<EntityKind>,
+    pub type_id: Option<Id>,
+    pub at_valid_time: ValidTime,
+    pub as_of_asserted_at: Option<Hlc>,
+    pub filters: Vec<FieldFilter>,
+    pub limit: u32,
+    pub cursor: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ListEntitiesResultItem {
+    pub entity_id: Id,
+    pub kind: EntityKind,
+    pub type_id: Option<Id>,
+}
+
 #[async_trait]
 pub trait GraphReadApi {
     async fn read_entity_at_time(
@@ -125,10 +168,15 @@ pub trait GraphReadApi {
         &self,
         input: TraverseAtTimeInput,
     ) -> MnemeResult<Vec<TraverseEdgeItem>>;
+    async fn list_entities(
+        &self,
+        input: ListEntitiesInput,
+    ) -> MnemeResult<Vec<ListEntitiesResultItem>>;
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProjectionEdge {
+    pub edge_id: Id,
     pub src_id: Id,
     pub dst_id: Id,
     pub edge_type_id: Option<Id>,
@@ -142,6 +190,7 @@ pub struct GetProjectionEdgesInput {
     pub at_valid_time: Option<ValidTime>,
     pub as_of_asserted_at: Option<Hlc>,
     pub edge_type_filter: Option<Vec<Id>>,
+    pub limit: Option<u32>,
 }
 
 #[async_trait]

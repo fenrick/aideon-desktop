@@ -31,9 +31,9 @@ use crate::ops::{
 use crate::schema::{EffectiveField, EffectiveSchema, MetamodelBatch, SchemaVersion};
 use crate::value::{EntityKind, Layer, MergePolicy, Value, ValueType};
 use crate::{
-    ActorId, Hlc, Id, MnemeConfig, MnemeError, MnemeResult, OpEnvelope, OpId, PartitionId,
-    ReadEntityAtTimeInput, ReadEntityAtTimeResult, ReadValue, ScenarioId, TraverseAtTimeInput,
-    TraverseEdgeItem, ValidTime,
+    ActorId, CompareOp, FieldFilter, Hlc, Id, ListEntitiesInput, ListEntitiesResultItem,
+    MnemeConfig, MnemeError, MnemeResult, OpEnvelope, OpId, PartitionId, ReadEntityAtTimeInput,
+    ReadEntityAtTimeResult, ReadValue, ScenarioId, TraverseAtTimeInput, TraverseEdgeItem, ValidTime,
 };
 use sea_orm_migration::MigratorTrait;
 
@@ -1483,6 +1483,49 @@ impl GraphWriteApi for MnemeStore {
         Ok(op_id)
     }
 
+    async fn set_edge_existence_interval(
+        &self,
+        input: crate::SetEdgeExistenceIntervalInput,
+    ) -> MnemeResult<OpId> {
+        let tx = self.conn.begin().await?;
+        self.ensure_partition(&tx, input.partition, input.actor)
+            .await?;
+        let payload = OpPayload::SetEdgeExistenceInterval(input.clone());
+        let (op_id, asserted_at, _payload, _op_type) = self
+            .insert_op(&tx, input.partition, input.actor, input.asserted_at, &payload)
+            .await?;
+
+        let insert_exists = Query::insert()
+            .into_table(AideonEdgeExistsFacts::Table)
+            .columns([
+                AideonEdgeExistsFacts::PartitionId,
+                AideonEdgeExistsFacts::ScenarioId,
+                AideonEdgeExistsFacts::EdgeId,
+                AideonEdgeExistsFacts::ValidFrom,
+                AideonEdgeExistsFacts::ValidTo,
+                AideonEdgeExistsFacts::Layer,
+                AideonEdgeExistsFacts::AssertedAtHlc,
+                AideonEdgeExistsFacts::OpId,
+                AideonEdgeExistsFacts::IsTombstone,
+            ])
+            .values_panic([
+                id_value(self.backend, input.partition.0).into(),
+                opt_id_value(self.backend, input.scenario_id.map(|s| s.0)).into(),
+                id_value(self.backend, input.edge_id).into(),
+                input.valid_from.0.into(),
+                input.valid_to.map(|v| v.0).into(),
+                Self::layer_value(input.layer).into(),
+                asserted_at.as_i64().into(),
+                id_value(self.backend, op_id.0).into(),
+                input.is_tombstone.into(),
+            ])
+            .to_owned();
+        exec(&tx, &insert_exists).await?;
+
+        tx.commit().await?;
+        Ok(op_id)
+    }
+
     async fn tombstone_entity(
         &self,
         partition: PartitionId,
@@ -1957,6 +2000,144 @@ impl GraphReadApi for MnemeStore {
         }
         Ok(edges)
     }
+
+    async fn list_entities(
+        &self,
+        input: crate::ListEntitiesInput,
+    ) -> MnemeResult<Vec<crate::ListEntitiesResultItem>> {
+        if input.limit == 0 {
+            return Ok(Vec::new());
+        }
+        let mut candidate_ids: Option<std::collections::HashSet<Id>> = None;
+        for filter in &input.filters {
+            let (value_type, _merge_policy, _multi, is_indexed) = self
+                .fetch_field_def(&self.conn, input.partition, filter.field_id)
+                .await?;
+            if !is_indexed {
+                return Err(MnemeError::invalid("field is not indexed"));
+            }
+            if filter.value.value_type() != value_type {
+                return Err(MnemeError::invalid("filter value type mismatch"));
+            }
+            let ids = if let Some(scenario_id) = input.scenario_id {
+                let mut scenario_ids = fetch_index_candidates(
+                    &self.conn,
+                    input.partition,
+                    Some(scenario_id),
+                    input.at_valid_time,
+                    input.as_of_asserted_at,
+                    filter,
+                    self.backend,
+                )
+                .await?;
+                let baseline_ids = fetch_index_candidates(
+                    &self.conn,
+                    input.partition,
+                    None,
+                    input.at_valid_time,
+                    input.as_of_asserted_at,
+                    filter,
+                    self.backend,
+                )
+                .await?;
+                scenario_ids.extend(baseline_ids);
+                scenario_ids
+            } else {
+                fetch_index_candidates(
+                    &self.conn,
+                    input.partition,
+                    None,
+                    input.at_valid_time,
+                    input.as_of_asserted_at,
+                    filter,
+                    self.backend,
+                )
+                .await?
+            };
+            if ids.is_empty() {
+                return Ok(Vec::new());
+            }
+            candidate_ids = Some(match candidate_ids.take() {
+                Some(existing) => existing
+                    .intersection(&ids)
+                    .copied()
+                    .collect::<std::collections::HashSet<_>>(),
+                None => ids,
+            });
+        }
+
+        let candidates: Vec<Id> = match candidate_ids {
+            Some(ids) => ids.into_iter().collect(),
+            None => {
+                return list_entities_without_filters(
+                    &self.conn,
+                    input,
+                    self.backend,
+                )
+                .await
+            }
+        };
+
+        let mut results = Vec::new();
+        for entity_id in candidates {
+            let (_partition, kind, type_id, is_deleted) = self
+                .read_entity_row_with_fallback(input.partition, input.scenario_id, entity_id)
+                .await?;
+            if is_deleted {
+                continue;
+            }
+            if let Some(kind_filter) = input.kind {
+                if kind != kind_filter {
+                    continue;
+                }
+            }
+            if let Some(type_filter) = input.type_id {
+                if type_id != Some(type_filter) {
+                    continue;
+                }
+            }
+            let mut matches = true;
+            for filter in &input.filters {
+                let (value_type, merge_policy, _multi, _is_indexed) = self
+                    .fetch_field_def(&self.conn, input.partition, filter.field_id)
+                    .await?;
+                let facts = fetch_property_facts_with_fallback(
+                    &self.conn,
+                    input.partition,
+                    input.scenario_id,
+                    entity_id,
+                    filter.field_id,
+                    input.at_valid_time,
+                    input.as_of_asserted_at,
+                    value_type,
+                    self.backend,
+                )
+                .await?;
+                let resolved = resolve_property(merge_policy, facts)?;
+                if !filter_matches(resolved, filter)? {
+                    matches = false;
+                    break;
+                }
+            }
+            if matches {
+                results.push(crate::ListEntitiesResultItem {
+                    entity_id,
+                    kind,
+                    type_id,
+                });
+            }
+        }
+
+        results.sort_by(|a, b| a.entity_id.as_bytes().cmp(&b.entity_id.as_bytes()));
+        if let Some(cursor) = input.cursor.as_deref() {
+            let cursor_id = parse_cursor_id(cursor)?;
+            results.retain(|item| item.entity_id.as_bytes() > cursor_id.as_bytes());
+        }
+        if results.len() > input.limit as usize {
+            results.truncate(input.limit as usize);
+        }
+        Ok(results)
+    }
 }
 
 #[async_trait]
@@ -1965,6 +2146,7 @@ impl AnalyticsApi for MnemeStore {
         &self,
         input: crate::GetProjectionEdgesInput,
     ) -> MnemeResult<Vec<ProjectionEdge>> {
+        let limit = input.limit.unwrap_or(u32::MAX) as usize;
         let mut edges = Vec::new();
         let mut seen = std::collections::HashSet::new();
 
@@ -1981,6 +2163,9 @@ impl AnalyticsApi for MnemeStore {
         for (edge_id, edge) in scenario_edges {
             seen.insert(edge_id);
             edges.push(edge);
+            if edges.len() >= limit {
+                return Ok(edges);
+            }
         }
 
         if input.scenario_id.is_some() {
@@ -1999,6 +2184,9 @@ impl AnalyticsApi for MnemeStore {
                     continue;
                 }
                 edges.push(edge);
+                if edges.len() >= limit {
+                    break;
+                }
             }
         }
 
@@ -3382,6 +3570,7 @@ impl MnemeImportApi for MnemeStore {
                         match &mut payload {
                             OpPayload::CreateNode(input) => input.actor = *remapped,
                             OpPayload::CreateEdge(input) => input.actor = *remapped,
+                            OpPayload::SetEdgeExistenceInterval(input) => input.actor = *remapped,
                             OpPayload::TombstoneEntity { actor, .. } => *actor = *remapped,
                             OpPayload::SetProperty(input) => input.actor = *remapped,
                             OpPayload::ClearProperty(input) => input.actor = *remapped,
@@ -3396,6 +3585,9 @@ impl MnemeImportApi for MnemeStore {
                         match &mut payload {
                             OpPayload::CreateNode(input) => input.scenario_id = Some(scenario_id),
                             OpPayload::CreateEdge(input) => input.scenario_id = Some(scenario_id),
+                            OpPayload::SetEdgeExistenceInterval(input) => {
+                                input.scenario_id = Some(scenario_id)
+                            }
                             OpPayload::TombstoneEntity { scenario_id: sid, .. } => {
                                 *sid = Some(scenario_id)
                             }
@@ -4190,6 +4382,7 @@ fn scenario_id_from_payload(payload: &[u8]) -> MnemeResult<Option<crate::Scenari
     Ok(match op {
         OpPayload::CreateNode(input) => input.scenario_id,
         OpPayload::CreateEdge(input) => input.scenario_id,
+        OpPayload::SetEdgeExistenceInterval(input) => input.scenario_id,
         OpPayload::TombstoneEntity { scenario_id, .. } => scenario_id,
         OpPayload::SetProperty(input) => input.scenario_id,
         OpPayload::ClearProperty(input) => input.scenario_id,
@@ -4213,6 +4406,7 @@ fn change_feed_payload(
     let (kind, entity_id) = match payload {
         OpPayload::CreateNode(input) => (CHANGE_KIND_ENTITY, Some(input.node_id)),
         OpPayload::CreateEdge(input) => (CHANGE_KIND_EDGE, Some(input.edge_id)),
+        OpPayload::SetEdgeExistenceInterval(input) => (CHANGE_KIND_EDGE, Some(input.edge_id)),
         OpPayload::TombstoneEntity { entity_id, .. } => (CHANGE_KIND_ENTITY, Some(*entity_id)),
         OpPayload::SetProperty(input) => (CHANGE_KIND_PROPERTY, Some(input.entity_id)),
         OpPayload::ClearProperty(input) => (CHANGE_KIND_PROPERTY, Some(input.entity_id)),
@@ -4945,6 +5139,7 @@ async fn fetch_projection_edges_in_partition(
         edges.push((
             edge_id,
             ProjectionEdge {
+                edge_id,
                 src_id,
                 dst_id,
                 edge_type_id,
@@ -4953,6 +5148,525 @@ async fn fetch_projection_edges_in_partition(
         ));
     }
     Ok(edges)
+}
+
+fn parse_cursor_id(value: &str) -> MnemeResult<Id> {
+    Id::from_uuid_str(value).or_else(|_| Id::from_ulid_str(value))
+}
+
+async fn list_entities_without_filters(
+    conn: &DatabaseConnection,
+    input: ListEntitiesInput,
+    backend: DatabaseBackend,
+) -> MnemeResult<Vec<ListEntitiesResultItem>> {
+    let mut results = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let scenarios = if let Some(scenario_id) = input.scenario_id {
+        vec![Some(scenario_id), None]
+    } else {
+        vec![None]
+    };
+    for scenario_id in scenarios {
+        let mut select = Query::select()
+            .from(AideonEntities::Table)
+            .columns([
+                AideonEntities::EntityId,
+                AideonEntities::EntityKind,
+                AideonEntities::TypeId,
+                AideonEntities::IsDeleted,
+            ])
+            .and_where(
+                Expr::col(AideonEntities::PartitionId).eq(id_value(backend, input.partition.0)),
+            )
+            .to_owned();
+        if let Some(scenario_id) = scenario_id {
+            select.and_where(
+                Expr::col(AideonEntities::ScenarioId).eq(id_value(backend, scenario_id.0)),
+            );
+        } else {
+            select.and_where(Expr::col(AideonEntities::ScenarioId).is_null());
+        }
+        if let Some(kind) = input.kind {
+            select.and_where(
+                Expr::col(AideonEntities::EntityKind).eq(kind.as_i16() as i64),
+            );
+        }
+        if let Some(type_id) = input.type_id {
+            select
+                .and_where(Expr::col(AideonEntities::TypeId).eq(id_value(backend, type_id)));
+        }
+        let rows = query_all(conn, &select).await?;
+        for row in rows {
+            let entity_id = read_id(&row, AideonEntities::EntityId)?;
+            if seen.contains(&entity_id) {
+                continue;
+            }
+            let kind_raw: i16 = row.try_get("", &col_name(AideonEntities::EntityKind))?;
+            let kind = EntityKind::from_i16(kind_raw)
+                .ok_or_else(|| MnemeError::storage("invalid entity kind".to_string()))?;
+            let type_id = read_opt_id(&row, AideonEntities::TypeId)?;
+            let is_deleted: bool = row.try_get("", &col_name(AideonEntities::IsDeleted))?;
+            if is_deleted {
+                continue;
+            }
+            seen.insert(entity_id);
+            results.push(ListEntitiesResultItem {
+                entity_id,
+                kind,
+                type_id,
+            });
+        }
+    }
+    results.sort_by(|a, b| a.entity_id.as_bytes().cmp(&b.entity_id.as_bytes()));
+    if let Some(cursor) = input.cursor.as_deref() {
+        let cursor_id = parse_cursor_id(cursor)?;
+        results.retain(|item| item.entity_id.as_bytes() > cursor_id.as_bytes());
+    }
+    if results.len() > input.limit as usize {
+        results.truncate(input.limit as usize);
+    }
+    Ok(results)
+}
+
+async fn fetch_index_candidates(
+    conn: &DatabaseConnection,
+    partition: PartitionId,
+    scenario_id: Option<ScenarioId>,
+    at_valid_time: ValidTime,
+    as_of_asserted_at: Option<Hlc>,
+    filter: &FieldFilter,
+    backend: DatabaseBackend,
+) -> MnemeResult<std::collections::HashSet<Id>> {
+    let mut ids = std::collections::HashSet::new();
+    match &filter.value {
+        Value::Str(value) => {
+            let norm = value.to_lowercase();
+            let mut select = Query::select()
+                .from(AideonIdxFieldStr::Table)
+                .column(AideonIdxFieldStr::EntityId)
+                .and_where(
+                    Expr::col(AideonIdxFieldStr::PartitionId).eq(id_value(backend, partition.0)),
+                )
+                .and_where(
+                    Expr::col(AideonIdxFieldStr::FieldId).eq(id_value(backend, filter.field_id)),
+                )
+                .and_where(Expr::col(AideonIdxFieldStr::ValidFrom).lte(at_valid_time.0))
+                .and_where(
+                    Expr::col(AideonIdxFieldStr::ValidTo)
+                        .gt(at_valid_time.0)
+                        .or(Expr::col(AideonIdxFieldStr::ValidTo).is_null()),
+                )
+                .to_owned();
+            if let Some(as_of_asserted_at) = as_of_asserted_at {
+                select.and_where(
+                    Expr::col(AideonIdxFieldStr::AssertedAtHlc).lte(as_of_asserted_at.as_i64()),
+                );
+            }
+            if let Some(scenario_id) = scenario_id {
+                select.and_where(
+                    Expr::col(AideonIdxFieldStr::ScenarioId).eq(id_value(backend, scenario_id.0)),
+                );
+            } else {
+                select.and_where(Expr::col(AideonIdxFieldStr::ScenarioId).is_null());
+            }
+            match filter.op {
+                CompareOp::Eq => {
+                    select.and_where(Expr::col(AideonIdxFieldStr::ValueTextNorm).eq(norm));
+                }
+                CompareOp::Ne => {
+                    select.and_where(Expr::col(AideonIdxFieldStr::ValueTextNorm).ne(norm));
+                }
+                CompareOp::Lt => {
+                    select.and_where(Expr::col(AideonIdxFieldStr::ValueTextNorm).lt(norm));
+                }
+                CompareOp::Lte => {
+                    select.and_where(Expr::col(AideonIdxFieldStr::ValueTextNorm).lte(norm));
+                }
+                CompareOp::Gt => {
+                    select.and_where(Expr::col(AideonIdxFieldStr::ValueTextNorm).gt(norm));
+                }
+                CompareOp::Gte => {
+                    select.and_where(Expr::col(AideonIdxFieldStr::ValueTextNorm).gte(norm));
+                }
+                CompareOp::Prefix => {
+                    select.and_where(
+                        Expr::col(AideonIdxFieldStr::ValueTextNorm)
+                            .like(format!("{norm}%")),
+                    );
+                }
+                CompareOp::Contains => {
+                    select.and_where(
+                        Expr::col(AideonIdxFieldStr::ValueTextNorm)
+                            .like(format!("%{norm}%")),
+                    );
+                }
+            }
+            let rows = query_all(conn, &select).await?;
+            for row in rows {
+                let entity_id = read_id(&row, AideonIdxFieldStr::EntityId)?;
+                ids.insert(entity_id);
+            }
+        }
+        Value::I64(value) => {
+            let mut select = Query::select()
+                .from(AideonIdxFieldI64::Table)
+                .column(AideonIdxFieldI64::EntityId)
+                .and_where(
+                    Expr::col(AideonIdxFieldI64::PartitionId).eq(id_value(backend, partition.0)),
+                )
+                .and_where(
+                    Expr::col(AideonIdxFieldI64::FieldId).eq(id_value(backend, filter.field_id)),
+                )
+                .and_where(Expr::col(AideonIdxFieldI64::ValidFrom).lte(at_valid_time.0))
+                .and_where(
+                    Expr::col(AideonIdxFieldI64::ValidTo)
+                        .gt(at_valid_time.0)
+                        .or(Expr::col(AideonIdxFieldI64::ValidTo).is_null()),
+                )
+                .to_owned();
+            if let Some(as_of_asserted_at) = as_of_asserted_at {
+                select.and_where(
+                    Expr::col(AideonIdxFieldI64::AssertedAtHlc).lte(as_of_asserted_at.as_i64()),
+                );
+            }
+            if let Some(scenario_id) = scenario_id {
+                select.and_where(
+                    Expr::col(AideonIdxFieldI64::ScenarioId).eq(id_value(backend, scenario_id.0)),
+                );
+            } else {
+                select.and_where(Expr::col(AideonIdxFieldI64::ScenarioId).is_null());
+            }
+            match filter.op {
+                CompareOp::Eq => {
+                    select.and_where(Expr::col(AideonIdxFieldI64::ValueI64).eq(*value));
+                }
+                CompareOp::Ne => {
+                    select.and_where(Expr::col(AideonIdxFieldI64::ValueI64).ne(*value));
+                }
+                CompareOp::Lt => {
+                    select.and_where(Expr::col(AideonIdxFieldI64::ValueI64).lt(*value));
+                }
+                CompareOp::Lte => {
+                    select.and_where(Expr::col(AideonIdxFieldI64::ValueI64).lte(*value));
+                }
+                CompareOp::Gt => {
+                    select.and_where(Expr::col(AideonIdxFieldI64::ValueI64).gt(*value));
+                }
+                CompareOp::Gte => {
+                    select.and_where(Expr::col(AideonIdxFieldI64::ValueI64).gte(*value));
+                }
+                CompareOp::Prefix | CompareOp::Contains => {
+                    return Err(MnemeError::invalid("string compare op on i64 field"));
+                }
+            }
+            let rows = query_all(conn, &select).await?;
+            for row in rows {
+                let entity_id = read_id(&row, AideonIdxFieldI64::EntityId)?;
+                ids.insert(entity_id);
+            }
+        }
+        Value::F64(value) => {
+            let mut select = Query::select()
+                .from(AideonIdxFieldF64::Table)
+                .column(AideonIdxFieldF64::EntityId)
+                .and_where(
+                    Expr::col(AideonIdxFieldF64::PartitionId).eq(id_value(backend, partition.0)),
+                )
+                .and_where(
+                    Expr::col(AideonIdxFieldF64::FieldId).eq(id_value(backend, filter.field_id)),
+                )
+                .and_where(Expr::col(AideonIdxFieldF64::ValidFrom).lte(at_valid_time.0))
+                .and_where(
+                    Expr::col(AideonIdxFieldF64::ValidTo)
+                        .gt(at_valid_time.0)
+                        .or(Expr::col(AideonIdxFieldF64::ValidTo).is_null()),
+                )
+                .to_owned();
+            if let Some(as_of_asserted_at) = as_of_asserted_at {
+                select.and_where(
+                    Expr::col(AideonIdxFieldF64::AssertedAtHlc).lte(as_of_asserted_at.as_i64()),
+                );
+            }
+            if let Some(scenario_id) = scenario_id {
+                select.and_where(
+                    Expr::col(AideonIdxFieldF64::ScenarioId).eq(id_value(backend, scenario_id.0)),
+                );
+            } else {
+                select.and_where(Expr::col(AideonIdxFieldF64::ScenarioId).is_null());
+            }
+            match filter.op {
+                CompareOp::Eq => {
+                    select.and_where(Expr::col(AideonIdxFieldF64::ValueF64).eq(*value));
+                }
+                CompareOp::Ne => {
+                    select.and_where(Expr::col(AideonIdxFieldF64::ValueF64).ne(*value));
+                }
+                CompareOp::Lt => {
+                    select.and_where(Expr::col(AideonIdxFieldF64::ValueF64).lt(*value));
+                }
+                CompareOp::Lte => {
+                    select.and_where(Expr::col(AideonIdxFieldF64::ValueF64).lte(*value));
+                }
+                CompareOp::Gt => {
+                    select.and_where(Expr::col(AideonIdxFieldF64::ValueF64).gt(*value));
+                }
+                CompareOp::Gte => {
+                    select.and_where(Expr::col(AideonIdxFieldF64::ValueF64).gte(*value));
+                }
+                CompareOp::Prefix | CompareOp::Contains => {
+                    return Err(MnemeError::invalid("string compare op on f64 field"));
+                }
+            }
+            let rows = query_all(conn, &select).await?;
+            for row in rows {
+                let entity_id = read_id(&row, AideonIdxFieldF64::EntityId)?;
+                ids.insert(entity_id);
+            }
+        }
+        Value::Bool(value) => {
+            let mut select = Query::select()
+                .from(AideonIdxFieldBool::Table)
+                .column(AideonIdxFieldBool::EntityId)
+                .and_where(
+                    Expr::col(AideonIdxFieldBool::PartitionId).eq(id_value(backend, partition.0)),
+                )
+                .and_where(
+                    Expr::col(AideonIdxFieldBool::FieldId).eq(id_value(backend, filter.field_id)),
+                )
+                .and_where(Expr::col(AideonIdxFieldBool::ValidFrom).lte(at_valid_time.0))
+                .and_where(
+                    Expr::col(AideonIdxFieldBool::ValidTo)
+                        .gt(at_valid_time.0)
+                        .or(Expr::col(AideonIdxFieldBool::ValidTo).is_null()),
+                )
+                .to_owned();
+            if let Some(as_of_asserted_at) = as_of_asserted_at {
+                select.and_where(
+                    Expr::col(AideonIdxFieldBool::AssertedAtHlc).lte(as_of_asserted_at.as_i64()),
+                );
+            }
+            if let Some(scenario_id) = scenario_id {
+                select.and_where(
+                    Expr::col(AideonIdxFieldBool::ScenarioId).eq(id_value(backend, scenario_id.0)),
+                );
+            } else {
+                select.and_where(Expr::col(AideonIdxFieldBool::ScenarioId).is_null());
+            }
+            match filter.op {
+                CompareOp::Eq => {
+                    select.and_where(Expr::col(AideonIdxFieldBool::ValueBool).eq(*value));
+                }
+                CompareOp::Ne => {
+                    select.and_where(Expr::col(AideonIdxFieldBool::ValueBool).ne(*value));
+                }
+                _ => {
+                    return Err(MnemeError::invalid("unsupported compare op for bool field"));
+                }
+            }
+            let rows = query_all(conn, &select).await?;
+            for row in rows {
+                let entity_id = read_id(&row, AideonIdxFieldBool::EntityId)?;
+                ids.insert(entity_id);
+            }
+        }
+        Value::Time(value) => {
+            let mut select = Query::select()
+                .from(AideonIdxFieldTime::Table)
+                .column(AideonIdxFieldTime::EntityId)
+                .and_where(
+                    Expr::col(AideonIdxFieldTime::PartitionId).eq(id_value(backend, partition.0)),
+                )
+                .and_where(
+                    Expr::col(AideonIdxFieldTime::FieldId).eq(id_value(backend, filter.field_id)),
+                )
+                .and_where(Expr::col(AideonIdxFieldTime::ValidFrom).lte(at_valid_time.0))
+                .and_where(
+                    Expr::col(AideonIdxFieldTime::ValidTo)
+                        .gt(at_valid_time.0)
+                        .or(Expr::col(AideonIdxFieldTime::ValidTo).is_null()),
+                )
+                .to_owned();
+            if let Some(as_of_asserted_at) = as_of_asserted_at {
+                select.and_where(
+                    Expr::col(AideonIdxFieldTime::AssertedAtHlc).lte(as_of_asserted_at.as_i64()),
+                );
+            }
+            if let Some(scenario_id) = scenario_id {
+                select.and_where(
+                    Expr::col(AideonIdxFieldTime::ScenarioId).eq(id_value(backend, scenario_id.0)),
+                );
+            } else {
+                select.and_where(Expr::col(AideonIdxFieldTime::ScenarioId).is_null());
+            }
+            match filter.op {
+                CompareOp::Eq => {
+                    select.and_where(Expr::col(AideonIdxFieldTime::ValueTime).eq(value.0));
+                }
+                CompareOp::Ne => {
+                    select.and_where(Expr::col(AideonIdxFieldTime::ValueTime).ne(value.0));
+                }
+                CompareOp::Lt => {
+                    select.and_where(Expr::col(AideonIdxFieldTime::ValueTime).lt(value.0));
+                }
+                CompareOp::Lte => {
+                    select.and_where(Expr::col(AideonIdxFieldTime::ValueTime).lte(value.0));
+                }
+                CompareOp::Gt => {
+                    select.and_where(Expr::col(AideonIdxFieldTime::ValueTime).gt(value.0));
+                }
+                CompareOp::Gte => {
+                    select.and_where(Expr::col(AideonIdxFieldTime::ValueTime).gte(value.0));
+                }
+                CompareOp::Prefix | CompareOp::Contains => {
+                    return Err(MnemeError::invalid("string compare op on time field"));
+                }
+            }
+            let rows = query_all(conn, &select).await?;
+            for row in rows {
+                let entity_id = read_id(&row, AideonIdxFieldTime::EntityId)?;
+                ids.insert(entity_id);
+            }
+        }
+        Value::Ref(value) => {
+            let mut select = Query::select()
+                .from(AideonIdxFieldRef::Table)
+                .column(AideonIdxFieldRef::EntityId)
+                .and_where(
+                    Expr::col(AideonIdxFieldRef::PartitionId).eq(id_value(backend, partition.0)),
+                )
+                .and_where(
+                    Expr::col(AideonIdxFieldRef::FieldId).eq(id_value(backend, filter.field_id)),
+                )
+                .and_where(Expr::col(AideonIdxFieldRef::ValidFrom).lte(at_valid_time.0))
+                .and_where(
+                    Expr::col(AideonIdxFieldRef::ValidTo)
+                        .gt(at_valid_time.0)
+                        .or(Expr::col(AideonIdxFieldRef::ValidTo).is_null()),
+                )
+                .to_owned();
+            if let Some(as_of_asserted_at) = as_of_asserted_at {
+                select.and_where(
+                    Expr::col(AideonIdxFieldRef::AssertedAtHlc).lte(as_of_asserted_at.as_i64()),
+                );
+            }
+            if let Some(scenario_id) = scenario_id {
+                select.and_where(
+                    Expr::col(AideonIdxFieldRef::ScenarioId).eq(id_value(backend, scenario_id.0)),
+                );
+            } else {
+                select.and_where(Expr::col(AideonIdxFieldRef::ScenarioId).is_null());
+            }
+            match filter.op {
+                CompareOp::Eq => {
+                    select.and_where(
+                        Expr::col(AideonIdxFieldRef::ValueRefEntityId)
+                            .eq(id_value(backend, *value)),
+                    );
+                }
+                CompareOp::Ne => {
+                    select.and_where(
+                        Expr::col(AideonIdxFieldRef::ValueRefEntityId)
+                            .ne(id_value(backend, *value)),
+                    );
+                }
+                _ => {
+                    return Err(MnemeError::invalid("unsupported compare op for ref field"));
+                }
+            }
+            let rows = query_all(conn, &select).await?;
+            for row in rows {
+                let entity_id = read_id(&row, AideonIdxFieldRef::EntityId)?;
+                ids.insert(entity_id);
+            }
+        }
+        Value::Blob(_) | Value::Json(_) => {
+            return Err(MnemeError::invalid("indexed filters not supported for blob/json"));
+        }
+    }
+    Ok(ids)
+}
+
+fn filter_matches(resolved: Option<ReadValue>, filter: &FieldFilter) -> MnemeResult<bool> {
+    let Some(resolved) = resolved else {
+        return Ok(false);
+    };
+    match resolved {
+        ReadValue::Single(value) => compare_value(&value, filter),
+        ReadValue::Multi(values) => {
+            if filter.op == CompareOp::Ne {
+                for value in values {
+                    if !compare_value(&value, filter)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            } else {
+                for value in values {
+                    if compare_value(&value, filter)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+        }
+    }
+}
+
+fn compare_value(value: &Value, filter: &FieldFilter) -> MnemeResult<bool> {
+    match (value, &filter.value) {
+        (Value::Str(actual), Value::Str(expected)) => {
+            let actual_norm = actual.to_lowercase();
+            let expected_norm = expected.to_lowercase();
+            match filter.op {
+                CompareOp::Eq => Ok(actual_norm == expected_norm),
+                CompareOp::Ne => Ok(actual_norm != expected_norm),
+                CompareOp::Lt => Ok(actual_norm < expected_norm),
+                CompareOp::Lte => Ok(actual_norm <= expected_norm),
+                CompareOp::Gt => Ok(actual_norm > expected_norm),
+                CompareOp::Gte => Ok(actual_norm >= expected_norm),
+                CompareOp::Prefix => Ok(actual_norm.starts_with(&expected_norm)),
+                CompareOp::Contains => Ok(actual_norm.contains(&expected_norm)),
+            }
+        }
+        (Value::I64(actual), Value::I64(expected)) => match filter.op {
+            CompareOp::Eq => Ok(actual == expected),
+            CompareOp::Ne => Ok(actual != expected),
+            CompareOp::Lt => Ok(actual < expected),
+            CompareOp::Lte => Ok(actual <= expected),
+            CompareOp::Gt => Ok(actual > expected),
+            CompareOp::Gte => Ok(actual >= expected),
+            _ => Err(MnemeError::invalid("unsupported compare op for i64 field")),
+        },
+        (Value::F64(actual), Value::F64(expected)) => match filter.op {
+            CompareOp::Eq => Ok(actual == expected),
+            CompareOp::Ne => Ok(actual != expected),
+            CompareOp::Lt => Ok(actual < expected),
+            CompareOp::Lte => Ok(actual <= expected),
+            CompareOp::Gt => Ok(actual > expected),
+            CompareOp::Gte => Ok(actual >= expected),
+            _ => Err(MnemeError::invalid("unsupported compare op for f64 field")),
+        },
+        (Value::Bool(actual), Value::Bool(expected)) => match filter.op {
+            CompareOp::Eq => Ok(actual == expected),
+            CompareOp::Ne => Ok(actual != expected),
+            _ => Err(MnemeError::invalid("unsupported compare op for bool field")),
+        },
+        (Value::Time(actual), Value::Time(expected)) => match filter.op {
+            CompareOp::Eq => Ok(actual == expected),
+            CompareOp::Ne => Ok(actual != expected),
+            CompareOp::Lt => Ok(actual < expected),
+            CompareOp::Lte => Ok(actual <= expected),
+            CompareOp::Gt => Ok(actual > expected),
+            CompareOp::Gte => Ok(actual >= expected),
+            _ => Err(MnemeError::invalid("unsupported compare op for time field")),
+        },
+        (Value::Ref(actual), Value::Ref(expected)) => match filter.op {
+            CompareOp::Eq => Ok(actual == expected),
+            CompareOp::Ne => Ok(actual != expected),
+            _ => Err(MnemeError::invalid("unsupported compare op for ref field")),
+        },
+        _ => Err(MnemeError::invalid("filter value type mismatch")),
+    }
 }
 
 fn read_value(value_type: ValueType, row: &QueryResult, column: &str) -> MnemeResult<Value> {

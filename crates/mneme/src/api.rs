@@ -215,6 +215,121 @@ pub trait ScenarioApi {
     ) -> MnemeResult<()>;
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TriggerEvent {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub op_id: OpId,
+    pub op_type: u16,
+    pub asserted_at: Hlc,
+    pub entity_id: Option<Id>,
+    pub type_id: Option<Id>,
+    pub field_id: Option<Id>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct JobSpec {
+    pub job_type: String,
+    pub priority: i32,
+    pub payload: Vec<u8>,
+    pub dedupe_key: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TriggerProcessingInput {
+    pub partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub reason: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RunWorkerInput {
+    pub max_jobs: u32,
+    pub lease_millis: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct JobSummary {
+    pub partition: PartitionId,
+    pub job_id: Id,
+    pub job_type: String,
+    pub status: u8,
+    pub priority: i32,
+    pub attempts: i32,
+    pub max_attempts: i32,
+    pub lease_expires_at: Option<i64>,
+    pub created_asserted_at: Hlc,
+    pub updated_asserted_at: Hlc,
+    pub dedupe_key: Option<String>,
+}
+
+#[async_trait]
+pub trait MnemeProcessingApi {
+    async fn trigger_rebuild_effective_schema(
+        &self,
+        input: TriggerProcessingInput,
+    ) -> MnemeResult<()>;
+    async fn trigger_refresh_integrity(&self, input: TriggerProcessingInput) -> MnemeResult<()>;
+    async fn trigger_refresh_analytics_projections(
+        &self,
+        input: TriggerProcessingInput,
+    ) -> MnemeResult<()>;
+    async fn run_processing_worker(&self, input: RunWorkerInput) -> MnemeResult<u32>;
+    async fn list_jobs(
+        &self,
+        partition: PartitionId,
+        status: Option<u8>,
+        limit: u32,
+    ) -> MnemeResult<Vec<JobSummary>>;
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ChangeEvent {
+    pub partition: PartitionId,
+    pub sequence: i64,
+    pub op_id: OpId,
+    pub asserted_at: Hlc,
+    pub entity_id: Option<Id>,
+    pub change_kind: u8,
+    pub payload: Option<serde_json::Value>,
+}
+
+#[async_trait]
+pub trait ChangeFeedApi {
+    async fn get_changes_since(
+        &self,
+        partition: PartitionId,
+        from_sequence: Option<i64>,
+        limit: u32,
+    ) -> MnemeResult<Vec<ChangeEvent>>;
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ValidationRule {
+    pub rule_id: Id,
+    pub scope_kind: u8,
+    pub scope_id: Option<Id>,
+    pub severity: u8,
+    pub template_kind: String,
+    pub params: serde_json::Value,
+}
+
+#[async_trait]
+pub trait ValidationRulesApi {
+    async fn upsert_validation_rules(
+        &self,
+        partition: PartitionId,
+        actor: ActorId,
+        asserted_at: Hlc,
+        rules: Vec<ValidationRule>,
+    ) -> MnemeResult<()>;
+
+    async fn list_validation_rules(
+        &self,
+        partition: PartitionId,
+    ) -> MnemeResult<Vec<ValidationRule>>;
+}
+
 pub trait MnemeStore:
     MetamodelApi
     + GraphWriteApi
@@ -224,6 +339,9 @@ pub trait MnemeStore:
     + AnalyticsResultsApi
     + SyncApi
     + ScenarioApi
+    + MnemeProcessingApi
+    + ChangeFeedApi
+    + ValidationRulesApi
     + Send
     + Sync
 {
@@ -238,6 +356,9 @@ impl<T> MnemeStore for T where
         + AnalyticsResultsApi
         + SyncApi
         + ScenarioApi
+        + MnemeProcessingApi
+        + ChangeFeedApi
+        + ValidationRulesApi
         + Send
         + Sync
 {

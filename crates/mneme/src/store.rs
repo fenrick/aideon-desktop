@@ -3,6 +3,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use sea_orm::sea_query;
 use sea_orm::sea_query::{
     Alias, Expr, ExprTrait, Func, MysqlQueryBuilder, OnConflict, Order, PostgresQueryBuilder,
@@ -15,9 +16,10 @@ use sea_orm::{
 use uuid::Uuid;
 
 use crate::api::{
-    AnalyticsApi, AnalyticsResultsApi, CreateScenarioInput, Direction, ExportOpsInput,
-    GraphReadApi, GraphWriteApi, MetamodelApi, ProjectionEdge, PropertyWriteApi, ScenarioApi,
-    SyncApi,
+    AnalyticsApi, AnalyticsResultsApi, ChangeEvent, ChangeFeedApi, CreateScenarioInput, Direction,
+    ExportOpsInput, GraphReadApi, GraphWriteApi, JobSummary, MetamodelApi, MnemeProcessingApi,
+    ProjectionEdge, PropertyWriteApi, RunWorkerInput, ScenarioApi, SyncApi, TriggerProcessingInput,
+    ValidationRule, ValidationRulesApi,
 };
 use crate::db::*;
 use crate::migration::Migrator;
@@ -170,6 +172,50 @@ impl MnemeStore {
         Ok(())
     }
 
+    async fn bump_hlc_state(
+        &self,
+        tx: &sea_orm::DatabaseTransaction,
+        partition: PartitionId,
+        asserted_at: Hlc,
+    ) -> MnemeResult<()> {
+        let select = Query::select()
+            .from(AideonHlcState::Table)
+            .column(AideonHlcState::LastHlc)
+            .and_where(Expr::col(AideonHlcState::PartitionId).eq(id_value(self.backend, partition.0)))
+            .limit(1)
+            .to_owned();
+        let row = query_one(tx, &select).await?;
+        let asserted_i64 = asserted_at.as_i64();
+        match row {
+            Some(row) => {
+                let current: i64 = row.try_get("", &col_name(AideonHlcState::LastHlc))?;
+                if asserted_i64 > current {
+                    let update = Query::update()
+                        .table(AideonHlcState::Table)
+                        .values([(AideonHlcState::LastHlc, asserted_i64.into())])
+                        .and_where(
+                            Expr::col(AideonHlcState::PartitionId)
+                                .eq(id_value(self.backend, partition.0)),
+                        )
+                        .to_owned();
+                    exec(tx, &update).await?;
+                }
+            }
+            None => {
+                let insert = Query::insert()
+                    .into_table(AideonHlcState::Table)
+                    .columns([AideonHlcState::PartitionId, AideonHlcState::LastHlc])
+                    .values_panic([
+                        id_value(self.backend, partition.0).into(),
+                        asserted_i64.into(),
+                    ])
+                    .to_owned();
+                exec(tx, &insert).await?;
+            }
+        }
+        Ok(())
+    }
+
     async fn insert_op(
         &self,
         tx: &sea_orm::DatabaseTransaction,
@@ -182,6 +228,7 @@ impl MnemeStore {
         let op_type = payload.op_type() as u16;
         let payload_bytes =
             serde_json::to_vec(payload).map_err(|err| MnemeError::storage(err.to_string()))?;
+        self.bump_hlc_state(tx, partition, asserted_at).await?;
         let insert = Query::insert()
             .into_table(AideonOps::Table)
             .columns([
@@ -208,11 +255,62 @@ impl MnemeStore {
             ])
             .to_owned();
         exec(tx, &insert).await?;
+        self.append_change_feed(tx, partition, op_id, asserted_at, payload)
+            .await?;
         Ok((op_id, asserted_at, payload_bytes, op_type))
     }
 
     fn layer_value(layer: Layer) -> i64 {
         layer as i64
+    }
+
+    async fn append_change_feed(
+        &self,
+        tx: &sea_orm::DatabaseTransaction,
+        partition: PartitionId,
+        op_id: OpId,
+        asserted_at: Hlc,
+        payload: &OpPayload,
+    ) -> MnemeResult<()> {
+        let (change_kind, entity_id, payload_json) = change_feed_payload(payload)?;
+        let select = Query::select()
+            .from(AideonChangeFeed::Table)
+            .expr_as(Func::max(Expr::col(AideonChangeFeed::Sequence)), Alias::new("max_seq"))
+            .and_where(
+                Expr::col(AideonChangeFeed::PartitionId).eq(id_value(self.backend, partition.0)),
+            )
+            .to_owned();
+        let row = query_one(tx, &select).await?;
+        let next_seq = match row {
+            Some(row) => {
+                let max_seq: Option<i64> = row.try_get("", "max_seq")?;
+                max_seq.unwrap_or(0) + 1
+            }
+            None => 1,
+        };
+        let insert = Query::insert()
+            .into_table(AideonChangeFeed::Table)
+            .columns([
+                AideonChangeFeed::PartitionId,
+                AideonChangeFeed::Sequence,
+                AideonChangeFeed::OpId,
+                AideonChangeFeed::AssertedAtHlc,
+                AideonChangeFeed::EntityId,
+                AideonChangeFeed::ChangeKind,
+                AideonChangeFeed::PayloadJson,
+            ])
+            .values_panic([
+                id_value(self.backend, partition.0).into(),
+                next_seq.into(),
+                id_value(self.backend, op_id.0).into(),
+                asserted_at.as_i64().into(),
+                opt_id_value(self.backend, entity_id).into(),
+                (change_kind as i64).into(),
+                payload_json.map(|value| value.to_string()).into(),
+            ])
+            .to_owned();
+        exec(tx, &insert).await?;
+        Ok(())
     }
 
     async fn read_entity_row_in_partition(
@@ -585,6 +683,33 @@ impl MetamodelApi for MnemeStore {
             ])
             .to_owned();
         exec(&self.conn, &insert).await?;
+        let update_head = Query::insert()
+            .into_table(AideonTypeSchemaHead::Table)
+            .columns([
+                AideonTypeSchemaHead::PartitionId,
+                AideonTypeSchemaHead::TypeId,
+                AideonTypeSchemaHead::SchemaVersionHash,
+                AideonTypeSchemaHead::UpdatedAssertedAtHlc,
+            ])
+            .values_panic([
+                id_value(self.backend, partition.0).into(),
+                id_value(self.backend, type_id).into(),
+                hash.clone().into(),
+                asserted_at.as_i64().into(),
+            ])
+            .on_conflict(
+                OnConflict::columns([
+                    AideonTypeSchemaHead::PartitionId,
+                    AideonTypeSchemaHead::TypeId,
+                ])
+                .update_columns([
+                    AideonTypeSchemaHead::SchemaVersionHash,
+                    AideonTypeSchemaHead::UpdatedAssertedAtHlc,
+                ])
+                .to_owned(),
+            )
+            .to_owned();
+        exec(&self.conn, &update_head).await?;
         Ok(SchemaVersion {
             schema_version_hash: hash,
         })
@@ -1504,6 +1629,9 @@ impl SyncApi for MnemeStore {
     async fn ingest_ops(&self, partition: PartitionId, ops: Vec<OpEnvelope>) -> MnemeResult<()> {
         let tx = self.conn.begin().await?;
         for op in ops {
+            let payload: OpPayload = serde_json::from_slice(&op.payload)
+                .map_err(|err| MnemeError::storage(err.to_string()))?;
+            self.bump_hlc_state(&tx, partition, op.asserted_at).await?;
             let insert = Query::insert()
                 .into_table(AideonOps::Table)
                 .columns([
@@ -1561,6 +1689,8 @@ impl SyncApi for MnemeStore {
                     .to_owned();
                 exec(&tx, &insert_dep).await?;
             }
+            self.append_change_feed(&tx, partition, op.op_id, op.asserted_at, &payload)
+                .await?;
         }
         tx.commit().await?;
         Ok(())
@@ -1623,6 +1753,892 @@ impl ScenarioApi for MnemeStore {
             .await?;
         tx.commit().await?;
         Ok(())
+    }
+}
+
+#[derive(Clone)]
+struct JobRecord {
+    job_id: Id,
+    job_type: String,
+    status: u8,
+    priority: i32,
+    attempts: i32,
+    max_attempts: i32,
+    lease_expires_at: Option<i64>,
+    created_asserted_at: Hlc,
+    updated_asserted_at: Hlc,
+    dedupe_key: Option<String>,
+    payload: Vec<u8>,
+}
+
+const JOB_STATUS_PENDING: u8 = 0;
+const JOB_STATUS_RUNNING: u8 = 1;
+const JOB_STATUS_SUCCEEDED: u8 = 2;
+const JOB_STATUS_FAILED: u8 = 3;
+
+const JOB_TYPE_SCHEMA_REBUILD: &str = "schema_rebuild";
+const JOB_TYPE_INTEGRITY_REFRESH: &str = "integrity_refresh";
+const JOB_TYPE_ANALYTICS_REFRESH: &str = "analytics_refresh";
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct TriggerJobPayload {
+    partition_id: PartitionId,
+    scenario_id: Option<ScenarioId>,
+    reason: String,
+}
+
+impl MnemeStore {
+    async fn enqueue_job(
+        &self,
+        tx: &sea_orm::DatabaseTransaction,
+        partition: PartitionId,
+        job_type: &str,
+        payload: Vec<u8>,
+        priority: i32,
+        dedupe_key: Option<String>,
+    ) -> MnemeResult<Id> {
+        let job_id = Id::new();
+        let now = Hlc::now().as_i64();
+        let mut insert = Query::insert()
+            .into_table(AideonJobs::Table)
+            .columns([
+                AideonJobs::PartitionId,
+                AideonJobs::JobId,
+                AideonJobs::JobType,
+                AideonJobs::Status,
+                AideonJobs::Priority,
+                AideonJobs::Attempts,
+                AideonJobs::MaxAttempts,
+                AideonJobs::LeaseExpiresAt,
+                AideonJobs::CreatedAssertedAtHlc,
+                AideonJobs::UpdatedAssertedAtHlc,
+                AideonJobs::Payload,
+                AideonJobs::DedupeKey,
+            ])
+            .values_panic([
+                id_value(self.backend, partition.0).into(),
+                id_value(self.backend, job_id).into(),
+                job_type.to_string().into(),
+                (JOB_STATUS_PENDING as i64).into(),
+                (priority as i64).into(),
+                0i64.into(),
+                3i64.into(),
+                SeaValue::BigInt(None).into(),
+                now.into(),
+                now.into(),
+                payload.into(),
+                dedupe_key.clone().into(),
+            ])
+            .to_owned();
+        if dedupe_key.is_some() {
+            insert.on_conflict(
+                OnConflict::columns([
+                    AideonJobs::PartitionId,
+                    AideonJobs::JobType,
+                    AideonJobs::DedupeKey,
+                    AideonJobs::Status,
+                ])
+                .do_nothing()
+                .to_owned(),
+            );
+        }
+        exec(tx, &insert).await?;
+        Ok(job_id)
+    }
+
+    async fn list_jobs_internal(
+        &self,
+        partition: PartitionId,
+        status: Option<u8>,
+        limit: u32,
+    ) -> MnemeResult<Vec<JobRecord>> {
+        let mut select = Query::select()
+            .from(AideonJobs::Table)
+            .columns([
+                AideonJobs::JobId,
+                AideonJobs::JobType,
+                AideonJobs::Status,
+                AideonJobs::Priority,
+                AideonJobs::Attempts,
+                AideonJobs::MaxAttempts,
+                AideonJobs::LeaseExpiresAt,
+                AideonJobs::CreatedAssertedAtHlc,
+                AideonJobs::UpdatedAssertedAtHlc,
+                AideonJobs::DedupeKey,
+                AideonJobs::Payload,
+            ])
+            .and_where(Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)))
+            .order_by(AideonJobs::CreatedAssertedAtHlc, Order::Desc)
+            .limit(limit as u64)
+            .to_owned();
+        if let Some(status) = status {
+            select.and_where(Expr::col(AideonJobs::Status).eq(status as i64));
+        }
+        let rows = query_all(&self.conn, &select).await?;
+        let mut jobs = Vec::new();
+        for row in rows {
+            let job_id = read_id(&row, AideonJobs::JobId)?;
+            let job_type: String = row.try_get("", &col_name(AideonJobs::JobType))?;
+            let status: i64 = row.try_get("", &col_name(AideonJobs::Status))?;
+            let priority: i64 = row.try_get("", &col_name(AideonJobs::Priority))?;
+            let attempts: i64 = row.try_get("", &col_name(AideonJobs::Attempts))?;
+            let max_attempts: i64 = row.try_get("", &col_name(AideonJobs::MaxAttempts))?;
+            let lease_expires_at: Option<i64> =
+                row.try_get("", &col_name(AideonJobs::LeaseExpiresAt))?;
+            let created_asserted_at = read_hlc(&row, AideonJobs::CreatedAssertedAtHlc)?;
+            let updated_asserted_at = read_hlc(&row, AideonJobs::UpdatedAssertedAtHlc)?;
+            let dedupe_key: Option<String> =
+                row.try_get("", &col_name(AideonJobs::DedupeKey))?;
+            let payload: Vec<u8> = row.try_get("", &col_name(AideonJobs::Payload))?;
+            jobs.push(JobRecord {
+                job_id,
+                job_type,
+                status: status as u8,
+                priority: priority as i32,
+                attempts: attempts as i32,
+                max_attempts: max_attempts as i32,
+                lease_expires_at,
+                created_asserted_at,
+                updated_asserted_at,
+                dedupe_key,
+                payload,
+            });
+        }
+        Ok(jobs)
+    }
+
+    async fn claim_pending_jobs(
+        &self,
+        tx: &sea_orm::DatabaseTransaction,
+        partition: Option<PartitionId>,
+        max_jobs: u32,
+        lease_millis: u64,
+    ) -> MnemeResult<Vec<JobRecord>> {
+        let mut select = Query::select()
+            .from(AideonJobs::Table)
+            .columns([
+                AideonJobs::JobId,
+                AideonJobs::JobType,
+                AideonJobs::Status,
+                AideonJobs::Priority,
+                AideonJobs::Attempts,
+                AideonJobs::MaxAttempts,
+                AideonJobs::LeaseExpiresAt,
+                AideonJobs::CreatedAssertedAtHlc,
+                AideonJobs::UpdatedAssertedAtHlc,
+                AideonJobs::DedupeKey,
+                AideonJobs::Payload,
+            ])
+            .and_where(Expr::col(AideonJobs::Status).eq(JOB_STATUS_PENDING as i64))
+            .order_by(AideonJobs::Priority, Order::Desc)
+            .order_by(AideonJobs::CreatedAssertedAtHlc, Order::Asc)
+            .limit(max_jobs as u64)
+            .to_owned();
+        if let Some(partition) = partition {
+            select.and_where(
+                Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)),
+            );
+        }
+        let rows = query_all(tx, &select).await?;
+        let mut claimed = Vec::new();
+        let now = Hlc::now().as_i64();
+        let lease_expires_at = now + lease_millis as i64;
+        for row in rows {
+            let job_id = read_id(&row, AideonJobs::JobId)?;
+            let mut update = Query::update()
+                .table(AideonJobs::Table)
+                .values([
+                    (AideonJobs::Status, (JOB_STATUS_RUNNING as i64).into()),
+                    (AideonJobs::LeaseExpiresAt, lease_expires_at.into()),
+                    (AideonJobs::UpdatedAssertedAtHlc, now.into()),
+                ])
+                .and_where(Expr::col(AideonJobs::JobId).eq(id_value(self.backend, job_id)))
+                .and_where(Expr::col(AideonJobs::Status).eq(JOB_STATUS_PENDING as i64))
+                .to_owned();
+            if let Some(partition) = partition {
+                update.and_where(
+                    Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)),
+                );
+            }
+            let result = tx.execute(&update).await?;
+            if result.rows_affected() == 0 {
+                continue;
+            }
+            let job_type: String = row.try_get("", &col_name(AideonJobs::JobType))?;
+            let status: i64 = row.try_get("", &col_name(AideonJobs::Status))?;
+            let priority: i64 = row.try_get("", &col_name(AideonJobs::Priority))?;
+            let attempts: i64 = row.try_get("", &col_name(AideonJobs::Attempts))?;
+            let max_attempts: i64 = row.try_get("", &col_name(AideonJobs::MaxAttempts))?;
+            let lease_expires_at: Option<i64> =
+                row.try_get("", &col_name(AideonJobs::LeaseExpiresAt))?;
+            let created_asserted_at = read_hlc(&row, AideonJobs::CreatedAssertedAtHlc)?;
+            let updated_asserted_at = read_hlc(&row, AideonJobs::UpdatedAssertedAtHlc)?;
+            let dedupe_key: Option<String> =
+                row.try_get("", &col_name(AideonJobs::DedupeKey))?;
+            let payload: Vec<u8> = row.try_get("", &col_name(AideonJobs::Payload))?;
+            claimed.push(JobRecord {
+                job_id,
+                job_type,
+                status: status as u8,
+                priority: priority as i32,
+                attempts: attempts as i32,
+                max_attempts: max_attempts as i32,
+                lease_expires_at,
+                created_asserted_at,
+                updated_asserted_at,
+                dedupe_key,
+                payload,
+            });
+        }
+        Ok(claimed)
+    }
+
+    async fn mark_job_succeeded(
+        &self,
+        tx: &sea_orm::DatabaseTransaction,
+        partition: PartitionId,
+        job_id: Id,
+    ) -> MnemeResult<()> {
+        let now = Hlc::now().as_i64();
+        let update = Query::update()
+            .table(AideonJobs::Table)
+            .values([
+                (AideonJobs::Status, (JOB_STATUS_SUCCEEDED as i64).into()),
+                (AideonJobs::LeaseExpiresAt, SeaValue::BigInt(None).into()),
+                (AideonJobs::UpdatedAssertedAtHlc, now.into()),
+            ])
+            .and_where(Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)))
+            .and_where(Expr::col(AideonJobs::JobId).eq(id_value(self.backend, job_id)))
+            .to_owned();
+        exec(tx, &update).await?;
+        Ok(())
+    }
+
+    async fn mark_job_failed(
+        &self,
+        tx: &sea_orm::DatabaseTransaction,
+        partition: PartitionId,
+        job: &JobRecord,
+        error: &str,
+    ) -> MnemeResult<()> {
+        let now = Hlc::now().as_i64();
+        let next_attempts = job.attempts + 1;
+        let status = if next_attempts >= job.max_attempts {
+            JOB_STATUS_FAILED
+        } else {
+            JOB_STATUS_PENDING
+        };
+        let update = Query::update()
+            .table(AideonJobs::Table)
+            .values([
+                (AideonJobs::Status, (status as i64).into()),
+                (AideonJobs::Attempts, (next_attempts as i64).into()),
+                (AideonJobs::LeaseExpiresAt, SeaValue::BigInt(None).into()),
+                (AideonJobs::UpdatedAssertedAtHlc, now.into()),
+            ])
+            .and_where(Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)))
+            .and_where(Expr::col(AideonJobs::JobId).eq(id_value(self.backend, job.job_id)))
+            .to_owned();
+        exec(tx, &update).await?;
+
+        let insert_event = Query::insert()
+            .into_table(AideonJobEvents::Table)
+            .columns([
+                AideonJobEvents::PartitionId,
+                AideonJobEvents::JobId,
+                AideonJobEvents::EventTime,
+                AideonJobEvents::Message,
+            ])
+            .values_panic([
+                id_value(self.backend, partition.0).into(),
+                id_value(self.backend, job.job_id).into(),
+                now.into(),
+                error.to_string().into(),
+            ])
+            .to_owned();
+        exec(tx, &insert_event).await?;
+        Ok(())
+    }
+
+    async fn refresh_integrity(
+        &self,
+        tx: &sea_orm::DatabaseTransaction,
+        partition: PartitionId,
+        scenario_id: Option<ScenarioId>,
+        reason: &str,
+    ) -> MnemeResult<()> {
+        let run_id = Id::new();
+        let params = serde_json::json!({ "reason": reason });
+        let now = Hlc::now().as_i64();
+        let insert_run = Query::insert()
+            .into_table(AideonIntegrityRuns::Table)
+            .columns([
+                AideonIntegrityRuns::PartitionId,
+                AideonIntegrityRuns::RunId,
+                AideonIntegrityRuns::ScenarioId,
+                AideonIntegrityRuns::AsOfValidTime,
+                AideonIntegrityRuns::AsOfAssertedAtHlc,
+                AideonIntegrityRuns::ParamsJson,
+                AideonIntegrityRuns::CreatedAssertedAtHlc,
+            ])
+            .values_panic([
+                id_value(self.backend, partition.0).into(),
+                id_value(self.backend, run_id).into(),
+                opt_id_value(self.backend, scenario_id.map(|s| s.0)).into(),
+                SeaValue::BigInt(None).into(),
+                SeaValue::BigInt(None).into(),
+                params.to_string().into(),
+                now.into(),
+            ])
+            .to_owned();
+        exec(tx, &insert_run).await?;
+
+        let insert_head = Query::insert()
+            .into_table(AideonIntegrityHead::Table)
+            .columns([
+                AideonIntegrityHead::PartitionId,
+                AideonIntegrityHead::ScenarioId,
+                AideonIntegrityHead::RunId,
+                AideonIntegrityHead::UpdatedAssertedAtHlc,
+            ])
+            .values_panic([
+                id_value(self.backend, partition.0).into(),
+                opt_id_value(self.backend, scenario_id.map(|s| s.0)).into(),
+                id_value(self.backend, run_id).into(),
+                now.into(),
+            ])
+            .on_conflict(
+                OnConflict::columns([
+                    AideonIntegrityHead::PartitionId,
+                    AideonIntegrityHead::ScenarioId,
+                ])
+                .update_columns([
+                    AideonIntegrityHead::RunId,
+                    AideonIntegrityHead::UpdatedAssertedAtHlc,
+                ])
+                .to_owned(),
+            )
+            .to_owned();
+        exec(tx, &insert_head).await?;
+        Ok(())
+    }
+
+    async fn refresh_analytics(
+        &self,
+        tx: &sea_orm::DatabaseTransaction,
+        partition: PartitionId,
+        scenario_id: Option<ScenarioId>,
+    ) -> MnemeResult<()> {
+        let delete_degree = Query::delete()
+            .from_table(AideonGraphDegreeStats::Table)
+            .and_where(Expr::col(AideonGraphDegreeStats::PartitionId).eq(id_value(
+                self.backend,
+                partition.0,
+            )))
+            .and_where(match scenario_id {
+                Some(scenario_id) => Expr::col(AideonGraphDegreeStats::ScenarioId)
+                    .eq(id_value(self.backend, scenario_id.0)),
+                None => Expr::col(AideonGraphDegreeStats::ScenarioId).is_null(),
+            })
+            .to_owned();
+        exec(tx, &delete_degree).await?;
+
+        let delete_counts = Query::delete()
+            .from_table(AideonGraphEdgeTypeCounts::Table)
+            .and_where(Expr::col(AideonGraphEdgeTypeCounts::PartitionId).eq(id_value(
+                self.backend,
+                partition.0,
+            )))
+            .and_where(match scenario_id {
+                Some(scenario_id) => Expr::col(AideonGraphEdgeTypeCounts::ScenarioId)
+                    .eq(id_value(self.backend, scenario_id.0)),
+                None => Expr::col(AideonGraphEdgeTypeCounts::ScenarioId).is_null(),
+            })
+            .to_owned();
+        exec(tx, &delete_counts).await?;
+
+        let now = Hlc::now().as_i64();
+        let mut out_select = Query::select();
+        out_select
+            .from(AideonGraphProjectionEdges::Table)
+            .columns([
+                AideonGraphProjectionEdges::SrcEntityId,
+                AideonGraphProjectionEdges::ScenarioId,
+            ])
+            .expr_as(Func::count(Expr::col(AideonGraphProjectionEdges::EdgeId)), Alias::new("cnt"))
+            .and_where(
+                Expr::col(AideonGraphProjectionEdges::PartitionId)
+                    .eq(id_value(self.backend, partition.0)),
+            )
+            .group_by_col(AideonGraphProjectionEdges::SrcEntityId)
+            .group_by_col(AideonGraphProjectionEdges::ScenarioId);
+        if let Some(scenario_id) = scenario_id {
+            out_select.and_where(
+                Expr::col(AideonGraphProjectionEdges::ScenarioId)
+                    .eq(id_value(self.backend, scenario_id.0)),
+            );
+        } else {
+            out_select.and_where(Expr::col(AideonGraphProjectionEdges::ScenarioId).is_null());
+        }
+        let out_rows = query_all(tx, &out_select).await?;
+
+        let mut in_select = Query::select();
+        in_select
+            .from(AideonGraphProjectionEdges::Table)
+            .columns([
+                AideonGraphProjectionEdges::DstEntityId,
+                AideonGraphProjectionEdges::ScenarioId,
+            ])
+            .expr_as(Func::count(Expr::col(AideonGraphProjectionEdges::EdgeId)), Alias::new("cnt"))
+            .and_where(
+                Expr::col(AideonGraphProjectionEdges::PartitionId)
+                    .eq(id_value(self.backend, partition.0)),
+            )
+            .group_by_col(AideonGraphProjectionEdges::DstEntityId)
+            .group_by_col(AideonGraphProjectionEdges::ScenarioId);
+        if let Some(scenario_id) = scenario_id {
+            in_select.and_where(
+                Expr::col(AideonGraphProjectionEdges::ScenarioId)
+                    .eq(id_value(self.backend, scenario_id.0)),
+            );
+        } else {
+            in_select.and_where(Expr::col(AideonGraphProjectionEdges::ScenarioId).is_null());
+        }
+        let in_rows = query_all(tx, &in_select).await?;
+
+        let mut degrees: HashMap<Id, (i32, i32)> = HashMap::new();
+        for row in out_rows {
+            let entity_id = read_id_by_name(&row, &col_name(AideonGraphProjectionEdges::SrcEntityId))?;
+            let count: i64 = row.try_get("", "cnt")?;
+            let entry = degrees.entry(entity_id).or_insert((0, 0));
+            entry.0 = count as i32;
+        }
+        for row in in_rows {
+            let entity_id = read_id_by_name(&row, &col_name(AideonGraphProjectionEdges::DstEntityId))?;
+            let count: i64 = row.try_get("", "cnt")?;
+            let entry = degrees.entry(entity_id).or_insert((0, 0));
+            entry.1 = count as i32;
+        }
+
+        for (entity_id, (out_degree, in_degree)) in degrees {
+            let insert = Query::insert()
+                .into_table(AideonGraphDegreeStats::Table)
+                .columns([
+                    AideonGraphDegreeStats::PartitionId,
+                    AideonGraphDegreeStats::ScenarioId,
+                    AideonGraphDegreeStats::AsOfValidTime,
+                    AideonGraphDegreeStats::EntityId,
+                    AideonGraphDegreeStats::OutDegree,
+                    AideonGraphDegreeStats::InDegree,
+                    AideonGraphDegreeStats::ComputedAssertedAtHlc,
+                ])
+                .values_panic([
+                    id_value(self.backend, partition.0).into(),
+                    opt_id_value(self.backend, scenario_id.map(|s| s.0)).into(),
+                    SeaValue::BigInt(None).into(),
+                    id_value(self.backend, entity_id).into(),
+                    (out_degree as i64).into(),
+                    (in_degree as i64).into(),
+                    now.into(),
+                ])
+                .to_owned();
+            exec(tx, &insert).await?;
+        }
+
+        let mut counts_select = Query::select();
+        counts_select
+            .from(AideonGraphProjectionEdges::Table)
+            .columns([
+                AideonGraphProjectionEdges::EdgeTypeId,
+                AideonGraphProjectionEdges::ScenarioId,
+            ])
+            .expr_as(Func::count(Expr::col(AideonGraphProjectionEdges::EdgeId)), Alias::new("cnt"))
+            .and_where(
+                Expr::col(AideonGraphProjectionEdges::PartitionId)
+                    .eq(id_value(self.backend, partition.0)),
+            )
+            .group_by_col(AideonGraphProjectionEdges::EdgeTypeId)
+            .group_by_col(AideonGraphProjectionEdges::ScenarioId);
+        if let Some(scenario_id) = scenario_id {
+            counts_select.and_where(
+                Expr::col(AideonGraphProjectionEdges::ScenarioId)
+                    .eq(id_value(self.backend, scenario_id.0)),
+            );
+        } else {
+            counts_select.and_where(Expr::col(AideonGraphProjectionEdges::ScenarioId).is_null());
+        }
+        let count_rows = query_all(tx, &counts_select).await?;
+        for row in count_rows {
+            let edge_type_id = read_opt_id(&row, AideonGraphProjectionEdges::EdgeTypeId)?;
+            let count: i64 = row.try_get("", "cnt")?;
+            let insert = Query::insert()
+                .into_table(AideonGraphEdgeTypeCounts::Table)
+                .columns([
+                    AideonGraphEdgeTypeCounts::PartitionId,
+                    AideonGraphEdgeTypeCounts::ScenarioId,
+                    AideonGraphEdgeTypeCounts::EdgeTypeId,
+                    AideonGraphEdgeTypeCounts::Count,
+                    AideonGraphEdgeTypeCounts::ComputedAssertedAtHlc,
+                ])
+                .values_panic([
+                    id_value(self.backend, partition.0).into(),
+                    opt_id_value(self.backend, scenario_id.map(|s| s.0)).into(),
+                    opt_id_value(self.backend, edge_type_id.map(|id| id)).into(),
+                    count.into(),
+                    now.into(),
+                ])
+                .to_owned();
+            exec(tx, &insert).await?;
+        }
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl MnemeProcessingApi for MnemeStore {
+    async fn trigger_rebuild_effective_schema(
+        &self,
+        input: TriggerProcessingInput,
+    ) -> MnemeResult<()> {
+        let tx = self.conn.begin().await?;
+        let payload = TriggerJobPayload {
+            partition_id: input.partition,
+            scenario_id: input.scenario_id,
+            reason: input.reason,
+        };
+        let payload = serde_json::to_vec(&payload)
+            .map_err(|err| MnemeError::storage(err.to_string()))?;
+        self.enqueue_job(
+            &tx,
+            input.partition,
+            JOB_TYPE_SCHEMA_REBUILD,
+            payload,
+            0,
+            Some("schema:rebuild".to_string()),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn trigger_refresh_integrity(&self, input: TriggerProcessingInput) -> MnemeResult<()> {
+        let tx = self.conn.begin().await?;
+        let payload = TriggerJobPayload {
+            partition_id: input.partition,
+            scenario_id: input.scenario_id,
+            reason: input.reason,
+        };
+        let payload = serde_json::to_vec(&payload)
+            .map_err(|err| MnemeError::storage(err.to_string()))?;
+        self.enqueue_job(
+            &tx,
+            input.partition,
+            JOB_TYPE_INTEGRITY_REFRESH,
+            payload,
+            0,
+            Some("integrity:refresh".to_string()),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn trigger_refresh_analytics_projections(
+        &self,
+        input: TriggerProcessingInput,
+    ) -> MnemeResult<()> {
+        let tx = self.conn.begin().await?;
+        let payload = TriggerJobPayload {
+            partition_id: input.partition,
+            scenario_id: input.scenario_id,
+            reason: input.reason,
+        };
+        let payload = serde_json::to_vec(&payload)
+            .map_err(|err| MnemeError::storage(err.to_string()))?;
+        self.enqueue_job(
+            &tx,
+            input.partition,
+            JOB_TYPE_ANALYTICS_REFRESH,
+            payload,
+            0,
+            Some("analytics:refresh".to_string()),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn run_processing_worker(&self, input: RunWorkerInput) -> MnemeResult<u32> {
+        let mut processed = 0u32;
+        let tx = self.conn.begin().await?;
+        let mut jobs = self
+            .claim_pending_jobs(&tx, None, input.max_jobs, input.lease_millis)
+            .await?;
+        tx.commit().await?;
+
+        for job in jobs.drain(..) {
+            let payload: TriggerJobPayload = serde_json::from_slice(&job.payload)
+                .map_err(|err| MnemeError::storage(err.to_string()))?;
+            let tx = self.conn.begin().await?;
+            let result = match job.job_type.as_str() {
+                JOB_TYPE_SCHEMA_REBUILD => {
+                    let select = Query::select()
+                        .from(AideonTypes::Table)
+                        .column(AideonTypes::TypeId)
+                        .and_where(
+                            Expr::col(AideonTypes::PartitionId)
+                                .eq(id_value(self.backend, payload.partition_id.0)),
+                        )
+                        .and_where(Expr::col(AideonTypes::IsDeleted).eq(false))
+                        .to_owned();
+                    let rows = query_all(&tx, &select).await?;
+                    for row in rows {
+                        let type_id = read_id(&row, AideonTypes::TypeId)?;
+                        let version = self
+                            .compile_effective_schema(
+                                payload.partition_id,
+                                ActorId(Id::new()),
+                                Hlc::now(),
+                                type_id,
+                            )
+                            .await?;
+                        let update = Query::insert()
+                            .into_table(AideonTypeSchemaHead::Table)
+                            .columns([
+                                AideonTypeSchemaHead::PartitionId,
+                                AideonTypeSchemaHead::TypeId,
+                                AideonTypeSchemaHead::SchemaVersionHash,
+                                AideonTypeSchemaHead::UpdatedAssertedAtHlc,
+                            ])
+                            .values_panic([
+                                id_value(self.backend, payload.partition_id.0).into(),
+                                id_value(self.backend, type_id).into(),
+                                version.schema_version_hash.clone().into(),
+                                Hlc::now().as_i64().into(),
+                            ])
+                            .on_conflict(
+                                OnConflict::columns([
+                                    AideonTypeSchemaHead::PartitionId,
+                                    AideonTypeSchemaHead::TypeId,
+                                ])
+                                .update_columns([
+                                    AideonTypeSchemaHead::SchemaVersionHash,
+                                    AideonTypeSchemaHead::UpdatedAssertedAtHlc,
+                                ])
+                                .to_owned(),
+                            )
+                            .to_owned();
+                        exec(&tx, &update).await?;
+                    }
+                    Ok(())
+                }
+                JOB_TYPE_INTEGRITY_REFRESH => {
+                    self.refresh_integrity(&tx, payload.partition_id, payload.scenario_id, &payload.reason)
+                        .await
+                }
+                JOB_TYPE_ANALYTICS_REFRESH => {
+                    self.refresh_analytics(&tx, payload.partition_id, payload.scenario_id)
+                        .await
+                }
+                other => Err(MnemeError::not_implemented(format!(
+                    "unknown job type {other}"
+                ))),
+            };
+            match result {
+                Ok(()) => {
+                    self.mark_job_succeeded(&tx, payload.partition_id, job.job_id)
+                        .await?;
+                    tx.commit().await?;
+                    processed += 1;
+                }
+                Err(err) => {
+                    self.mark_job_failed(&tx, payload.partition_id, &job, &err.to_string())
+                        .await?;
+                    tx.commit().await?;
+                }
+            }
+        }
+        Ok(processed)
+    }
+
+    async fn list_jobs(
+        &self,
+        partition: PartitionId,
+        status: Option<u8>,
+        limit: u32,
+    ) -> MnemeResult<Vec<JobSummary>> {
+        let jobs = self.list_jobs_internal(partition, status, limit).await?;
+        Ok(jobs
+            .into_iter()
+            .map(|job| JobSummary {
+                partition,
+                job_id: job.job_id,
+                job_type: job.job_type,
+                status: job.status,
+                priority: job.priority,
+                attempts: job.attempts,
+                max_attempts: job.max_attempts,
+                lease_expires_at: job.lease_expires_at,
+                created_asserted_at: job.created_asserted_at,
+                updated_asserted_at: job.updated_asserted_at,
+                dedupe_key: job.dedupe_key,
+            })
+            .collect())
+    }
+}
+
+#[async_trait]
+impl ChangeFeedApi for MnemeStore {
+    async fn get_changes_since(
+        &self,
+        partition: PartitionId,
+        from_sequence: Option<i64>,
+        limit: u32,
+    ) -> MnemeResult<Vec<ChangeEvent>> {
+        let mut select = Query::select()
+            .from(AideonChangeFeed::Table)
+            .columns([
+                AideonChangeFeed::Sequence,
+                AideonChangeFeed::OpId,
+                AideonChangeFeed::AssertedAtHlc,
+                AideonChangeFeed::EntityId,
+                AideonChangeFeed::ChangeKind,
+                AideonChangeFeed::PayloadJson,
+            ])
+            .and_where(
+                Expr::col(AideonChangeFeed::PartitionId).eq(id_value(self.backend, partition.0)),
+            )
+            .order_by(AideonChangeFeed::Sequence, Order::Asc)
+            .limit(limit as u64)
+            .to_owned();
+        if let Some(from_sequence) = from_sequence {
+            select.and_where(Expr::col(AideonChangeFeed::Sequence).gt(from_sequence));
+        }
+        let rows = query_all(&self.conn, &select).await?;
+        let mut events = Vec::new();
+        for row in rows {
+            let sequence: i64 = row.try_get("", &col_name(AideonChangeFeed::Sequence))?;
+            let op_id = read_id(&row, AideonChangeFeed::OpId)?;
+            let asserted_at = read_hlc(&row, AideonChangeFeed::AssertedAtHlc)?;
+            let entity_id = read_opt_id(&row, AideonChangeFeed::EntityId)?;
+            let change_kind: i64 = row.try_get("", &col_name(AideonChangeFeed::ChangeKind))?;
+            let payload_json: Option<String> =
+                row.try_get("", &col_name(AideonChangeFeed::PayloadJson))?;
+            let payload = payload_json
+                .map(|raw| serde_json::from_str(&raw))
+                .transpose()
+                .map_err(|err| MnemeError::storage(err.to_string()))?;
+            events.push(ChangeEvent {
+                partition,
+                sequence,
+                op_id: OpId(op_id),
+                asserted_at,
+                entity_id,
+                change_kind: change_kind as u8,
+                payload,
+            });
+        }
+        Ok(events)
+    }
+}
+
+#[async_trait]
+impl ValidationRulesApi for MnemeStore {
+    async fn upsert_validation_rules(
+        &self,
+        partition: PartitionId,
+        _actor: ActorId,
+        asserted_at: Hlc,
+        rules: Vec<ValidationRule>,
+    ) -> MnemeResult<()> {
+        let tx = self.conn.begin().await?;
+        for rule in rules {
+            let params = serde_json::to_string(&rule.params)
+                .map_err(|err| MnemeError::storage(err.to_string()))?;
+            let insert = Query::insert()
+                .into_table(AideonValidationRules::Table)
+                .columns([
+                    AideonValidationRules::PartitionId,
+                    AideonValidationRules::RuleId,
+                    AideonValidationRules::ScopeKind,
+                    AideonValidationRules::ScopeId,
+                    AideonValidationRules::Severity,
+                    AideonValidationRules::TemplateKind,
+                    AideonValidationRules::ParamsJson,
+                    AideonValidationRules::UpdatedAssertedAtHlc,
+                ])
+                .values_panic([
+                    id_value(self.backend, partition.0).into(),
+                    id_value(self.backend, rule.rule_id).into(),
+                    (rule.scope_kind as i64).into(),
+                    opt_id_value(self.backend, rule.scope_id).into(),
+                    (rule.severity as i64).into(),
+                    rule.template_kind.into(),
+                    params.into(),
+                    asserted_at.as_i64().into(),
+                ])
+                .on_conflict(
+                    OnConflict::columns([AideonValidationRules::PartitionId, AideonValidationRules::RuleId])
+                        .update_columns([
+                            AideonValidationRules::ScopeKind,
+                            AideonValidationRules::ScopeId,
+                            AideonValidationRules::Severity,
+                            AideonValidationRules::TemplateKind,
+                            AideonValidationRules::ParamsJson,
+                            AideonValidationRules::UpdatedAssertedAtHlc,
+                        ])
+                        .to_owned(),
+                )
+                .to_owned();
+            exec(&tx, &insert).await?;
+        }
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn list_validation_rules(
+        &self,
+        partition: PartitionId,
+    ) -> MnemeResult<Vec<ValidationRule>> {
+        let select = Query::select()
+            .from(AideonValidationRules::Table)
+            .columns([
+                AideonValidationRules::RuleId,
+                AideonValidationRules::ScopeKind,
+                AideonValidationRules::ScopeId,
+                AideonValidationRules::Severity,
+                AideonValidationRules::TemplateKind,
+                AideonValidationRules::ParamsJson,
+            ])
+            .and_where(
+                Expr::col(AideonValidationRules::PartitionId)
+                    .eq(id_value(self.backend, partition.0)),
+            )
+            .to_owned();
+        let rows = query_all(&self.conn, &select).await?;
+        let mut rules = Vec::new();
+        for row in rows {
+            let rule_id = read_id(&row, AideonValidationRules::RuleId)?;
+            let scope_kind: i64 = row.try_get("", &col_name(AideonValidationRules::ScopeKind))?;
+            let scope_id = read_opt_id(&row, AideonValidationRules::ScopeId)?;
+            let severity: i64 = row.try_get("", &col_name(AideonValidationRules::Severity))?;
+            let template_kind: String =
+                row.try_get("", &col_name(AideonValidationRules::TemplateKind))?;
+            let params_json: String =
+                row.try_get("", &col_name(AideonValidationRules::ParamsJson))?;
+            let params = serde_json::from_str(&params_json)
+                .map_err(|err| MnemeError::storage(err.to_string()))?;
+            rules.push(ValidationRule {
+                rule_id,
+                scope_kind: scope_kind as u8,
+                scope_id,
+                severity: severity as u8,
+                template_kind,
+                params,
+            });
+        }
+        Ok(rules)
     }
 }
 
@@ -1907,6 +2923,30 @@ fn scenario_id_from_payload(payload: &[u8]) -> MnemeResult<Option<crate::Scenari
         OpPayload::CreateScenario { scenario_id, .. } => Some(scenario_id),
         OpPayload::DeleteScenario { scenario_id, .. } => Some(scenario_id),
     })
+}
+
+const CHANGE_KIND_ENTITY: u8 = 1;
+const CHANGE_KIND_EDGE: u8 = 2;
+const CHANGE_KIND_PROPERTY: u8 = 3;
+const CHANGE_KIND_SCHEMA: u8 = 4;
+const CHANGE_KIND_SCENARIO: u8 = 5;
+
+fn change_feed_payload(
+    payload: &OpPayload,
+) -> MnemeResult<(u8, Option<Id>, Option<serde_json::Value>)> {
+    let (kind, entity_id) = match payload {
+        OpPayload::CreateNode(input) => (CHANGE_KIND_ENTITY, Some(input.node_id)),
+        OpPayload::CreateEdge(input) => (CHANGE_KIND_EDGE, Some(input.edge_id)),
+        OpPayload::TombstoneEntity { entity_id, .. } => (CHANGE_KIND_ENTITY, Some(*entity_id)),
+        OpPayload::SetProperty(input) => (CHANGE_KIND_PROPERTY, Some(input.entity_id)),
+        OpPayload::ClearProperty(input) => (CHANGE_KIND_PROPERTY, Some(input.entity_id)),
+        OpPayload::OrSetUpdate(input) => (CHANGE_KIND_PROPERTY, Some(input.entity_id)),
+        OpPayload::CounterUpdate(input) => (CHANGE_KIND_PROPERTY, Some(input.entity_id)),
+        OpPayload::UpsertMetamodelBatch(_) => (CHANGE_KIND_SCHEMA, None),
+        OpPayload::CreateScenario { .. } => (CHANGE_KIND_SCENARIO, None),
+        OpPayload::DeleteScenario { .. } => (CHANGE_KIND_SCENARIO, None),
+    };
+    Ok((kind, entity_id, None))
 }
 
 async fn insert_property_fact(

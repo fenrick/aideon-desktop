@@ -857,6 +857,7 @@ impl MigrationTrait for Migration {
                         Index::create()
                             .name("pk_aideon_graph_degree_stats")
                             .col(AideonGraphDegreeStats::PartitionId)
+                            .col(AideonGraphDegreeStats::ScenarioId)
                             .col(AideonGraphDegreeStats::EntityId)
                             .col(AideonGraphDegreeStats::AsOfValidTime),
                     )
@@ -882,6 +883,7 @@ impl MigrationTrait for Migration {
                         Index::create()
                             .name("pk_aideon_graph_edge_type_counts")
                             .col(AideonGraphEdgeTypeCounts::PartitionId)
+                            .col(AideonGraphEdgeTypeCounts::ScenarioId)
                             .col(AideonGraphEdgeTypeCounts::EdgeTypeId),
                     )
                     .to_owned(),
@@ -985,7 +987,7 @@ impl MigrationTrait for Migration {
                         Index::create()
                             .name("pk_aideon_integrity_head")
                             .col(AideonIntegrityHead::PartitionId)
-                            .col(AideonIntegrityHead::RunId),
+                            .col(AideonIntegrityHead::ScenarioId),
                     )
                     .to_owned(),
             )
@@ -2236,6 +2238,7 @@ async fn create_indexes(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
                 .col(AideonJobs::JobType)
                 .col(AideonJobs::DedupeKey)
                 .col(AideonJobs::Status)
+                .unique()
                 .to_owned(),
         )
         .await?;

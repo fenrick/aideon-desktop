@@ -63,6 +63,10 @@ async fn list_entities_filters_indexed_fields() -> aideon_mneme::MnemeResult<()>
             asserted_at: Hlc::now(),
             node_id: node_alpha,
             type_id: Some(type_id),
+            acl_group_id: None,
+            owner_actor_id: None,
+            visibility: None,
+            write_options: None,
         })
         .await?;
     store
@@ -73,6 +77,10 @@ async fn list_entities_filters_indexed_fields() -> aideon_mneme::MnemeResult<()>
             asserted_at: Hlc::now(),
             node_id: node_beta,
             type_id: Some(type_id),
+            acl_group_id: None,
+            owner_actor_id: None,
+            visibility: None,
+            write_options: None,
         })
         .await?;
     store
@@ -87,6 +95,7 @@ async fn list_entities_filters_indexed_fields() -> aideon_mneme::MnemeResult<()>
             valid_from: ValidTime(0),
             valid_to: None,
             layer: Layer::Actual,
+            write_options: None,
         })
         .await?;
     store
@@ -101,6 +110,7 @@ async fn list_entities_filters_indexed_fields() -> aideon_mneme::MnemeResult<()>
             valid_from: ValidTime(0),
             valid_to: None,
             layer: Layer::Actual,
+            write_options: None,
         })
         .await?;
 
@@ -108,6 +118,7 @@ async fn list_entities_filters_indexed_fields() -> aideon_mneme::MnemeResult<()>
         .list_entities(ListEntitiesInput {
             partition,
             scenario_id: None,
+            security_context: None,
             kind: Some(EntityKind::Node),
             type_id: Some(type_id),
             at_valid_time: ValidTime(1),

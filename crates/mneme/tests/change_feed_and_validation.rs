@@ -22,6 +22,10 @@ async fn change_feed_records_create_node() -> aideon_mneme::MnemeResult<()> {
             asserted_at: Hlc::now(),
             node_id,
             type_id: None,
+            acl_group_id: None,
+            owner_actor_id: None,
+            visibility: None,
+            write_options: None,
         })
         .await?;
     let changes = store.get_changes_since(partition, None, 10).await?;

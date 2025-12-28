@@ -62,6 +62,10 @@ async fn resolves_layer_precedence_for_lww() -> aideon_mneme::MnemeResult<()> {
             asserted_at: Hlc::now(),
             node_id,
             type_id: Some(type_id),
+            acl_group_id: None,
+            owner_actor_id: None,
+            visibility: None,
+            write_options: None,
         })
         .await?;
     store
@@ -76,6 +80,7 @@ async fn resolves_layer_precedence_for_lww() -> aideon_mneme::MnemeResult<()> {
             valid_from: ValidTime(0),
             valid_to: None,
             layer: Layer::Plan,
+            write_options: None,
         })
         .await?;
     store
@@ -90,12 +95,14 @@ async fn resolves_layer_precedence_for_lww() -> aideon_mneme::MnemeResult<()> {
             valid_from: ValidTime(0),
             valid_to: None,
             layer: Layer::Actual,
+            write_options: None,
         })
         .await?;
     let result = store
         .read_entity_at_time(ReadEntityAtTimeInput {
             partition,
             scenario_id: None,
+            security_context: None,
             entity_id: node_id,
             at_valid_time: ValidTime(1),
             as_of_asserted_at: None,
@@ -162,6 +169,10 @@ async fn resolves_multi_value_for_mv() -> aideon_mneme::MnemeResult<()> {
             asserted_at: Hlc::now(),
             node_id,
             type_id: Some(type_id),
+            acl_group_id: None,
+            owner_actor_id: None,
+            visibility: None,
+            write_options: None,
         })
         .await?;
     store
@@ -176,6 +187,7 @@ async fn resolves_multi_value_for_mv() -> aideon_mneme::MnemeResult<()> {
             valid_from: ValidTime(10),
             valid_to: None,
             layer: Layer::Actual,
+            write_options: None,
         })
         .await?;
     store
@@ -190,12 +202,14 @@ async fn resolves_multi_value_for_mv() -> aideon_mneme::MnemeResult<()> {
             valid_from: ValidTime(10),
             valid_to: None,
             layer: Layer::Actual,
+            write_options: None,
         })
         .await?;
     let result = store
         .read_entity_at_time(ReadEntityAtTimeInput {
             partition,
             scenario_id: None,
+            security_context: None,
             entity_id: node_id,
             at_valid_time: ValidTime(11),
             as_of_asserted_at: None,
@@ -272,6 +286,10 @@ async fn respects_as_of_asserted_at_for_reads() -> aideon_mneme::MnemeResult<()>
             asserted_at: Hlc::now(),
             node_id,
             type_id: Some(type_id),
+            acl_group_id: None,
+            owner_actor_id: None,
+            visibility: None,
+            write_options: None,
         })
         .await?;
     store
@@ -286,6 +304,7 @@ async fn respects_as_of_asserted_at_for_reads() -> aideon_mneme::MnemeResult<()>
             valid_from: ValidTime(0),
             valid_to: None,
             layer: Layer::Actual,
+            write_options: None,
         })
         .await?;
     let as_of = store.get_partition_head(partition).await?;
@@ -301,12 +320,14 @@ async fn respects_as_of_asserted_at_for_reads() -> aideon_mneme::MnemeResult<()>
             valid_from: ValidTime(0),
             valid_to: None,
             layer: Layer::Actual,
+            write_options: None,
         })
         .await?;
     let result = store
         .read_entity_at_time(ReadEntityAtTimeInput {
             partition,
             scenario_id: None,
+            security_context: None,
             entity_id: node_id,
             at_valid_time: ValidTime(1),
             as_of_asserted_at: Some(as_of),
@@ -341,6 +362,10 @@ async fn edge_existence_intervals_override_at_valid_time() -> aideon_mneme::Mnem
             asserted_at: Hlc::now(),
             node_id: node_a,
             type_id: None,
+            acl_group_id: None,
+            owner_actor_id: None,
+            visibility: None,
+            write_options: None,
         })
         .await?;
     store
@@ -351,6 +376,10 @@ async fn edge_existence_intervals_override_at_valid_time() -> aideon_mneme::Mnem
             asserted_at: Hlc::now(),
             node_id: node_b,
             type_id: None,
+            acl_group_id: None,
+            owner_actor_id: None,
+            visibility: None,
+            write_options: None,
         })
         .await?;
     store
@@ -367,6 +396,10 @@ async fn edge_existence_intervals_override_at_valid_time() -> aideon_mneme::Mnem
             exists_valid_to: None,
             layer: Layer::Actual,
             weight: None,
+            acl_group_id: None,
+            owner_actor_id: None,
+            visibility: None,
+            write_options: None,
         })
         .await?;
 
@@ -381,6 +414,7 @@ async fn edge_existence_intervals_override_at_valid_time() -> aideon_mneme::Mnem
             valid_to: None,
             layer: Layer::Actual,
             is_tombstone: true,
+            write_options: None,
         })
         .await?;
 
@@ -388,6 +422,7 @@ async fn edge_existence_intervals_override_at_valid_time() -> aideon_mneme::Mnem
         .traverse_at_time(TraverseAtTimeInput {
             partition,
             scenario_id: None,
+            security_context: None,
             from_entity_id: node_a,
             direction: Direction::Out,
             edge_type_id: None,
@@ -402,6 +437,7 @@ async fn edge_existence_intervals_override_at_valid_time() -> aideon_mneme::Mnem
         .traverse_at_time(TraverseAtTimeInput {
             partition,
             scenario_id: None,
+            security_context: None,
             from_entity_id: node_a,
             direction: Direction::Out,
             edge_type_id: None,
@@ -460,6 +496,10 @@ async fn tombstone_edge_removes_traversal() -> aideon_mneme::MnemeResult<()> {
             asserted_at: Hlc::now(),
             node_id: src_id,
             type_id: Some(type_id),
+            acl_group_id: None,
+            owner_actor_id: None,
+            visibility: None,
+            write_options: None,
         })
         .await?;
     store
@@ -470,6 +510,10 @@ async fn tombstone_edge_removes_traversal() -> aideon_mneme::MnemeResult<()> {
             asserted_at: Hlc::now(),
             node_id: dst_id,
             type_id: Some(type_id),
+            acl_group_id: None,
+            owner_actor_id: None,
+            visibility: None,
+            write_options: None,
         })
         .await?;
     let edge_id = Id::new();
@@ -487,12 +531,17 @@ async fn tombstone_edge_removes_traversal() -> aideon_mneme::MnemeResult<()> {
             exists_valid_to: None,
             layer: Layer::Actual,
             weight: None,
+            acl_group_id: None,
+            owner_actor_id: None,
+            visibility: None,
+            write_options: None,
         })
         .await?;
     let edges = store
         .traverse_at_time(TraverseAtTimeInput {
             partition,
             scenario_id: None,
+            security_context: None,
             from_entity_id: src_id,
             direction: Direction::Out,
             edge_type_id: None,
@@ -509,6 +558,7 @@ async fn tombstone_edge_removes_traversal() -> aideon_mneme::MnemeResult<()> {
         .traverse_at_time(TraverseAtTimeInput {
             partition,
             scenario_id: None,
+            security_context: None,
             from_entity_id: src_id,
             direction: Direction::Out,
             edge_type_id: None,

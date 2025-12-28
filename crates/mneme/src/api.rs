@@ -67,7 +67,7 @@ pub trait PropertyWriteApi {
     async fn counter_update(&self, input: CounterUpdateInput) -> MnemeResult<OpId>;
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ReadValue {
     Single(Value),
     Multi(Vec<Value>),
@@ -77,6 +77,7 @@ pub enum ReadValue {
 pub struct ReadEntityAtTimeInput {
     pub partition: PartitionId,
     pub scenario_id: Option<ScenarioId>,
+    pub security_context: Option<SecurityContext>,
     pub entity_id: Id,
     pub at_valid_time: ValidTime,
     pub as_of_asserted_at: Option<Hlc>,
@@ -103,6 +104,7 @@ pub enum Direction {
 pub struct TraverseAtTimeInput {
     pub partition: PartitionId,
     pub scenario_id: Option<ScenarioId>,
+    pub security_context: Option<SecurityContext>,
     pub from_entity_id: Id,
     pub direction: Direction,
     pub edge_type_id: Option<Id>,
@@ -142,6 +144,7 @@ pub struct FieldFilter {
 pub struct ListEntitiesInput {
     pub partition: PartitionId,
     pub scenario_id: Option<ScenarioId>,
+    pub security_context: Option<SecurityContext>,
     pub kind: Option<EntityKind>,
     pub type_id: Option<Id>,
     pub at_valid_time: ValidTime,
@@ -187,10 +190,26 @@ pub struct ProjectionEdge {
 pub struct GetProjectionEdgesInput {
     pub partition: PartitionId,
     pub scenario_id: Option<ScenarioId>,
+    pub security_context: Option<SecurityContext>,
     pub at_valid_time: Option<ValidTime>,
     pub as_of_asserted_at: Option<Hlc>,
     pub edge_type_filter: Option<Vec<Id>>,
     pub limit: Option<u32>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SecurityContext {
+    pub allowed_acl_groups: Option<Vec<String>>,
+    pub allowed_owner_ids: Option<Vec<ActorId>>,
+    pub min_visibility: Option<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RetentionPolicy {
+    pub keep_ops_days: Option<u32>,
+    pub keep_facts_days: Option<u32>,
+    pub keep_failed_jobs_days: Option<u32>,
+    pub keep_pagerank_runs_days: Option<u32>,
 }
 
 #[async_trait]
@@ -399,6 +418,14 @@ pub trait DiagnosticsApi {
         partition: PartitionId,
         limit: u32,
     ) -> MnemeResult<Vec<JobSummary>>;
+    async fn explain_resolution(
+        &self,
+        input: ExplainResolutionInput,
+    ) -> MnemeResult<ExplainResolutionResult>;
+    async fn explain_traversal(
+        &self,
+        input: ExplainTraversalInput,
+    ) -> MnemeResult<ExplainTraversalResult>;
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -493,6 +520,84 @@ pub trait ChangeFeedApi {
         from_sequence: Option<i64>,
         limit: u32,
     ) -> MnemeResult<Vec<ChangeEvent>>;
+    async fn subscribe_partition(
+        &self,
+        partition: PartitionId,
+        from_sequence: Option<i64>,
+    ) -> MnemeResult<tokio::sync::mpsc::Receiver<ChangeEvent>>;
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExplainResolutionInput {
+    pub partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub security_context: Option<SecurityContext>,
+    pub entity_id: Id,
+    pub field_id: Id,
+    pub at_valid_time: ValidTime,
+    pub as_of_asserted_at: Option<Hlc>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExplainTraversalInput {
+    pub partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub security_context: Option<SecurityContext>,
+    pub edge_id: Id,
+    pub at_valid_time: ValidTime,
+    pub as_of_asserted_at: Option<Hlc>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExplainPrecedence {
+    pub layer: i64,
+    pub interval_width: i64,
+    pub asserted_at: Hlc,
+    pub op_id: Id,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExplainPropertyFact {
+    pub value: Value,
+    pub valid_from: i64,
+    pub valid_to: Option<i64>,
+    pub layer: i64,
+    pub asserted_at: Hlc,
+    pub op_id: Id,
+    pub is_tombstone: bool,
+    pub precedence: ExplainPrecedence,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExplainEdgeFact {
+    pub edge_id: Id,
+    pub src_id: Id,
+    pub dst_id: Id,
+    pub edge_type_id: Option<Id>,
+    pub valid_from: i64,
+    pub valid_to: Option<i64>,
+    pub layer: i64,
+    pub asserted_at: Hlc,
+    pub op_id: Id,
+    pub is_tombstone: bool,
+    pub precedence: ExplainPrecedence,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExplainResolutionResult {
+    pub entity_id: Id,
+    pub field_id: Id,
+    pub resolved: Option<ReadValue>,
+    pub winner: Option<ExplainPropertyFact>,
+    pub candidates: Vec<ExplainPropertyFact>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExplainTraversalResult {
+    pub edge_id: Id,
+    pub active: bool,
+    pub winner: Option<ExplainEdgeFact>,
+    pub candidates: Vec<ExplainEdgeFact>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

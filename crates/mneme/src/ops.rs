@@ -2,6 +2,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{ActorId, Hlc, Id, Layer, OpId, PartitionId, ScenarioId, ValidTime, Value};
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub struct WriteOptions {
+    pub bulk_mode: bool,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[repr(u16)]
 pub enum OpType {
@@ -38,6 +43,10 @@ pub struct CreateNodeInput {
     pub asserted_at: Hlc,
     pub node_id: Id,
     pub type_id: Option<Id>,
+    pub acl_group_id: Option<String>,
+    pub owner_actor_id: Option<ActorId>,
+    pub visibility: Option<u8>,
+    pub write_options: Option<WriteOptions>,
 }
 
 /// Create a new edge entity with an existence interval.
@@ -55,6 +64,10 @@ pub struct CreateEdgeInput {
     pub exists_valid_to: Option<ValidTime>,
     pub layer: Layer,
     pub weight: Option<f64>,
+    pub acl_group_id: Option<String>,
+    pub owner_actor_id: Option<ActorId>,
+    pub visibility: Option<u8>,
+    pub write_options: Option<WriteOptions>,
 }
 
 /// Modify an edge existence interval without changing endpoints.
@@ -69,6 +82,7 @@ pub struct SetEdgeExistenceIntervalInput {
     pub valid_to: Option<ValidTime>,
     pub layer: Layer,
     pub is_tombstone: bool,
+    pub write_options: Option<WriteOptions>,
 }
 
 /// Set a typed property value over a valid-time interval.
@@ -84,6 +98,7 @@ pub struct SetPropIntervalInput {
     pub valid_from: ValidTime,
     pub valid_to: Option<ValidTime>,
     pub layer: Layer,
+    pub write_options: Option<WriteOptions>,
 }
 
 /// Clear a typed property value over a valid-time interval.
@@ -98,6 +113,7 @@ pub struct ClearPropIntervalInput {
     pub valid_from: ValidTime,
     pub valid_to: Option<ValidTime>,
     pub layer: Layer,
+    pub write_options: Option<WriteOptions>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -120,6 +136,7 @@ pub struct OrSetUpdateInput {
     pub valid_from: ValidTime,
     pub valid_to: Option<ValidTime>,
     pub layer: Layer,
+    pub write_options: Option<WriteOptions>,
 }
 
 /// Update a counter field by adding a delta over a valid-time interval.
@@ -135,6 +152,7 @@ pub struct CounterUpdateInput {
     pub valid_from: ValidTime,
     pub valid_to: Option<ValidTime>,
     pub layer: Layer,
+    pub write_options: Option<WriteOptions>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

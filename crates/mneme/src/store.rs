@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::cmp::Ordering;
 use std::path::Path;
 use std::time::Duration;
 
@@ -13,6 +14,8 @@ use sea_orm::{
     ConnectOptions, ConnectionTrait, Database, DatabaseBackend, DatabaseConnection, QueryResult,
     Statement, TransactionTrait,
 };
+use tokio::sync::mpsc;
+use tokio::time::sleep;
 use uuid::Uuid;
 use unicode_normalization::UnicodeNormalization;
 
@@ -34,7 +37,8 @@ use crate::value::{EntityKind, Layer, MergePolicy, Value, ValueType};
 use crate::{
     ActorId, CompareOp, FieldFilter, Hlc, Id, ListEntitiesInput, ListEntitiesResultItem,
     MnemeConfig, MnemeError, MnemeResult, OpEnvelope, OpId, PartitionId, ReadEntityAtTimeInput,
-    ReadEntityAtTimeResult, ReadValue, ScenarioId, TraverseAtTimeInput, TraverseEdgeItem, ValidTime,
+    ReadEntityAtTimeResult, ReadValue, ScenarioId, SecurityContext, TraverseAtTimeInput,
+    TraverseEdgeItem, ValidTime,
 };
 use sea_orm_migration::MigratorTrait;
 
@@ -230,6 +234,9 @@ impl MnemeStore {
         let op_type = payload.op_type() as u16;
         let payload_bytes =
             serde_json::to_vec(payload).map_err(|err| MnemeError::storage(err.to_string()))?;
+        if payload_bytes.len() > MAX_OP_PAYLOAD_BYTES {
+            return Err(MnemeError::invalid("op payload exceeds limit"));
+        }
         self.bump_hlc_state(tx, partition, asserted_at).await?;
         let insert = Query::insert()
             .into_table(AideonOps::Table)
@@ -860,6 +867,97 @@ impl MnemeStore {
         Ok(Some((kind, type_id, is_deleted)))
     }
 
+    async fn read_entity_security_in_partition(
+        &self,
+        partition: PartitionId,
+        scenario_id: Option<crate::ScenarioId>,
+        entity_id: Id,
+    ) -> MnemeResult<Option<EntitySecurity>> {
+        let mut select = Query::select()
+            .from(AideonEntities::Table)
+            .columns([
+                AideonEntities::AclGroupId,
+                AideonEntities::OwnerActorId,
+                AideonEntities::Visibility,
+                AideonEntities::IsDeleted,
+            ])
+            .and_where(
+                Expr::col(AideonEntities::PartitionId).eq(id_value(self.backend, partition.0)),
+            )
+            .and_where(Expr::col(AideonEntities::EntityId).eq(id_value(self.backend, entity_id)))
+            .to_owned();
+        if let Some(scenario_id) = scenario_id {
+            select.and_where(
+                Expr::col(AideonEntities::ScenarioId).eq(id_value(self.backend, scenario_id.0)),
+            );
+        } else {
+            select.and_where(Expr::col(AideonEntities::ScenarioId).is_null());
+        }
+        let row = query_one(&self.conn, &select).await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let acl_group_id: Option<String> =
+            row.try_get("", &col_name(AideonEntities::AclGroupId))?;
+        let owner_actor_id = read_opt_id(&row, AideonEntities::OwnerActorId)?.map(ActorId);
+        let visibility: Option<i64> =
+            row.try_get("", &col_name(AideonEntities::Visibility))?;
+        let is_deleted: bool = row.try_get("", &col_name(AideonEntities::IsDeleted))?;
+        Ok(Some(EntitySecurity {
+            acl_group_id,
+            owner_actor_id,
+            visibility: visibility.map(|v| v as u8),
+            is_deleted,
+        }))
+    }
+
+    async fn read_entity_security_with_fallback(
+        &self,
+        partition: PartitionId,
+        scenario_id: Option<ScenarioId>,
+        entity_id: Id,
+    ) -> MnemeResult<Option<EntitySecurity>> {
+        if let Some(security) = self
+            .read_entity_security_in_partition(partition, scenario_id, entity_id)
+            .await?
+        {
+            return Ok(Some(security));
+        }
+        if scenario_id.is_some() {
+            return self
+                .read_entity_security_in_partition(partition, None, entity_id)
+                .await;
+        }
+        Ok(None)
+    }
+
+    fn is_entity_visible(ctx: &SecurityContext, entity: &EntitySecurity) -> bool {
+        if entity.is_deleted {
+            return false;
+        }
+        if let Some(min_visibility) = ctx.min_visibility {
+            let value = entity.visibility.unwrap_or(0);
+            if value < min_visibility {
+                return false;
+            }
+        }
+        if let Some(groups) = &ctx.allowed_acl_groups {
+            if let Some(group_id) = &entity.acl_group_id {
+                if !groups.iter().any(|allowed| allowed == group_id) {
+                    return false;
+                }
+            }
+        }
+        if let Some(owners) = &ctx.allowed_owner_ids {
+            if let Some(owner) = entity.owner_actor_id {
+                if !owners.iter().any(|allowed| allowed == &owner) {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
     async fn read_entity_row_with_fallback(
         &self,
         partition: PartitionId,
@@ -934,6 +1032,9 @@ impl MnemeStore {
 }
 
 const MICROS_PER_DAY: i64 = 86_400_000_000;
+const MAX_OP_PAYLOAD_BYTES: usize = 1_048_576;
+const SUBSCRIPTION_POLL_INTERVAL_MS: u64 = 250;
+const SUBSCRIPTION_POLL_LIMIT: u32 = 250;
 
 fn valid_bucket(valid_from: ValidTime) -> i64 {
     valid_from.0 / MICROS_PER_DAY
@@ -1350,6 +1451,9 @@ impl GraphWriteApi for MnemeStore {
                 AideonEntities::EntityKind,
                 AideonEntities::TypeId,
                 AideonEntities::IsDeleted,
+                AideonEntities::AclGroupId,
+                AideonEntities::OwnerActorId,
+                AideonEntities::Visibility,
                 AideonEntities::CreatedOpId,
                 AideonEntities::UpdatedOpId,
                 AideonEntities::CreatedAssertedAtHlc,
@@ -1362,6 +1466,9 @@ impl GraphWriteApi for MnemeStore {
                 (EntityKind::Node.as_i16() as i64).into(),
                 opt_id_value(self.backend, input.type_id).into(),
                 false.into(),
+                input.acl_group_id.clone().into(),
+                opt_id_value(self.backend, input.owner_actor_id.map(|actor| actor.0)).into(),
+                input.visibility.map(|v| v as i64).into(),
                 id_value(self.backend, op_id.0).into(),
                 id_value(self.backend, op_id.0).into(),
                 asserted_at.as_i64().into(),
@@ -1396,6 +1503,9 @@ impl GraphWriteApi for MnemeStore {
                 AideonEntities::EntityKind,
                 AideonEntities::TypeId,
                 AideonEntities::IsDeleted,
+                AideonEntities::AclGroupId,
+                AideonEntities::OwnerActorId,
+                AideonEntities::Visibility,
                 AideonEntities::CreatedOpId,
                 AideonEntities::UpdatedOpId,
                 AideonEntities::CreatedAssertedAtHlc,
@@ -1408,6 +1518,9 @@ impl GraphWriteApi for MnemeStore {
                 (EntityKind::Edge.as_i16() as i64).into(),
                 opt_id_value(self.backend, input.type_id).into(),
                 false.into(),
+                input.acl_group_id.clone().into(),
+                opt_id_value(self.backend, input.owner_actor_id.map(|actor| actor.0)).into(),
+                input.visibility.map(|v| v as i64).into(),
                 id_value(self.backend, op_id.0).into(),
                 id_value(self.backend, op_id.0).into(),
                 asserted_at.as_i64().into(),
@@ -1928,6 +2041,20 @@ impl GraphReadApi for MnemeStore {
         &self,
         input: ReadEntityAtTimeInput,
     ) -> MnemeResult<ReadEntityAtTimeResult> {
+        if let Some(ctx) = &input.security_context {
+            let security = self
+                .read_entity_security_with_fallback(
+                    input.partition,
+                    input.scenario_id,
+                    input.entity_id,
+                )
+                .await?;
+            if let Some(security) = security {
+                if !Self::is_entity_visible(ctx, &security) {
+                    return Err(MnemeError::not_found("entity not visible"));
+                }
+            }
+        }
         let (resolved_partition, kind, type_id, is_deleted) = self
             .read_entity_row_with_fallback(input.partition, input.scenario_id, input.entity_id)
             .await?;
@@ -1999,6 +2126,20 @@ impl GraphReadApi for MnemeStore {
         &self,
         input: TraverseAtTimeInput,
     ) -> MnemeResult<Vec<TraverseEdgeItem>> {
+        if let Some(ctx) = &input.security_context {
+            let security = self
+                .read_entity_security_with_fallback(
+                    input.partition,
+                    input.scenario_id,
+                    input.from_entity_id,
+                )
+                .await?;
+            if let Some(security) = security {
+                if !Self::is_entity_visible(ctx, &security) {
+                    return Ok(Vec::new());
+                }
+            }
+        }
         let mut facts_by_edge: HashMap<Id, Vec<EdgeFact>> = HashMap::new();
         let mut edge_ids = std::collections::HashSet::new();
 
@@ -2034,6 +2175,44 @@ impl GraphReadApi for MnemeStore {
         let mut edges = Vec::new();
         for (_edge_id, facts) in facts_by_edge {
             if let Some(edge) = resolve_edge(facts)? {
+                if let Some(ctx) = &input.security_context {
+                    let edge_security = self
+                        .read_entity_security_with_fallback(
+                            input.partition,
+                            input.scenario_id,
+                            edge.edge_id,
+                        )
+                        .await?;
+                    if let Some(edge_security) = edge_security {
+                        if !Self::is_entity_visible(ctx, &edge_security) {
+                            continue;
+                        }
+                    }
+                    let src_security = self
+                        .read_entity_security_with_fallback(
+                            input.partition,
+                            input.scenario_id,
+                            edge.src_id,
+                        )
+                        .await?;
+                    if let Some(src_security) = src_security {
+                        if !Self::is_entity_visible(ctx, &src_security) {
+                            continue;
+                        }
+                    }
+                    let dst_security = self
+                        .read_entity_security_with_fallback(
+                            input.partition,
+                            input.scenario_id,
+                            edge.dst_id,
+                        )
+                        .await?;
+                    if let Some(dst_security) = dst_security {
+                        if !Self::is_entity_visible(ctx, &dst_security) {
+                            continue;
+                        }
+                    }
+                }
                 edges.push(edge);
                 if edges.len() >= input.limit as usize {
                     break;
@@ -2111,12 +2290,7 @@ impl GraphReadApi for MnemeStore {
         let candidates: Vec<Id> = match candidate_ids {
             Some(ids) => ids.into_iter().collect(),
             None => {
-                return list_entities_without_filters(
-                    &self.conn,
-                    input,
-                    self.backend,
-                )
-                .await
+                return list_entities_without_filters(self, input, self.backend).await
             }
         };
 
@@ -2127,6 +2301,20 @@ impl GraphReadApi for MnemeStore {
                 .await?;
             if is_deleted {
                 continue;
+            }
+            if let Some(ctx) = &input.security_context {
+                if let Some(security) = self
+                    .read_entity_security_with_fallback(
+                        input.partition,
+                        input.scenario_id,
+                        entity_id,
+                    )
+                    .await?
+                {
+                    if !Self::is_entity_visible(ctx, &security) {
+                        continue;
+                    }
+                }
             }
             if let Some(kind_filter) = input.kind {
                 if kind != kind_filter {
@@ -2204,6 +2392,44 @@ impl AnalyticsApi for MnemeStore {
         .await?;
         for (edge_id, edge) in scenario_edges {
             seen.insert(edge_id);
+            if let Some(ctx) = &input.security_context {
+                let edge_security = self
+                    .read_entity_security_with_fallback(
+                        input.partition,
+                        input.scenario_id,
+                        edge.edge_id,
+                    )
+                    .await?;
+                if let Some(edge_security) = edge_security {
+                    if !Self::is_entity_visible(ctx, &edge_security) {
+                        continue;
+                    }
+                }
+                let src_security = self
+                    .read_entity_security_with_fallback(
+                        input.partition,
+                        input.scenario_id,
+                        edge.src_id,
+                    )
+                    .await?;
+                if let Some(src_security) = src_security {
+                    if !Self::is_entity_visible(ctx, &src_security) {
+                        continue;
+                    }
+                }
+                let dst_security = self
+                    .read_entity_security_with_fallback(
+                        input.partition,
+                        input.scenario_id,
+                        edge.dst_id,
+                    )
+                    .await?;
+                if let Some(dst_security) = dst_security {
+                    if !Self::is_entity_visible(ctx, &dst_security) {
+                        continue;
+                    }
+                }
+            }
             edges.push(edge);
             if edges.len() >= limit {
                 return Ok(edges);
@@ -2224,6 +2450,44 @@ impl AnalyticsApi for MnemeStore {
             for (edge_id, edge) in baseline_edges {
                 if seen.contains(&edge_id) {
                     continue;
+                }
+                if let Some(ctx) = &input.security_context {
+                    let edge_security = self
+                        .read_entity_security_with_fallback(
+                            input.partition,
+                            None,
+                            edge.edge_id,
+                        )
+                        .await?;
+                    if let Some(edge_security) = edge_security {
+                        if !Self::is_entity_visible(ctx, &edge_security) {
+                            continue;
+                        }
+                    }
+                    let src_security = self
+                        .read_entity_security_with_fallback(
+                            input.partition,
+                            None,
+                            edge.src_id,
+                        )
+                        .await?;
+                    if let Some(src_security) = src_security {
+                        if !Self::is_entity_visible(ctx, &src_security) {
+                            continue;
+                        }
+                    }
+                    let dst_security = self
+                        .read_entity_security_with_fallback(
+                            input.partition,
+                            None,
+                            edge.dst_id,
+                        )
+                        .await?;
+                    if let Some(dst_security) = dst_security {
+                        if !Self::is_entity_visible(ctx, &dst_security) {
+                            continue;
+                        }
+                    }
                 }
                 edges.push(edge);
                 if edges.len() >= limit {
@@ -2379,6 +2643,9 @@ impl SyncApi for MnemeStore {
     async fn ingest_ops(&self, partition: PartitionId, ops: Vec<OpEnvelope>) -> MnemeResult<()> {
         let tx = self.conn.begin().await?;
         for op in ops {
+            if op.payload.len() > MAX_OP_PAYLOAD_BYTES {
+                return Err(MnemeError::invalid("op payload exceeds limit"));
+            }
             let payload: OpPayload = serde_json::from_slice(&op.payload)
                 .map_err(|err| MnemeError::storage(err.to_string()))?;
             self.bump_hlc_state(&tx, partition, op.asserted_at).await?;
@@ -3354,6 +3621,38 @@ impl ChangeFeedApi for MnemeStore {
         }
         Ok(events)
     }
+
+    async fn subscribe_partition(
+        &self,
+        partition: PartitionId,
+        from_sequence: Option<i64>,
+    ) -> MnemeResult<mpsc::Receiver<ChangeEvent>> {
+        let (tx, rx) = mpsc::channel(256);
+        let mut cursor = from_sequence;
+        let store = self.clone();
+        tokio::spawn(async move {
+            loop {
+                if tx.is_closed() {
+                    break;
+                }
+                let changes = store
+                    .get_changes_since(partition, cursor, SUBSCRIPTION_POLL_LIMIT)
+                    .await
+                    .unwrap_or_default();
+                if !changes.is_empty() {
+                    cursor = Some(changes.last().map(|c| c.sequence).unwrap_or(0));
+                    for change in changes {
+                        if tx.send(change).await.is_err() {
+                            break;
+                        }
+                    }
+                } else {
+                    sleep(Duration::from_millis(SUBSCRIPTION_POLL_INTERVAL_MS)).await;
+                }
+            }
+        });
+        Ok(rx)
+    }
 }
 
 #[async_trait]
@@ -3554,6 +3853,101 @@ impl DiagnosticsApi for MnemeStore {
                 last_error: job.last_error,
             })
             .collect())
+    }
+
+    async fn explain_resolution(
+        &self,
+        input: crate::api::ExplainResolutionInput,
+    ) -> MnemeResult<crate::api::ExplainResolutionResult> {
+        if let Some(ctx) = &input.security_context {
+            if let Some(security) = self
+                .read_entity_security_with_fallback(
+                    input.partition,
+                    input.scenario_id,
+                    input.entity_id,
+                )
+                .await?
+            {
+                if !Self::is_entity_visible(ctx, &security) {
+                    return Err(MnemeError::not_found("entity not visible"));
+                }
+            }
+        }
+        let (value_type, merge_policy, _multi, _is_indexed) = self
+            .fetch_field_def(&self.conn, input.partition, input.field_id)
+            .await?;
+        let facts = fetch_property_facts_with_fallback(
+            &self.conn,
+            input.partition,
+            input.scenario_id,
+            input.entity_id,
+            input.field_id,
+            input.at_valid_time,
+            input.as_of_asserted_at,
+            value_type,
+            self.backend,
+        )
+        .await?;
+        let resolved = resolve_property(merge_policy, facts.clone())?;
+        let mut candidates = facts
+            .into_iter()
+            .map(|fact| explain_property_fact(&fact))
+            .collect::<Vec<_>>();
+        candidates.sort_by(|a, b| compare_precedence(&a.precedence, &b.precedence));
+        let winner = candidates.first().cloned();
+        Ok(crate::api::ExplainResolutionResult {
+            entity_id: input.entity_id,
+            field_id: input.field_id,
+            resolved,
+            winner,
+            candidates,
+        })
+    }
+
+    async fn explain_traversal(
+        &self,
+        input: crate::api::ExplainTraversalInput,
+    ) -> MnemeResult<crate::api::ExplainTraversalResult> {
+        if let Some(ctx) = &input.security_context {
+            if let Some(security) = self
+                .read_entity_security_with_fallback(
+                    input.partition,
+                    input.scenario_id,
+                    input.edge_id,
+                )
+                .await?
+            {
+                if !Self::is_entity_visible(ctx, &security) {
+                    return Err(MnemeError::not_found("edge not visible"));
+                }
+            }
+        }
+        let facts = fetch_edge_facts_for_edge(
+            &self.conn,
+            input.partition,
+            input.scenario_id,
+            input.edge_id,
+            input.at_valid_time,
+            input.as_of_asserted_at,
+            self.backend,
+        )
+        .await?;
+        let mut candidates = facts
+            .into_iter()
+            .map(|fact| explain_edge_fact(&fact))
+            .collect::<Vec<_>>();
+        candidates.sort_by(|a, b| compare_precedence(&a.precedence, &b.precedence));
+        let winner = candidates.first().cloned();
+        let active = winner
+            .as_ref()
+            .map(|fact| !fact.is_tombstone)
+            .unwrap_or(false);
+        Ok(crate::api::ExplainTraversalResult {
+            edge_id: input.edge_id,
+            active,
+            winner,
+            candidates,
+        })
     }
 }
 
@@ -4242,6 +4636,14 @@ struct DefaultValueColumns {
     ref_value: SeaValue,
     blob_value: SeaValue,
     json_value: SeaValue,
+}
+
+#[derive(Clone)]
+struct EntitySecurity {
+    acl_group_id: Option<String>,
+    owner_actor_id: Option<ActorId>,
+    visibility: Option<u8>,
+    is_deleted: bool,
 }
 
 fn default_value_columns(backend: DatabaseBackend, value: &Option<Value>) -> DefaultValueColumns {
@@ -5175,6 +5577,153 @@ async fn fetch_edge_facts_in_partition(
     Ok(facts)
 }
 
+async fn fetch_edge_facts_for_edge(
+    conn: &DatabaseConnection,
+    partition: PartitionId,
+    scenario_id: Option<ScenarioId>,
+    edge_id: Id,
+    at_valid_time: ValidTime,
+    as_of_asserted_at: Option<Hlc>,
+    backend: DatabaseBackend,
+) -> MnemeResult<Vec<EdgeFact>> {
+    let facts = fetch_edge_facts_for_edge_in_partition(
+        conn,
+        partition,
+        scenario_id,
+        edge_id,
+        at_valid_time,
+        as_of_asserted_at,
+        backend,
+    )
+    .await?;
+    if facts.is_empty() && scenario_id.is_some() {
+        return fetch_edge_facts_for_edge_in_partition(
+            conn,
+            partition,
+            None,
+            edge_id,
+            at_valid_time,
+            as_of_asserted_at,
+            backend,
+        )
+        .await;
+    }
+    Ok(facts)
+}
+
+async fn fetch_edge_facts_for_edge_in_partition(
+    conn: &DatabaseConnection,
+    partition: PartitionId,
+    scenario_id: Option<ScenarioId>,
+    edge_id: Id,
+    at_valid_time: ValidTime,
+    as_of_asserted_at: Option<Hlc>,
+    backend: DatabaseBackend,
+) -> MnemeResult<Vec<EdgeFact>> {
+    let mut select = Query::select()
+        .from(AideonEdges::Table)
+        .inner_join(
+            AideonEdgeExistsFacts::Table,
+            Expr::col((AideonEdges::Table, AideonEdges::PartitionId))
+                .equals((
+                    AideonEdgeExistsFacts::Table,
+                    AideonEdgeExistsFacts::PartitionId,
+                ))
+                .and(
+                    Expr::col((AideonEdges::Table, AideonEdges::EdgeId))
+                        .equals((AideonEdgeExistsFacts::Table, AideonEdgeExistsFacts::EdgeId)),
+                ),
+        )
+        .column((AideonEdges::Table, AideonEdges::EdgeId))
+        .column((AideonEdges::Table, AideonEdges::SrcEntityId))
+        .column((AideonEdges::Table, AideonEdges::DstEntityId))
+        .column((AideonEdges::Table, AideonEdges::EdgeTypeId))
+        .column((
+            AideonEdgeExistsFacts::Table,
+            AideonEdgeExistsFacts::ValidFrom,
+        ))
+        .column((AideonEdgeExistsFacts::Table, AideonEdgeExistsFacts::ValidTo))
+        .column((AideonEdgeExistsFacts::Table, AideonEdgeExistsFacts::Layer))
+        .column((
+            AideonEdgeExistsFacts::Table,
+            AideonEdgeExistsFacts::AssertedAtHlc,
+        ))
+        .column((
+            AideonEdgeExistsFacts::Table,
+            AideonEdgeExistsFacts::IsTombstone,
+        ))
+        .column((AideonEdgeExistsFacts::Table, AideonEdgeExistsFacts::OpId))
+        .and_where(
+            Expr::col((AideonEdges::Table, AideonEdges::PartitionId))
+                .eq(id_value(backend, partition.0)),
+        )
+        .and_where(Expr::col((AideonEdges::Table, AideonEdges::EdgeId)).eq(id_value(backend, edge_id)))
+        .and_where(
+            Expr::col((
+                AideonEdgeExistsFacts::Table,
+                AideonEdgeExistsFacts::ValidFrom,
+            ))
+            .lte(at_valid_time.0),
+        )
+        .and_where(
+            Expr::col((AideonEdgeExistsFacts::Table, AideonEdgeExistsFacts::ValidTo))
+                .gt(at_valid_time.0)
+                .or(
+                    Expr::col((AideonEdgeExistsFacts::Table, AideonEdgeExistsFacts::ValidTo))
+                        .is_null(),
+                ),
+        )
+        .to_owned();
+    if let Some(scenario_id) = scenario_id {
+        select.and_where(
+            Expr::col((AideonEdges::Table, AideonEdges::ScenarioId))
+                .eq(id_value(backend, scenario_id.0)),
+        );
+        select.and_where(
+            Expr::col((AideonEdgeExistsFacts::Table, AideonEdgeExistsFacts::ScenarioId))
+                .eq(id_value(backend, scenario_id.0)),
+        );
+    } else {
+        select.and_where(Expr::col((AideonEdges::Table, AideonEdges::ScenarioId)).is_null());
+        select.and_where(
+            Expr::col((AideonEdgeExistsFacts::Table, AideonEdgeExistsFacts::ScenarioId)).is_null(),
+        );
+    }
+    if let Some(as_of) = as_of_asserted_at {
+        select.and_where(
+            Expr::col((AideonEdgeExistsFacts::Table, AideonEdgeExistsFacts::AssertedAtHlc))
+                .lte(as_of.as_i64()),
+        );
+    }
+    let rows = query_all(conn, &select).await?;
+    let mut facts = Vec::new();
+    for row in rows {
+        let edge_id = read_id(&row, AideonEdges::EdgeId)?;
+        let src_id = read_id(&row, AideonEdges::SrcEntityId)?;
+        let dst_id = read_id(&row, AideonEdges::DstEntityId)?;
+        let edge_type_id = read_opt_id(&row, AideonEdges::EdgeTypeId)?;
+        let valid_from: i64 = row.try_get("", &col_name(AideonEdgeExistsFacts::ValidFrom))?;
+        let valid_to: Option<i64> = row.try_get("", &col_name(AideonEdgeExistsFacts::ValidTo))?;
+        let layer: i64 = row.try_get("", &col_name(AideonEdgeExistsFacts::Layer))?;
+        let asserted_at = read_hlc(&row, AideonEdgeExistsFacts::AssertedAtHlc)?;
+        let is_tombstone: bool = row.try_get("", &col_name(AideonEdgeExistsFacts::IsTombstone))?;
+        let op_id = read_id(&row, AideonEdgeExistsFacts::OpId)?;
+        facts.push(EdgeFact {
+            edge_id,
+            src_id,
+            dst_id,
+            edge_type_id,
+            valid_from,
+            valid_to,
+            layer,
+            asserted_at,
+            op_id,
+            is_tombstone,
+        });
+    }
+    Ok(facts)
+}
+
 async fn fetch_projection_edges_in_partition(
     conn: &DatabaseConnection,
     partition: PartitionId,
@@ -5268,7 +5817,7 @@ fn parse_cursor_id(value: &str) -> MnemeResult<Id> {
 }
 
 async fn list_entities_without_filters(
-    conn: &DatabaseConnection,
+    store: &MnemeStore,
     input: ListEntitiesInput,
     backend: DatabaseBackend,
 ) -> MnemeResult<Vec<ListEntitiesResultItem>> {
@@ -5308,7 +5857,7 @@ async fn list_entities_without_filters(
             select
                 .and_where(Expr::col(AideonEntities::TypeId).eq(id_value(backend, type_id)));
         }
-        let rows = query_all(conn, &select).await?;
+        let rows = query_all(&store.conn, &select).await?;
         for row in rows {
             let entity_id = read_id(&row, AideonEntities::EntityId)?;
             if seen.contains(&entity_id) {
@@ -5321,6 +5870,20 @@ async fn list_entities_without_filters(
             let is_deleted: bool = row.try_get("", &col_name(AideonEntities::IsDeleted))?;
             if is_deleted {
                 continue;
+            }
+            if let Some(ctx) = &input.security_context {
+                if let Some(security) = store
+                    .read_entity_security_with_fallback(
+                        input.partition,
+                        input.scenario_id,
+                        entity_id,
+                    )
+                    .await?
+                {
+                    if !MnemeStore::is_entity_visible(ctx, &security) {
+                        continue;
+                    }
+                }
             }
             seen.insert(entity_id);
             results.push(ListEntitiesResultItem {
@@ -6116,6 +6679,58 @@ fn resolve_edge(facts: Vec<EdgeFact>) -> MnemeResult<Option<TraverseEdgeItem>> {
         dst_id: top.dst_id,
         type_id: top.edge_type_id,
     }))
+}
+
+fn explain_property_fact(fact: &PropertyFact) -> crate::api::ExplainPropertyFact {
+    let precedence = crate::api::ExplainPrecedence {
+        layer: fact.layer,
+        interval_width: interval_width(fact),
+        asserted_at: fact.asserted_at,
+        op_id: fact.op_id,
+    };
+    crate::api::ExplainPropertyFact {
+        value: fact.value.clone(),
+        valid_from: fact.valid_from,
+        valid_to: fact.valid_to,
+        layer: fact.layer,
+        asserted_at: fact.asserted_at,
+        op_id: fact.op_id,
+        is_tombstone: fact.is_tombstone,
+        precedence,
+    }
+}
+
+fn explain_edge_fact(fact: &EdgeFact) -> crate::api::ExplainEdgeFact {
+    let precedence = crate::api::ExplainPrecedence {
+        layer: fact.layer,
+        interval_width: interval_width_edge(fact),
+        asserted_at: fact.asserted_at,
+        op_id: fact.op_id,
+    };
+    crate::api::ExplainEdgeFact {
+        edge_id: fact.edge_id,
+        src_id: fact.src_id,
+        dst_id: fact.dst_id,
+        edge_type_id: fact.edge_type_id,
+        valid_from: fact.valid_from,
+        valid_to: fact.valid_to,
+        layer: fact.layer,
+        asserted_at: fact.asserted_at,
+        op_id: fact.op_id,
+        is_tombstone: fact.is_tombstone,
+        precedence,
+    }
+}
+
+fn compare_precedence(
+    a: &crate::api::ExplainPrecedence,
+    b: &crate::api::ExplainPrecedence,
+) -> Ordering {
+    b.layer
+        .cmp(&a.layer)
+        .then_with(|| a.interval_width.cmp(&b.interval_width))
+        .then_with(|| b.asserted_at.cmp(&a.asserted_at))
+        .then_with(|| a.op_id.as_bytes().cmp(&b.op_id.as_bytes()))
 }
 
 fn interval_width(fact: &PropertyFact) -> i64 {

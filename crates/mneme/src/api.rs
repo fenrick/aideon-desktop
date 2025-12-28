@@ -263,6 +263,36 @@ pub struct JobSummary {
     pub dedupe_key: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct JobRecord {
+    pub partition: PartitionId,
+    pub job_id: Id,
+    pub job_type: String,
+    pub status: u8,
+    pub priority: i32,
+    pub attempts: i32,
+    pub max_attempts: i32,
+    pub lease_expires_at: Option<i64>,
+    pub created_asserted_at: Hlc,
+    pub updated_asserted_at: Hlc,
+    pub dedupe_key: Option<String>,
+    pub payload: Vec<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct JobContext {
+    pub partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+}
+
+#[async_trait]
+pub trait Processor {
+    fn name(&self) -> &'static str;
+    fn interested_in(&self, op_type: u16) -> bool;
+    fn plan_jobs(&self, evt: &TriggerEvent) -> Vec<JobSpec>;
+    async fn run_job(&self, ctx: &JobContext, job: &JobRecord) -> MnemeResult<()>;
+}
+
 #[async_trait]
 pub trait MnemeProcessingApi {
     async fn trigger_rebuild_effective_schema(

@@ -17,9 +17,9 @@ use uuid::Uuid;
 
 use crate::api::{
     AnalyticsApi, AnalyticsResultsApi, ChangeEvent, ChangeFeedApi, CreateScenarioInput, Direction,
-    ExportOpsInput, GraphReadApi, GraphWriteApi, JobSummary, MetamodelApi, MnemeProcessingApi,
-    ProjectionEdge, PropertyWriteApi, RunWorkerInput, ScenarioApi, SyncApi, TriggerProcessingInput,
-    ValidationRule, ValidationRulesApi,
+    ExportOpsInput, GraphReadApi, GraphWriteApi, JobRecord, JobSummary, MetamodelApi,
+    MnemeProcessingApi, ProjectionEdge, PropertyWriteApi, RunWorkerInput, ScenarioApi, SyncApi,
+    TriggerProcessingInput, ValidationRule, ValidationRulesApi,
 };
 use crate::db::*;
 use crate::migration::Migrator;
@@ -257,6 +257,7 @@ impl MnemeStore {
         exec(tx, &insert).await?;
         self.append_change_feed(tx, partition, op_id, asserted_at, payload)
             .await?;
+        self.enqueue_jobs_for_op(tx, partition, payload).await?;
         Ok((op_id, asserted_at, payload_bytes, op_type))
     }
 
@@ -310,6 +311,68 @@ impl MnemeStore {
             ])
             .to_owned();
         exec(tx, &insert).await?;
+        Ok(())
+    }
+
+    async fn enqueue_jobs_for_op(
+        &self,
+        tx: &sea_orm::DatabaseTransaction,
+        partition: PartitionId,
+        payload: &OpPayload,
+    ) -> MnemeResult<()> {
+        match payload {
+            OpPayload::UpsertMetamodelBatch(_) => {
+                let job_payload = TriggerJobPayload {
+                    partition_id: partition,
+                    scenario_id: None,
+                    type_id: None,
+                    schema_version_hint: None,
+                    reason: "metamodel_upsert".to_string(),
+                };
+                let payload = serde_json::to_vec(&job_payload)
+                    .map_err(|err| MnemeError::storage(err.to_string()))?;
+                let dedupe_key = format!("schema:{}:all", partition.0.to_uuid_string());
+                self.enqueue_job(
+                    tx,
+                    partition,
+                    JOB_TYPE_SCHEMA_REBUILD,
+                    payload,
+                    0,
+                    Some(dedupe_key),
+                )
+                .await?;
+            }
+            OpPayload::CreateEdge(input) => {
+                let job_payload = TriggerJobPayload {
+                    partition_id: input.partition,
+                    scenario_id: input.scenario_id,
+                    type_id: None,
+                    schema_version_hint: None,
+                    reason: "edge_change".to_string(),
+                };
+                let payload = serde_json::to_vec(&job_payload)
+                    .map_err(|err| MnemeError::storage(err.to_string()))?;
+                let scenario_key = input
+                    .scenario_id
+                    .map(|s| s.0.to_uuid_string())
+                    .unwrap_or_else(|| "baseline".to_string());
+                let dedupe_key = format!(
+                    "analytics:{}:{}",
+                    input.partition.0.to_uuid_string(),
+                    scenario_key
+                );
+                self.enqueue_job(
+                    tx,
+                    input.partition,
+                    JOB_TYPE_ANALYTICS_REFRESH,
+                    payload,
+                    0,
+                    Some(dedupe_key),
+                )
+                .await?;
+            }
+            _ => {}
+        }
         Ok(())
     }
 
@@ -1061,6 +1124,33 @@ impl GraphWriteApi for MnemeStore {
                     ])
                     .to_owned();
                 exec(&tx, &insert_exists).await?;
+
+                let job_payload = TriggerJobPayload {
+                    partition_id: partition,
+                    scenario_id,
+                    type_id: None,
+                    schema_version_hint: None,
+                    reason: "edge_change".to_string(),
+                };
+                let payload = serde_json::to_vec(&job_payload)
+                    .map_err(|err| MnemeError::storage(err.to_string()))?;
+                let scenario_key = scenario_id
+                    .map(|s| s.0.to_uuid_string())
+                    .unwrap_or_else(|| "baseline".to_string());
+                let dedupe_key = format!(
+                    "analytics:{}:{}",
+                    partition.0.to_uuid_string(),
+                    scenario_key
+                );
+                self.enqueue_job(
+                    &tx,
+                    partition,
+                    JOB_TYPE_ANALYTICS_REFRESH,
+                    payload,
+                    0,
+                    Some(dedupe_key),
+                )
+                .await?;
             }
         }
 
@@ -1756,21 +1846,6 @@ impl ScenarioApi for MnemeStore {
     }
 }
 
-#[derive(Clone)]
-struct JobRecord {
-    job_id: Id,
-    job_type: String,
-    status: u8,
-    priority: i32,
-    attempts: i32,
-    max_attempts: i32,
-    lease_expires_at: Option<i64>,
-    created_asserted_at: Hlc,
-    updated_asserted_at: Hlc,
-    dedupe_key: Option<String>,
-    payload: Vec<u8>,
-}
-
 const JOB_STATUS_PENDING: u8 = 0;
 const JOB_STATUS_RUNNING: u8 = 1;
 const JOB_STATUS_SUCCEEDED: u8 = 2;
@@ -1784,6 +1859,8 @@ const JOB_TYPE_ANALYTICS_REFRESH: &str = "analytics_refresh";
 struct TriggerJobPayload {
     partition_id: PartitionId,
     scenario_id: Option<ScenarioId>,
+    type_id: Option<Id>,
+    schema_version_hint: Option<String>,
     reason: String,
 }
 
@@ -1891,6 +1968,7 @@ impl MnemeStore {
                 row.try_get("", &col_name(AideonJobs::DedupeKey))?;
             let payload: Vec<u8> = row.try_get("", &col_name(AideonJobs::Payload))?;
             jobs.push(JobRecord {
+                partition,
                 job_id,
                 job_type,
                 status: status as u8,
@@ -1910,11 +1988,11 @@ impl MnemeStore {
     async fn claim_pending_jobs(
         &self,
         tx: &sea_orm::DatabaseTransaction,
-        partition: Option<PartitionId>,
+        partition: PartitionId,
         max_jobs: u32,
         lease_millis: u64,
     ) -> MnemeResult<Vec<JobRecord>> {
-        let mut select = Query::select()
+        let select = Query::select()
             .from(AideonJobs::Table)
             .columns([
                 AideonJobs::JobId,
@@ -1929,37 +2007,29 @@ impl MnemeStore {
                 AideonJobs::DedupeKey,
                 AideonJobs::Payload,
             ])
+            .and_where(Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)))
             .and_where(Expr::col(AideonJobs::Status).eq(JOB_STATUS_PENDING as i64))
             .order_by(AideonJobs::Priority, Order::Desc)
             .order_by(AideonJobs::CreatedAssertedAtHlc, Order::Asc)
             .limit(max_jobs as u64)
             .to_owned();
-        if let Some(partition) = partition {
-            select.and_where(
-                Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)),
-            );
-        }
         let rows = query_all(tx, &select).await?;
         let mut claimed = Vec::new();
         let now = Hlc::now().as_i64();
         let lease_expires_at = now + lease_millis as i64;
         for row in rows {
             let job_id = read_id(&row, AideonJobs::JobId)?;
-            let mut update = Query::update()
+            let update = Query::update()
                 .table(AideonJobs::Table)
                 .values([
                     (AideonJobs::Status, (JOB_STATUS_RUNNING as i64).into()),
                     (AideonJobs::LeaseExpiresAt, lease_expires_at.into()),
                     (AideonJobs::UpdatedAssertedAtHlc, now.into()),
                 ])
+                .and_where(Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)))
                 .and_where(Expr::col(AideonJobs::JobId).eq(id_value(self.backend, job_id)))
                 .and_where(Expr::col(AideonJobs::Status).eq(JOB_STATUS_PENDING as i64))
                 .to_owned();
-            if let Some(partition) = partition {
-                update.and_where(
-                    Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)),
-                );
-            }
             let result = tx.execute(&update).await?;
             if result.rows_affected() == 0 {
                 continue;
@@ -1977,6 +2047,7 @@ impl MnemeStore {
                 row.try_get("", &col_name(AideonJobs::DedupeKey))?;
             let payload: Vec<u8> = row.try_get("", &col_name(AideonJobs::Payload))?;
             claimed.push(JobRecord {
+                partition,
                 job_id,
                 job_type,
                 status: status as u8,
@@ -2305,6 +2376,8 @@ impl MnemeProcessingApi for MnemeStore {
         let payload = TriggerJobPayload {
             partition_id: input.partition,
             scenario_id: input.scenario_id,
+            type_id: None,
+            schema_version_hint: None,
             reason: input.reason,
         };
         let payload = serde_json::to_vec(&payload)
@@ -2327,6 +2400,8 @@ impl MnemeProcessingApi for MnemeStore {
         let payload = TriggerJobPayload {
             partition_id: input.partition,
             scenario_id: input.scenario_id,
+            type_id: None,
+            schema_version_hint: None,
             reason: input.reason,
         };
         let payload = serde_json::to_vec(&payload)
@@ -2352,6 +2427,8 @@ impl MnemeProcessingApi for MnemeStore {
         let payload = TriggerJobPayload {
             partition_id: input.partition,
             scenario_id: input.scenario_id,
+            type_id: None,
+            schema_version_hint: None,
             reason: input.reason,
         };
         let payload = serde_json::to_vec(&payload)
@@ -2371,9 +2448,24 @@ impl MnemeProcessingApi for MnemeStore {
 
     async fn run_processing_worker(&self, input: RunWorkerInput) -> MnemeResult<u32> {
         let mut processed = 0u32;
+        let select_partition = Query::select()
+            .from(AideonJobs::Table)
+            .column(AideonJobs::PartitionId)
+            .and_where(Expr::col(AideonJobs::Status).eq(JOB_STATUS_PENDING as i64))
+            .order_by(AideonJobs::Priority, Order::Desc)
+            .order_by(AideonJobs::CreatedAssertedAtHlc, Order::Asc)
+            .limit(1)
+            .to_owned();
+        let partition_row = query_one(&self.conn, &select_partition).await?;
+        let Some(partition_row) = partition_row else {
+            return Ok(0);
+        };
+        let partition_id = read_id(&partition_row, AideonJobs::PartitionId)?;
+        let partition = PartitionId(partition_id);
+
         let tx = self.conn.begin().await?;
         let mut jobs = self
-            .claim_pending_jobs(&tx, None, input.max_jobs, input.lease_millis)
+            .claim_pending_jobs(&tx, partition, input.max_jobs, input.lease_millis)
             .await?;
         tx.commit().await?;
 
@@ -2383,18 +2475,26 @@ impl MnemeProcessingApi for MnemeStore {
             let tx = self.conn.begin().await?;
             let result = match job.job_type.as_str() {
                 JOB_TYPE_SCHEMA_REBUILD => {
-                    let select = Query::select()
-                        .from(AideonTypes::Table)
-                        .column(AideonTypes::TypeId)
-                        .and_where(
-                            Expr::col(AideonTypes::PartitionId)
-                                .eq(id_value(self.backend, payload.partition_id.0)),
-                        )
-                        .and_where(Expr::col(AideonTypes::IsDeleted).eq(false))
-                        .to_owned();
-                    let rows = query_all(&tx, &select).await?;
-                    for row in rows {
-                        let type_id = read_id(&row, AideonTypes::TypeId)?;
+                    let mut type_ids = Vec::new();
+                    if let Some(type_id) = payload.type_id {
+                        type_ids.push(type_id);
+                    } else {
+                        let select = Query::select()
+                            .from(AideonTypes::Table)
+                            .column(AideonTypes::TypeId)
+                            .and_where(
+                                Expr::col(AideonTypes::PartitionId)
+                                    .eq(id_value(self.backend, payload.partition_id.0)),
+                            )
+                            .and_where(Expr::col(AideonTypes::IsDeleted).eq(false))
+                            .to_owned();
+                        let rows = query_all(&tx, &select).await?;
+                        for row in rows {
+                            type_ids.push(read_id(&row, AideonTypes::TypeId)?);
+                        }
+                    }
+
+                    for type_id in type_ids {
                         let version = self
                             .compile_effective_schema(
                                 payload.partition_id,
@@ -3727,7 +3827,7 @@ async fn default_value_for_field<C: ConnectionTrait>(
     let Some(type_id) = type_id else {
         return Ok(None);
     };
-    let select = Query::select()
+        let select = Query::select()
         .from(AideonTypeFields::Table)
         .inner_join(
             AideonFields::Table,

@@ -4,8 +4,8 @@
 
 ## Current structure (before refactor)
 
-- **Layout:** Custom two-column layout inside `canvas/app.tsx`: dark left sidebar (`AppSidebar`), header with template selector, search bar, and a mixed stack of cards on the right (time cursor, activity, meta-model, selection).
-- **Navigation:** Sidebar lists “Workspace, Catalogues, Meta-model, Visualisations…” but is not connected to the suite shell tree (`DesktopTree`).
+- **Layout:** Desktop shell uses shadcn sidebar blocks: inset sidebar + `SidebarInset` for the main surface, with an icon rail and nested sections.
+- **Navigation:** Sidebar uses the shadcn sidebar block patterns (inset + nested + file tree), and aligns to the suite shell tree where applicable.
 - **Workspace:** `WorkspaceTabs` renders Overview | Timeline | Canvas | Activity plus a collection of widgets generated from the active template.
 - **Time controls:** `TimeCursorCard` wraps `TimeControlPanel` (branch, commit, slider) but lives in the right card stack, not a dedicated timeline section.
 - **Properties:** Selection inspector card is one of many right-column cards; properties are not a distinct pane.
@@ -15,7 +15,7 @@
 
 Mental model: “In a Scenario, the user selects a Template, adjusts the Time cursor (branch / commit / timeline), and inspects widgets and their properties.”
 
-- **Left sidebar (navigation):** Projects list with scenarios per project; built with shadcn `Sidebar` primitives (`SidebarGroup`, `SidebarMenu`, `ScrollArea`). Hosts scenario selection and lightweight project metadata.
+- **Left sidebar (navigation):** Inset sidebar with icon rail, nested sections, and file-tree-style scenario groups; built with shadcn `Sidebar` primitives (`Sidebar`, `SidebarGroup`, `SidebarMenu`, `SidebarMenuSub`, `SidebarRail`). Hosts scenario selection and lightweight project metadata.
 - **Centre pane (primary workspace):**
   - Template header: scenario name, template name + description, template selector, primary actions (“Save template”, “Create widget”).
   - Search bar scoped to “Search branches, nodes, catalogues”.

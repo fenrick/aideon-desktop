@@ -28,7 +28,7 @@ Status: Draft (implements M0 baseline; informs M1 scope)
 
 - Layout: modern toolbar-driven shell with top toolbar, left sidebar, main content, and bottom status bar for connection/health and short messages.
 - Toolbars: grouped icon buttons similar to ribbons. Idle state uses regular outline; active/toggled uses filled variant and picks up the accent color from tokens.
-- Sidebar: tree/navigation for catalogues, meta-model, and views; React implementation should rely on design-system sidebar blocks.
+- Sidebar: tree/navigation for catalogues, meta-model, and views; React implementation should rely on shadcn sidebar block patterns (inset + nested sections + file tree) via design-system proxies.
 - Content: detail panels for selected items (objects, catalogues, meta-models, visualisations, etc.).
 
 Per-OS component strategies:

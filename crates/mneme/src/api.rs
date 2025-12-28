@@ -314,6 +314,114 @@ pub trait MnemeProcessingApi {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct IntegrityHead {
+    pub partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub run_id: Id,
+    pub updated_asserted_at: Hlc,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SchemaHead {
+    pub partition: PartitionId,
+    pub type_id: Id,
+    pub schema_version_hash: String,
+    pub updated_asserted_at: Hlc,
+}
+
+#[async_trait]
+pub trait DiagnosticsApi {
+    async fn get_integrity_head(
+        &self,
+        partition: PartitionId,
+        scenario_id: Option<ScenarioId>,
+    ) -> MnemeResult<Option<IntegrityHead>>;
+    async fn get_last_schema_compile(
+        &self,
+        partition: PartitionId,
+        type_id: Id,
+    ) -> MnemeResult<Option<SchemaHead>>;
+    async fn list_failed_jobs(
+        &self,
+        partition: PartitionId,
+        limit: u32,
+    ) -> MnemeResult<Vec<JobSummary>>;
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExportOptions {
+    pub partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub since_asserted_at: Option<Hlc>,
+    pub until_asserted_at: Option<Hlc>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ExportRecord {
+    pub record_type: String,
+    pub data: serde_json::Value,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ImportOptions {
+    pub target_partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub allow_partition_create: bool,
+    pub remap_actor_ids: HashMap<ActorId, ActorId>,
+    pub strict_schema: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ImportReport {
+    pub ops_imported: u32,
+    pub ops_skipped: u32,
+    pub errors: u32,
+}
+
+#[async_trait]
+pub trait MnemeExportApi {
+    async fn export_ops_stream(
+        &self,
+        options: ExportOptions,
+    ) -> MnemeResult<Box<dyn Iterator<Item = ExportRecord> + Send>>;
+}
+
+#[async_trait]
+pub trait MnemeImportApi {
+    async fn import_ops_stream<I>(
+        &self,
+        options: ImportOptions,
+        records: I,
+    ) -> MnemeResult<ImportReport>
+    where
+        I: Iterator<Item = ExportRecord> + Send;
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SnapshotOptions {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub as_of_asserted_at: Hlc,
+    pub include_facts: bool,
+    pub include_entities: bool,
+}
+
+#[async_trait]
+pub trait MnemeSnapshotApi {
+    async fn export_snapshot_stream(
+        &self,
+        opts: SnapshotOptions,
+    ) -> MnemeResult<Box<dyn Iterator<Item = ExportRecord> + Send>>;
+    async fn import_snapshot_stream<I>(
+        &self,
+        opts: ImportOptions,
+        records: I,
+    ) -> MnemeResult<()>
+    where
+        I: Iterator<Item = ExportRecord> + Send;
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ChangeEvent {
     pub partition: PartitionId,
     pub sequence: i64,
@@ -372,6 +480,10 @@ pub trait MnemeStore:
     + MnemeProcessingApi
     + ChangeFeedApi
     + ValidationRulesApi
+    + DiagnosticsApi
+    + MnemeExportApi
+    + MnemeImportApi
+    + MnemeSnapshotApi
     + Send
     + Sync
 {
@@ -389,6 +501,10 @@ impl<T> MnemeStore for T where
         + MnemeProcessingApi
         + ChangeFeedApi
         + ValidationRulesApi
+        + DiagnosticsApi
+        + MnemeExportApi
+        + MnemeImportApi
+        + MnemeSnapshotApi
         + Send
         + Sync
 {

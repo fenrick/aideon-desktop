@@ -16,10 +16,11 @@ use sea_orm::{
 use uuid::Uuid;
 
 use crate::api::{
-    AnalyticsApi, AnalyticsResultsApi, ChangeEvent, ChangeFeedApi, CreateScenarioInput, Direction,
-    ExportOpsInput, GraphReadApi, GraphWriteApi, JobRecord, JobSummary, MetamodelApi,
-    MnemeProcessingApi, ProjectionEdge, PropertyWriteApi, RunWorkerInput, ScenarioApi, SyncApi,
-    TriggerProcessingInput, ValidationRule, ValidationRulesApi,
+    AnalyticsApi, AnalyticsResultsApi, ChangeEvent, ChangeFeedApi, CreateScenarioInput, DiagnosticsApi,
+    Direction, ExportOptions, ExportOpsInput, ExportRecord, GraphReadApi, GraphWriteApi, ImportOptions,
+    ImportReport, JobRecord, JobSummary, MetamodelApi, MnemeExportApi, MnemeImportApi,
+    MnemeProcessingApi, MnemeSnapshotApi, ProjectionEdge, PropertyWriteApi, RunWorkerInput,
+    ScenarioApi, SnapshotOptions, SyncApi, TriggerProcessingInput, ValidationRule, ValidationRulesApi,
 };
 use crate::db::*;
 use crate::migration::Migrator;
@@ -370,6 +371,435 @@ impl MnemeStore {
                     Some(dedupe_key),
                 )
                 .await?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    async fn export_fact_table(
+        &self,
+        records: &mut Vec<ExportRecord>,
+        opts: &SnapshotOptions,
+        table: impl sea_query::Iden + Clone,
+        entity_col: impl sea_query::Iden + Clone,
+        field_col: impl sea_query::Iden + Clone,
+        valid_from_col: impl sea_query::Iden + Clone,
+        valid_to_col: impl sea_query::Iden + Clone,
+        layer_col: impl sea_query::Iden + Clone,
+        asserted_col: impl sea_query::Iden + Clone,
+        tombstone_col: impl sea_query::Iden + Clone,
+        value_col: impl sea_query::Iden + Clone,
+        record_type: &str,
+    ) -> MnemeResult<()> {
+        let mut select = Query::select()
+            .from(table.clone())
+            .column(entity_col.clone())
+            .column(field_col.clone())
+            .column(valid_from_col.clone())
+            .column(valid_to_col.clone())
+            .column(layer_col.clone())
+            .column(asserted_col.clone())
+            .column(tombstone_col.clone())
+            .column(value_col.clone())
+            .and_where(
+                Expr::col((table.clone(), AideonPropFactStr::PartitionId))
+                    .eq(id_value(self.backend, opts.partition_id.0)),
+            )
+            .and_where(
+                Expr::col((table.clone(), AideonPropFactStr::AssertedAtHlc))
+                    .lte(opts.as_of_asserted_at.as_i64()),
+            )
+            .to_owned();
+        if let Some(scenario_id) = opts.scenario_id {
+            select.and_where(
+                Expr::col((table.clone(), AideonPropFactStr::ScenarioId))
+                    .eq(id_value(self.backend, scenario_id.0)),
+            );
+        } else {
+            select.and_where(Expr::col((table.clone(), AideonPropFactStr::ScenarioId)).is_null());
+        }
+        let rows = query_all(&self.conn, &select).await?;
+        for row in rows {
+            let entity_id = read_id_by_name(&row, &col_name(entity_col.clone()))?;
+            let field_id = read_id_by_name(&row, &col_name(field_col.clone()))?;
+            let valid_from: i64 = row.try_get("", &col_name(valid_from_col.clone()))?;
+            let valid_to: Option<i64> = row.try_get("", &col_name(valid_to_col.clone()))?;
+            let layer: i64 = row.try_get("", &col_name(layer_col.clone()))?;
+            let asserted_at = read_hlc_by_name(&row, &col_name(asserted_col.clone()))?;
+            let is_tombstone: bool = row.try_get("", &col_name(tombstone_col.clone()))?;
+            let value = match record_type {
+                "snapshot_fact_str" => {
+                    let value: String = row.try_get("", &col_name(value_col.clone()))?;
+                    serde_json::Value::String(value)
+                }
+                "snapshot_fact_i64" => {
+                    let value: i64 = row.try_get("", &col_name(value_col.clone()))?;
+                    serde_json::Value::Number(value.into())
+                }
+                "snapshot_fact_f64" => {
+                    let value: f64 = row.try_get("", &col_name(value_col.clone()))?;
+                    serde_json::Value::Number(
+                        serde_json::Number::from_f64(value)
+                            .ok_or_else(|| MnemeError::storage("invalid f64"))?,
+                    )
+                }
+                "snapshot_fact_bool" => {
+                    let value: bool = row.try_get("", &col_name(value_col.clone()))?;
+                    serde_json::Value::Bool(value)
+                }
+                "snapshot_fact_time" => {
+                    let value: i64 = row.try_get("", &col_name(value_col.clone()))?;
+                    serde_json::Value::Number(value.into())
+                }
+                "snapshot_fact_ref" => {
+                    let value = read_id_by_name(&row, &col_name(value_col.clone()))?;
+                    serde_json::Value::String(value.to_uuid_string())
+                }
+                "snapshot_fact_blob" => {
+                    let value: Vec<u8> = row.try_get("", &col_name(value_col.clone()))?;
+                    serde_json::to_value(value)
+                        .map_err(|err| MnemeError::storage(err.to_string()))?
+                }
+                "snapshot_fact_json" => {
+                    let value: String = row.try_get("", &col_name(value_col.clone()))?;
+                    serde_json::from_str(&value)
+                        .map_err(|err| MnemeError::storage(err.to_string()))?
+                }
+                _ => serde_json::Value::Null,
+            };
+            records.push(ExportRecord {
+                record_type: record_type.to_string(),
+                data: serde_json::json!({
+                    "entity_id": entity_id,
+                    "field_id": field_id,
+                    "valid_from": valid_from,
+                    "valid_to": valid_to,
+                    "layer": layer,
+                    "asserted_at": asserted_at.as_i64(),
+                    "is_tombstone": is_tombstone,
+                    "value": value,
+                }),
+            });
+        }
+        Ok(())
+    }
+
+    async fn import_fact_record(
+        &self,
+        opts: &ImportOptions,
+        record: &ExportRecord,
+    ) -> MnemeResult<()> {
+        let entity_id = Id::from_uuid_str(
+            record
+                .data
+                .get("entity_id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| MnemeError::invalid("missing entity_id"))?,
+        )?;
+        let field_id = Id::from_uuid_str(
+            record
+                .data
+                .get("field_id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| MnemeError::invalid("missing field_id"))?,
+        )?;
+        let valid_from = record
+            .data
+            .get("valid_from")
+            .and_then(|v| v.as_i64())
+            .ok_or_else(|| MnemeError::invalid("missing valid_from"))?;
+        let valid_to = record.data.get("valid_to").and_then(|v| v.as_i64());
+        let layer = record
+            .data
+            .get("layer")
+            .and_then(|v| v.as_i64())
+            .ok_or_else(|| MnemeError::invalid("missing layer"))?;
+        let asserted_at = record
+            .data
+            .get("asserted_at")
+            .and_then(|v| v.as_i64())
+            .ok_or_else(|| MnemeError::invalid("missing asserted_at"))?;
+        let is_tombstone = record
+            .data
+            .get("is_tombstone")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let value = record
+            .data
+            .get("value")
+            .ok_or_else(|| MnemeError::invalid("missing value"))?;
+
+        match record.record_type.as_str() {
+            "snapshot_fact_str" => {
+                let value = value.as_str().unwrap_or_default().to_string();
+                let insert = Query::insert()
+                    .into_table(AideonPropFactStr::Table)
+                    .columns([
+                        AideonPropFactStr::PartitionId,
+                        AideonPropFactStr::ScenarioId,
+                        AideonPropFactStr::EntityId,
+                        AideonPropFactStr::FieldId,
+                        AideonPropFactStr::ValidFrom,
+                        AideonPropFactStr::ValidTo,
+                        AideonPropFactStr::Layer,
+                        AideonPropFactStr::AssertedAtHlc,
+                        AideonPropFactStr::OpId,
+                        AideonPropFactStr::IsTombstone,
+                        AideonPropFactStr::ValueText,
+                    ])
+                    .values_panic([
+                        id_value(self.backend, opts.target_partition.0).into(),
+                        opt_id_value(self.backend, opts.scenario_id.map(|s| s.0)).into(),
+                        id_value(self.backend, entity_id).into(),
+                        id_value(self.backend, field_id).into(),
+                        valid_from.into(),
+                        valid_to.into(),
+                        layer.into(),
+                        asserted_at.into(),
+                        none_id_value(self.backend).into(),
+                        is_tombstone.into(),
+                        value.into(),
+                    ])
+                    .to_owned();
+                exec(&self.conn, &insert).await?;
+            }
+            "snapshot_fact_i64" => {
+                let value = value.as_i64().unwrap_or_default();
+                let insert = Query::insert()
+                    .into_table(AideonPropFactI64::Table)
+                    .columns([
+                        AideonPropFactI64::PartitionId,
+                        AideonPropFactI64::ScenarioId,
+                        AideonPropFactI64::EntityId,
+                        AideonPropFactI64::FieldId,
+                        AideonPropFactI64::ValidFrom,
+                        AideonPropFactI64::ValidTo,
+                        AideonPropFactI64::Layer,
+                        AideonPropFactI64::AssertedAtHlc,
+                        AideonPropFactI64::OpId,
+                        AideonPropFactI64::IsTombstone,
+                        AideonPropFactI64::ValueI64,
+                    ])
+                    .values_panic([
+                        id_value(self.backend, opts.target_partition.0).into(),
+                        opt_id_value(self.backend, opts.scenario_id.map(|s| s.0)).into(),
+                        id_value(self.backend, entity_id).into(),
+                        id_value(self.backend, field_id).into(),
+                        valid_from.into(),
+                        valid_to.into(),
+                        layer.into(),
+                        asserted_at.into(),
+                        none_id_value(self.backend).into(),
+                        is_tombstone.into(),
+                        value.into(),
+                    ])
+                    .to_owned();
+                exec(&self.conn, &insert).await?;
+            }
+            "snapshot_fact_f64" => {
+                let value = value.as_f64().unwrap_or_default();
+                let insert = Query::insert()
+                    .into_table(AideonPropFactF64::Table)
+                    .columns([
+                        AideonPropFactF64::PartitionId,
+                        AideonPropFactF64::ScenarioId,
+                        AideonPropFactF64::EntityId,
+                        AideonPropFactF64::FieldId,
+                        AideonPropFactF64::ValidFrom,
+                        AideonPropFactF64::ValidTo,
+                        AideonPropFactF64::Layer,
+                        AideonPropFactF64::AssertedAtHlc,
+                        AideonPropFactF64::OpId,
+                        AideonPropFactF64::IsTombstone,
+                        AideonPropFactF64::ValueF64,
+                    ])
+                    .values_panic([
+                        id_value(self.backend, opts.target_partition.0).into(),
+                        opt_id_value(self.backend, opts.scenario_id.map(|s| s.0)).into(),
+                        id_value(self.backend, entity_id).into(),
+                        id_value(self.backend, field_id).into(),
+                        valid_from.into(),
+                        valid_to.into(),
+                        layer.into(),
+                        asserted_at.into(),
+                        none_id_value(self.backend).into(),
+                        is_tombstone.into(),
+                        value.into(),
+                    ])
+                    .to_owned();
+                exec(&self.conn, &insert).await?;
+            }
+            "snapshot_fact_bool" => {
+                let value = value.as_bool().unwrap_or(false);
+                let insert = Query::insert()
+                    .into_table(AideonPropFactBool::Table)
+                    .columns([
+                        AideonPropFactBool::PartitionId,
+                        AideonPropFactBool::ScenarioId,
+                        AideonPropFactBool::EntityId,
+                        AideonPropFactBool::FieldId,
+                        AideonPropFactBool::ValidFrom,
+                        AideonPropFactBool::ValidTo,
+                        AideonPropFactBool::Layer,
+                        AideonPropFactBool::AssertedAtHlc,
+                        AideonPropFactBool::OpId,
+                        AideonPropFactBool::IsTombstone,
+                        AideonPropFactBool::ValueBool,
+                    ])
+                    .values_panic([
+                        id_value(self.backend, opts.target_partition.0).into(),
+                        opt_id_value(self.backend, opts.scenario_id.map(|s| s.0)).into(),
+                        id_value(self.backend, entity_id).into(),
+                        id_value(self.backend, field_id).into(),
+                        valid_from.into(),
+                        valid_to.into(),
+                        layer.into(),
+                        asserted_at.into(),
+                        none_id_value(self.backend).into(),
+                        is_tombstone.into(),
+                        value.into(),
+                    ])
+                    .to_owned();
+                exec(&self.conn, &insert).await?;
+            }
+            "snapshot_fact_time" => {
+                let value = value.as_i64().unwrap_or_default();
+                let insert = Query::insert()
+                    .into_table(AideonPropFactTime::Table)
+                    .columns([
+                        AideonPropFactTime::PartitionId,
+                        AideonPropFactTime::ScenarioId,
+                        AideonPropFactTime::EntityId,
+                        AideonPropFactTime::FieldId,
+                        AideonPropFactTime::ValidFrom,
+                        AideonPropFactTime::ValidTo,
+                        AideonPropFactTime::Layer,
+                        AideonPropFactTime::AssertedAtHlc,
+                        AideonPropFactTime::OpId,
+                        AideonPropFactTime::IsTombstone,
+                        AideonPropFactTime::ValueTime,
+                    ])
+                    .values_panic([
+                        id_value(self.backend, opts.target_partition.0).into(),
+                        opt_id_value(self.backend, opts.scenario_id.map(|s| s.0)).into(),
+                        id_value(self.backend, entity_id).into(),
+                        id_value(self.backend, field_id).into(),
+                        valid_from.into(),
+                        valid_to.into(),
+                        layer.into(),
+                        asserted_at.into(),
+                        none_id_value(self.backend).into(),
+                        is_tombstone.into(),
+                        value.into(),
+                    ])
+                    .to_owned();
+                exec(&self.conn, &insert).await?;
+            }
+            "snapshot_fact_ref" => {
+                let id = Id::from_uuid_str(value.as_str().unwrap_or_default())?;
+                let insert = Query::insert()
+                    .into_table(AideonPropFactRef::Table)
+                    .columns([
+                        AideonPropFactRef::PartitionId,
+                        AideonPropFactRef::ScenarioId,
+                        AideonPropFactRef::EntityId,
+                        AideonPropFactRef::FieldId,
+                        AideonPropFactRef::ValidFrom,
+                        AideonPropFactRef::ValidTo,
+                        AideonPropFactRef::Layer,
+                        AideonPropFactRef::AssertedAtHlc,
+                        AideonPropFactRef::OpId,
+                        AideonPropFactRef::IsTombstone,
+                        AideonPropFactRef::ValueRefEntityId,
+                    ])
+                    .values_panic([
+                        id_value(self.backend, opts.target_partition.0).into(),
+                        opt_id_value(self.backend, opts.scenario_id.map(|s| s.0)).into(),
+                        id_value(self.backend, entity_id).into(),
+                        id_value(self.backend, field_id).into(),
+                        valid_from.into(),
+                        valid_to.into(),
+                        layer.into(),
+                        asserted_at.into(),
+                        none_id_value(self.backend).into(),
+                        is_tombstone.into(),
+                        id_value(self.backend, id).into(),
+                    ])
+                    .to_owned();
+                exec(&self.conn, &insert).await?;
+            }
+            "snapshot_fact_blob" => {
+                let bytes = match value {
+                    serde_json::Value::Array(items) => items
+                        .iter()
+                        .filter_map(|v| v.as_u64())
+                        .map(|v| v as u8)
+                        .collect::<Vec<u8>>(),
+                    _ => Vec::new(),
+                };
+                let insert = Query::insert()
+                    .into_table(AideonPropFactBlob::Table)
+                    .columns([
+                        AideonPropFactBlob::PartitionId,
+                        AideonPropFactBlob::ScenarioId,
+                        AideonPropFactBlob::EntityId,
+                        AideonPropFactBlob::FieldId,
+                        AideonPropFactBlob::ValidFrom,
+                        AideonPropFactBlob::ValidTo,
+                        AideonPropFactBlob::Layer,
+                        AideonPropFactBlob::AssertedAtHlc,
+                        AideonPropFactBlob::OpId,
+                        AideonPropFactBlob::IsTombstone,
+                        AideonPropFactBlob::ValueBlob,
+                    ])
+                    .values_panic([
+                        id_value(self.backend, opts.target_partition.0).into(),
+                        opt_id_value(self.backend, opts.scenario_id.map(|s| s.0)).into(),
+                        id_value(self.backend, entity_id).into(),
+                        id_value(self.backend, field_id).into(),
+                        valid_from.into(),
+                        valid_to.into(),
+                        layer.into(),
+                        asserted_at.into(),
+                        none_id_value(self.backend).into(),
+                        is_tombstone.into(),
+                        bytes.into(),
+                    ])
+                    .to_owned();
+                exec(&self.conn, &insert).await?;
+            }
+            "snapshot_fact_json" => {
+                let insert = Query::insert()
+                    .into_table(AideonPropFactJson::Table)
+                    .columns([
+                        AideonPropFactJson::PartitionId,
+                        AideonPropFactJson::ScenarioId,
+                        AideonPropFactJson::EntityId,
+                        AideonPropFactJson::FieldId,
+                        AideonPropFactJson::ValidFrom,
+                        AideonPropFactJson::ValidTo,
+                        AideonPropFactJson::Layer,
+                        AideonPropFactJson::AssertedAtHlc,
+                        AideonPropFactJson::OpId,
+                        AideonPropFactJson::IsTombstone,
+                        AideonPropFactJson::ValueJson,
+                    ])
+                    .values_panic([
+                        id_value(self.backend, opts.target_partition.0).into(),
+                        opt_id_value(self.backend, opts.scenario_id.map(|s| s.0)).into(),
+                        id_value(self.backend, entity_id).into(),
+                        id_value(self.backend, field_id).into(),
+                        valid_from.into(),
+                        valid_to.into(),
+                        layer.into(),
+                        asserted_at.into(),
+                        none_id_value(self.backend).into(),
+                        is_tombstone.into(),
+                        value.to_string().into(),
+                    ])
+                    .to_owned();
+                exec(&self.conn, &insert).await?;
             }
             _ => {}
         }
@@ -2741,6 +3171,752 @@ impl ValidationRulesApi for MnemeStore {
         Ok(rules)
     }
 }
+
+#[async_trait]
+impl DiagnosticsApi for MnemeStore {
+    async fn get_integrity_head(
+        &self,
+        partition: PartitionId,
+        scenario_id: Option<ScenarioId>,
+    ) -> MnemeResult<Option<crate::api::IntegrityHead>> {
+        let mut select = Query::select()
+            .from(AideonIntegrityHead::Table)
+            .columns([
+                AideonIntegrityHead::RunId,
+                AideonIntegrityHead::UpdatedAssertedAtHlc,
+            ])
+            .and_where(
+                Expr::col(AideonIntegrityHead::PartitionId)
+                    .eq(id_value(self.backend, partition.0)),
+            )
+            .to_owned();
+        if let Some(scenario_id) = scenario_id {
+            select.and_where(
+                Expr::col(AideonIntegrityHead::ScenarioId)
+                    .eq(id_value(self.backend, scenario_id.0)),
+            );
+        } else {
+            select.and_where(Expr::col(AideonIntegrityHead::ScenarioId).is_null());
+        }
+        let row = query_one(&self.conn, &select).await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let run_id = read_id(&row, AideonIntegrityHead::RunId)?;
+        let updated_asserted_at = read_hlc(&row, AideonIntegrityHead::UpdatedAssertedAtHlc)?;
+        Ok(Some(crate::api::IntegrityHead {
+            partition,
+            scenario_id,
+            run_id,
+            updated_asserted_at,
+        }))
+    }
+
+    async fn get_last_schema_compile(
+        &self,
+        partition: PartitionId,
+        type_id: Id,
+    ) -> MnemeResult<Option<crate::api::SchemaHead>> {
+        let select = Query::select()
+            .from(AideonTypeSchemaHead::Table)
+            .columns([
+                AideonTypeSchemaHead::SchemaVersionHash,
+                AideonTypeSchemaHead::UpdatedAssertedAtHlc,
+            ])
+            .and_where(
+                Expr::col(AideonTypeSchemaHead::PartitionId)
+                    .eq(id_value(self.backend, partition.0)),
+            )
+            .and_where(Expr::col(AideonTypeSchemaHead::TypeId).eq(id_value(self.backend, type_id)))
+            .limit(1)
+            .to_owned();
+        let row = query_one(&self.conn, &select).await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let schema_version_hash: String =
+            row.try_get("", &col_name(AideonTypeSchemaHead::SchemaVersionHash))?;
+        let updated_asserted_at = read_hlc(&row, AideonTypeSchemaHead::UpdatedAssertedAtHlc)?;
+        Ok(Some(crate::api::SchemaHead {
+            partition,
+            type_id,
+            schema_version_hash,
+            updated_asserted_at,
+        }))
+    }
+
+    async fn list_failed_jobs(
+        &self,
+        partition: PartitionId,
+        limit: u32,
+    ) -> MnemeResult<Vec<JobSummary>> {
+        let jobs = self
+            .list_jobs_internal(partition, Some(JOB_STATUS_FAILED), limit)
+            .await?;
+        Ok(jobs
+            .into_iter()
+            .map(|job| JobSummary {
+                partition,
+                job_id: job.job_id,
+                job_type: job.job_type,
+                status: job.status,
+                priority: job.priority,
+                attempts: job.attempts,
+                max_attempts: job.max_attempts,
+                lease_expires_at: job.lease_expires_at,
+                created_asserted_at: job.created_asserted_at,
+                updated_asserted_at: job.updated_asserted_at,
+                dedupe_key: job.dedupe_key,
+            })
+            .collect())
+    }
+}
+
+#[async_trait]
+impl MnemeExportApi for MnemeStore {
+    async fn export_ops_stream(
+        &self,
+        options: ExportOptions,
+    ) -> MnemeResult<Box<dyn Iterator<Item = ExportRecord> + Send>> {
+        let mut select = Query::select()
+            .from(AideonOps::Table)
+            .columns([
+                (AideonOps::Table, AideonOps::OpId),
+                (AideonOps::Table, AideonOps::ActorId),
+                (AideonOps::Table, AideonOps::AssertedAtHlc),
+                (AideonOps::Table, AideonOps::OpType),
+                (AideonOps::Table, AideonOps::Payload),
+            ])
+            .and_where(
+                Expr::col(AideonOps::PartitionId).eq(id_value(self.backend, options.partition.0)),
+            )
+            .order_by(AideonOps::AssertedAtHlc, Order::Asc)
+            .to_owned();
+        if let Some(since) = options.since_asserted_at {
+            select.and_where(Expr::col(AideonOps::AssertedAtHlc).gt(since.as_i64()));
+        }
+        if let Some(until) = options.until_asserted_at {
+            select.and_where(Expr::col(AideonOps::AssertedAtHlc).lte(until.as_i64()));
+        }
+        let rows = query_all(&self.conn, &select).await?;
+        let mut records = Vec::new();
+        records.push(ExportRecord {
+            record_type: "header".to_string(),
+            data: serde_json::json!({
+                "partition_id": options.partition,
+                "scenario_id": options.scenario_id,
+                "since_asserted_at": options.since_asserted_at.map(|v| v.as_i64()),
+                "until_asserted_at": options.until_asserted_at.map(|v| v.as_i64()),
+            }),
+        });
+        let mut hasher = blake3::Hasher::new();
+        let mut count = 0u32;
+        for row in rows {
+            let op_id = read_id(&row, AideonOps::OpId)?;
+            let actor_id = read_id(&row, AideonOps::ActorId)?;
+            let asserted_at = read_hlc(&row, AideonOps::AssertedAtHlc)?;
+            let op_type: i64 = row.try_get("", &col_name(AideonOps::OpType))?;
+            let payload: Vec<u8> = row.try_get("", &col_name(AideonOps::Payload))?;
+            let deps = fetch_op_deps(&self.conn, options.partition, op_id).await?;
+            let envelope = OpEnvelope {
+                op_id: OpId(op_id),
+                actor_id: ActorId(actor_id),
+                asserted_at,
+                op_type: op_type as u16,
+                payload,
+                deps: deps.into_iter().map(OpId).collect(),
+            };
+            let data = serde_json::to_value(&envelope)
+                .map_err(|err| MnemeError::storage(err.to_string()))?;
+            let bytes = serde_json::to_vec(&envelope)
+                .map_err(|err| MnemeError::storage(err.to_string()))?;
+            hasher.update(&bytes);
+            count += 1;
+            records.push(ExportRecord {
+                record_type: "op".to_string(),
+                data,
+            });
+        }
+        let checksum = hasher.finalize().to_hex().to_string();
+        records.push(ExportRecord {
+            record_type: "footer".to_string(),
+            data: serde_json::json!({
+                "op_count": count,
+                "checksum": checksum,
+            }),
+        });
+        Ok(Box::new(records.into_iter()))
+    }
+}
+
+#[async_trait]
+impl MnemeImportApi for MnemeStore {
+    async fn import_ops_stream<I>(
+        &self,
+        options: ImportOptions,
+        records: I,
+    ) -> MnemeResult<ImportReport>
+    where
+        I: Iterator<Item = ExportRecord> + Send,
+    {
+        let mut hasher = blake3::Hasher::new();
+        let mut ops = Vec::new();
+        let mut reported_checksum: Option<String> = None;
+        for record in records {
+            match record.record_type.as_str() {
+                "header" => {}
+                "footer" => {
+                    reported_checksum = record
+                        .data
+                        .get("checksum")
+                        .and_then(|value| value.as_str())
+                        .map(|value| value.to_string());
+                }
+                "op" => {
+                    let mut envelope: OpEnvelope = serde_json::from_value(record.data)
+                        .map_err(|err| MnemeError::storage(err.to_string()))?;
+                    let mut payload: OpPayload = serde_json::from_slice(&envelope.payload)
+                        .map_err(|err| MnemeError::storage(err.to_string()))?;
+                    if let Some(remapped) = options.remap_actor_ids.get(&envelope.actor_id) {
+                        envelope.actor_id = *remapped;
+                        match &mut payload {
+                            OpPayload::CreateNode(input) => input.actor = *remapped,
+                            OpPayload::CreateEdge(input) => input.actor = *remapped,
+                            OpPayload::TombstoneEntity { actor, .. } => *actor = *remapped,
+                            OpPayload::SetProperty(input) => input.actor = *remapped,
+                            OpPayload::ClearProperty(input) => input.actor = *remapped,
+                            OpPayload::OrSetUpdate(input) => input.actor = *remapped,
+                            OpPayload::CounterUpdate(input) => input.actor = *remapped,
+                            OpPayload::UpsertMetamodelBatch(_) => {}
+                            OpPayload::CreateScenario { actor, .. } => *actor = *remapped,
+                            OpPayload::DeleteScenario { actor, .. } => *actor = *remapped,
+                        }
+                    }
+                    if let Some(scenario_id) = options.scenario_id {
+                        match &mut payload {
+                            OpPayload::CreateNode(input) => input.scenario_id = Some(scenario_id),
+                            OpPayload::CreateEdge(input) => input.scenario_id = Some(scenario_id),
+                            OpPayload::TombstoneEntity { scenario_id: sid, .. } => {
+                                *sid = Some(scenario_id)
+                            }
+                            OpPayload::SetProperty(input) => input.scenario_id = Some(scenario_id),
+                            OpPayload::ClearProperty(input) => input.scenario_id = Some(scenario_id),
+                            OpPayload::OrSetUpdate(input) => input.scenario_id = Some(scenario_id),
+                            OpPayload::CounterUpdate(input) => input.scenario_id = Some(scenario_id),
+                            OpPayload::UpsertMetamodelBatch(_) => {}
+                            OpPayload::CreateScenario { .. } => {}
+                            OpPayload::DeleteScenario { .. } => {}
+                        }
+                    }
+                    let payload_bytes =
+                        serde_json::to_vec(&payload).map_err(|err| MnemeError::storage(err.to_string()))?;
+                    envelope.payload = payload_bytes;
+                    let bytes = serde_json::to_vec(&envelope)
+                        .map_err(|err| MnemeError::storage(err.to_string()))?;
+                    hasher.update(&bytes);
+                    ops.push(envelope);
+                }
+                _ => {}
+            }
+        }
+        if let Some(checksum) = reported_checksum {
+            let computed = hasher.finalize().to_hex().to_string();
+            if checksum != computed && options.strict_schema {
+                return Err(MnemeError::invalid("checksum mismatch"));
+            }
+        }
+
+        if options.allow_partition_create {
+            if let Some(first) = ops.first() {
+                let tx = self.conn.begin().await?;
+                self.ensure_partition(&tx, options.target_partition, first.actor_id)
+                    .await?;
+                tx.commit().await?;
+            }
+        }
+
+        let mut imported = 0u32;
+        for chunk in ops.chunks(1000) {
+            self.ingest_ops(options.target_partition, chunk.to_vec())
+                .await?;
+            imported += chunk.len() as u32;
+        }
+        Ok(ImportReport {
+            ops_imported: imported,
+            ops_skipped: 0,
+            errors: 0,
+        })
+    }
+}
+
+#[async_trait]
+impl MnemeSnapshotApi for MnemeStore {
+    async fn export_snapshot_stream(
+        &self,
+        opts: SnapshotOptions,
+    ) -> MnemeResult<Box<dyn Iterator<Item = ExportRecord> + Send>> {
+        let mut records = Vec::new();
+        records.push(ExportRecord {
+            record_type: "snapshot_header".to_string(),
+            data: serde_json::json!({
+                "partition_id": opts.partition_id,
+                "scenario_id": opts.scenario_id,
+                "as_of_asserted_at": opts.as_of_asserted_at.as_i64(),
+                "include_entities": opts.include_entities,
+                "include_facts": opts.include_facts,
+            }),
+        });
+        if opts.include_entities {
+            let mut select = Query::select()
+                .from(AideonEntities::Table)
+                .columns([
+                    AideonEntities::EntityId,
+                    AideonEntities::EntityKind,
+                    AideonEntities::TypeId,
+                    AideonEntities::IsDeleted,
+                    AideonEntities::UpdatedAssertedAtHlc,
+                ])
+                .and_where(
+                    Expr::col(AideonEntities::PartitionId)
+                        .eq(id_value(self.backend, opts.partition_id.0)),
+                )
+                .and_where(
+                    Expr::col(AideonEntities::UpdatedAssertedAtHlc)
+                        .lte(opts.as_of_asserted_at.as_i64()),
+                )
+                .to_owned();
+            if let Some(scenario_id) = opts.scenario_id {
+                select.and_where(
+                    Expr::col(AideonEntities::ScenarioId)
+                        .eq(id_value(self.backend, scenario_id.0)),
+                );
+            } else {
+                select.and_where(Expr::col(AideonEntities::ScenarioId).is_null());
+            }
+            for row in query_all(&self.conn, &select).await? {
+                let entity_id = read_id(&row, AideonEntities::EntityId)?;
+                let kind_raw: i16 = row.try_get("", &col_name(AideonEntities::EntityKind))?;
+                let type_id = read_opt_id(&row, AideonEntities::TypeId)?;
+                let is_deleted: bool = row.try_get("", &col_name(AideonEntities::IsDeleted))?;
+                records.push(ExportRecord {
+                    record_type: "snapshot_entity".to_string(),
+                    data: serde_json::json!({
+                        "entity_id": entity_id,
+                        "kind": kind_raw,
+                        "type_id": type_id,
+                        "is_deleted": is_deleted,
+                    }),
+                });
+            }
+
+            let mut edge_select = Query::select()
+                .from(AideonEdges::Table)
+                .columns([
+                    AideonEdges::EdgeId,
+                    AideonEdges::SrcEntityId,
+                    AideonEdges::DstEntityId,
+                    AideonEdges::EdgeTypeId,
+                ])
+                .and_where(
+                    Expr::col(AideonEdges::PartitionId)
+                        .eq(id_value(self.backend, opts.partition_id.0)),
+                )
+                .to_owned();
+            if let Some(scenario_id) = opts.scenario_id {
+                edge_select.and_where(
+                    Expr::col(AideonEdges::ScenarioId)
+                        .eq(id_value(self.backend, scenario_id.0)),
+                );
+            } else {
+                edge_select.and_where(Expr::col(AideonEdges::ScenarioId).is_null());
+            }
+            for row in query_all(&self.conn, &edge_select).await? {
+                let edge_id = read_id(&row, AideonEdges::EdgeId)?;
+                let src_id = read_id(&row, AideonEdges::SrcEntityId)?;
+                let dst_id = read_id(&row, AideonEdges::DstEntityId)?;
+                let edge_type_id = read_opt_id(&row, AideonEdges::EdgeTypeId)?;
+                records.push(ExportRecord {
+                    record_type: "snapshot_edge".to_string(),
+                    data: serde_json::json!({
+                        "edge_id": edge_id,
+                        "src_id": src_id,
+                        "dst_id": dst_id,
+                        "edge_type_id": edge_type_id,
+                    }),
+                });
+            }
+        }
+
+        if opts.include_facts {
+            let mut edge_fact_select = Query::select()
+                .from(AideonEdgeExistsFacts::Table)
+                .columns([
+                    AideonEdgeExistsFacts::EdgeId,
+                    AideonEdgeExistsFacts::ValidFrom,
+                    AideonEdgeExistsFacts::ValidTo,
+                    AideonEdgeExistsFacts::Layer,
+                    AideonEdgeExistsFacts::AssertedAtHlc,
+                    AideonEdgeExistsFacts::IsTombstone,
+                ])
+                .and_where(
+                    Expr::col(AideonEdgeExistsFacts::PartitionId)
+                        .eq(id_value(self.backend, opts.partition_id.0)),
+                )
+                .and_where(
+                    Expr::col(AideonEdgeExistsFacts::AssertedAtHlc)
+                        .lte(opts.as_of_asserted_at.as_i64()),
+                )
+                .to_owned();
+            if let Some(scenario_id) = opts.scenario_id {
+                edge_fact_select.and_where(
+                    Expr::col(AideonEdgeExistsFacts::ScenarioId)
+                        .eq(id_value(self.backend, scenario_id.0)),
+                );
+            } else {
+                edge_fact_select.and_where(Expr::col(AideonEdgeExistsFacts::ScenarioId).is_null());
+            }
+            for row in query_all(&self.conn, &edge_fact_select).await? {
+                let edge_id = read_id(&row, AideonEdgeExistsFacts::EdgeId)?;
+                let valid_from: i64 = row.try_get("", &col_name(AideonEdgeExistsFacts::ValidFrom))?;
+                let valid_to: Option<i64> =
+                    row.try_get("", &col_name(AideonEdgeExistsFacts::ValidTo))?;
+                let layer: i64 = row.try_get("", &col_name(AideonEdgeExistsFacts::Layer))?;
+                let asserted_at = read_hlc(&row, AideonEdgeExistsFacts::AssertedAtHlc)?;
+                let is_tombstone: bool =
+                    row.try_get("", &col_name(AideonEdgeExistsFacts::IsTombstone))?;
+                records.push(ExportRecord {
+                    record_type: "snapshot_edge_exists".to_string(),
+                    data: serde_json::json!({
+                        "edge_id": edge_id,
+                        "valid_from": valid_from,
+                        "valid_to": valid_to,
+                        "layer": layer,
+                        "asserted_at": asserted_at.as_i64(),
+                        "is_tombstone": is_tombstone,
+                    }),
+                });
+            }
+
+            self.export_fact_table(
+                &mut records,
+                &opts,
+                AideonPropFactStr::Table,
+                AideonPropFactStr::EntityId,
+                AideonPropFactStr::FieldId,
+                AideonPropFactStr::ValidFrom,
+                AideonPropFactStr::ValidTo,
+                AideonPropFactStr::Layer,
+                AideonPropFactStr::AssertedAtHlc,
+                AideonPropFactStr::IsTombstone,
+                AideonPropFactStr::ValueText,
+                "snapshot_fact_str",
+            )
+            .await?;
+            self.export_fact_table(
+                &mut records,
+                &opts,
+                AideonPropFactI64::Table,
+                AideonPropFactI64::EntityId,
+                AideonPropFactI64::FieldId,
+                AideonPropFactI64::ValidFrom,
+                AideonPropFactI64::ValidTo,
+                AideonPropFactI64::Layer,
+                AideonPropFactI64::AssertedAtHlc,
+                AideonPropFactI64::IsTombstone,
+                AideonPropFactI64::ValueI64,
+                "snapshot_fact_i64",
+            )
+            .await?;
+            self.export_fact_table(
+                &mut records,
+                &opts,
+                AideonPropFactF64::Table,
+                AideonPropFactF64::EntityId,
+                AideonPropFactF64::FieldId,
+                AideonPropFactF64::ValidFrom,
+                AideonPropFactF64::ValidTo,
+                AideonPropFactF64::Layer,
+                AideonPropFactF64::AssertedAtHlc,
+                AideonPropFactF64::IsTombstone,
+                AideonPropFactF64::ValueF64,
+                "snapshot_fact_f64",
+            )
+            .await?;
+            self.export_fact_table(
+                &mut records,
+                &opts,
+                AideonPropFactBool::Table,
+                AideonPropFactBool::EntityId,
+                AideonPropFactBool::FieldId,
+                AideonPropFactBool::ValidFrom,
+                AideonPropFactBool::ValidTo,
+                AideonPropFactBool::Layer,
+                AideonPropFactBool::AssertedAtHlc,
+                AideonPropFactBool::IsTombstone,
+                AideonPropFactBool::ValueBool,
+                "snapshot_fact_bool",
+            )
+            .await?;
+            self.export_fact_table(
+                &mut records,
+                &opts,
+                AideonPropFactTime::Table,
+                AideonPropFactTime::EntityId,
+                AideonPropFactTime::FieldId,
+                AideonPropFactTime::ValidFrom,
+                AideonPropFactTime::ValidTo,
+                AideonPropFactTime::Layer,
+                AideonPropFactTime::AssertedAtHlc,
+                AideonPropFactTime::IsTombstone,
+                AideonPropFactTime::ValueTime,
+                "snapshot_fact_time",
+            )
+            .await?;
+            self.export_fact_table(
+                &mut records,
+                &opts,
+                AideonPropFactRef::Table,
+                AideonPropFactRef::EntityId,
+                AideonPropFactRef::FieldId,
+                AideonPropFactRef::ValidFrom,
+                AideonPropFactRef::ValidTo,
+                AideonPropFactRef::Layer,
+                AideonPropFactRef::AssertedAtHlc,
+                AideonPropFactRef::IsTombstone,
+                AideonPropFactRef::ValueRefEntityId,
+                "snapshot_fact_ref",
+            )
+            .await?;
+            self.export_fact_table(
+                &mut records,
+                &opts,
+                AideonPropFactBlob::Table,
+                AideonPropFactBlob::EntityId,
+                AideonPropFactBlob::FieldId,
+                AideonPropFactBlob::ValidFrom,
+                AideonPropFactBlob::ValidTo,
+                AideonPropFactBlob::Layer,
+                AideonPropFactBlob::AssertedAtHlc,
+                AideonPropFactBlob::IsTombstone,
+                AideonPropFactBlob::ValueBlob,
+                "snapshot_fact_blob",
+            )
+            .await?;
+            self.export_fact_table(
+                &mut records,
+                &opts,
+                AideonPropFactJson::Table,
+                AideonPropFactJson::EntityId,
+                AideonPropFactJson::FieldId,
+                AideonPropFactJson::ValidFrom,
+                AideonPropFactJson::ValidTo,
+                AideonPropFactJson::Layer,
+                AideonPropFactJson::AssertedAtHlc,
+                AideonPropFactJson::IsTombstone,
+                AideonPropFactJson::ValueJson,
+                "snapshot_fact_json",
+            )
+            .await?;
+        }
+
+        records.push(ExportRecord {
+            record_type: "snapshot_footer".to_string(),
+            data: serde_json::json!({ "complete": true }),
+        });
+        Ok(Box::new(records.into_iter()))
+    }
+
+    async fn import_snapshot_stream<I>(
+        &self,
+        opts: ImportOptions,
+        records: I,
+    ) -> MnemeResult<()>
+    where
+        I: Iterator<Item = ExportRecord> + Send,
+    {
+        if opts.allow_partition_create {
+            let tx = self.conn.begin().await?;
+            self.ensure_partition(&tx, opts.target_partition, ActorId(Id::new()))
+                .await?;
+            tx.commit().await?;
+        }
+        for record in records {
+            match record.record_type.as_str() {
+                "snapshot_entity" => {
+                    let entity_id = Id::from_uuid_str(
+                        record
+                            .data
+                            .get("entity_id")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| MnemeError::invalid("missing entity_id"))?,
+                    )?;
+                    let kind: i64 = record
+                        .data
+                        .get("kind")
+                        .and_then(|v| v.as_i64())
+                        .ok_or_else(|| MnemeError::invalid("missing kind"))?;
+                    let type_id = match record.data.get("type_id") {
+                        Some(value) if !value.is_null() => {
+                            Some(Id::from_uuid_str(value.as_str().unwrap_or_default())?)
+                        }
+                        _ => None,
+                    };
+                    let is_deleted = record
+                        .data
+                        .get("is_deleted")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
+                    let insert = Query::insert()
+                        .into_table(AideonEntities::Table)
+                        .columns([
+                            AideonEntities::PartitionId,
+                            AideonEntities::ScenarioId,
+                            AideonEntities::EntityId,
+                            AideonEntities::EntityKind,
+                            AideonEntities::TypeId,
+                            AideonEntities::IsDeleted,
+                            AideonEntities::CreatedOpId,
+                            AideonEntities::UpdatedOpId,
+                            AideonEntities::CreatedAssertedAtHlc,
+                            AideonEntities::UpdatedAssertedAtHlc,
+                        ])
+                        .values_panic([
+                            id_value(self.backend, opts.target_partition.0).into(),
+                            opt_id_value(self.backend, opts.scenario_id.map(|s| s.0)).into(),
+                            id_value(self.backend, entity_id).into(),
+                            kind.into(),
+                            opt_id_value(self.backend, type_id).into(),
+                            is_deleted.into(),
+                            none_id_value(self.backend).into(),
+                            none_id_value(self.backend).into(),
+                            Hlc::now().as_i64().into(),
+                            Hlc::now().as_i64().into(),
+                        ])
+                        .to_owned();
+                    exec(&self.conn, &insert).await?;
+                }
+                "snapshot_edge" => {
+                    let edge_id = Id::from_uuid_str(
+                        record
+                            .data
+                            .get("edge_id")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| MnemeError::invalid("missing edge_id"))?,
+                    )?;
+                    let src_id = Id::from_uuid_str(
+                        record
+                            .data
+                            .get("src_id")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| MnemeError::invalid("missing src_id"))?,
+                    )?;
+                    let dst_id = Id::from_uuid_str(
+                        record
+                            .data
+                            .get("dst_id")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| MnemeError::invalid("missing dst_id"))?,
+                    )?;
+                    let edge_type_id = match record.data.get("edge_type_id") {
+                        Some(value) if !value.is_null() => {
+                            Some(Id::from_uuid_str(value.as_str().unwrap_or_default())?)
+                        }
+                        _ => None,
+                    };
+                    let insert = Query::insert()
+                        .into_table(AideonEdges::Table)
+                        .columns([
+                            AideonEdges::PartitionId,
+                            AideonEdges::ScenarioId,
+                            AideonEdges::EdgeId,
+                            AideonEdges::SrcEntityId,
+                            AideonEdges::DstEntityId,
+                            AideonEdges::EdgeTypeId,
+                        ])
+                        .values_panic([
+                            id_value(self.backend, opts.target_partition.0).into(),
+                            opt_id_value(self.backend, opts.scenario_id.map(|s| s.0)).into(),
+                            id_value(self.backend, edge_id).into(),
+                            id_value(self.backend, src_id).into(),
+                            id_value(self.backend, dst_id).into(),
+                            opt_id_value(self.backend, edge_type_id).into(),
+                        ])
+                        .to_owned();
+                    exec(&self.conn, &insert).await?;
+                }
+                "snapshot_edge_exists" => {
+                    let edge_id = Id::from_uuid_str(
+                        record
+                            .data
+                            .get("edge_id")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| MnemeError::invalid("missing edge_id"))?,
+                    )?;
+                    let valid_from = record
+                        .data
+                        .get("valid_from")
+                        .and_then(|v| v.as_i64())
+                        .ok_or_else(|| MnemeError::invalid("missing valid_from"))?;
+                    let valid_to = record.data.get("valid_to").and_then(|v| v.as_i64());
+                    let layer = record
+                        .data
+                        .get("layer")
+                        .and_then(|v| v.as_i64())
+                        .ok_or_else(|| MnemeError::invalid("missing layer"))?;
+                    let asserted_at = record
+                        .data
+                        .get("asserted_at")
+                        .and_then(|v| v.as_i64())
+                        .ok_or_else(|| MnemeError::invalid("missing asserted_at"))?;
+                    let is_tombstone = record
+                        .data
+                        .get("is_tombstone")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
+                    let insert = Query::insert()
+                        .into_table(AideonEdgeExistsFacts::Table)
+                        .columns([
+                            AideonEdgeExistsFacts::PartitionId,
+                            AideonEdgeExistsFacts::ScenarioId,
+                            AideonEdgeExistsFacts::EdgeId,
+                            AideonEdgeExistsFacts::ValidFrom,
+                            AideonEdgeExistsFacts::ValidTo,
+                            AideonEdgeExistsFacts::Layer,
+                            AideonEdgeExistsFacts::AssertedAtHlc,
+                            AideonEdgeExistsFacts::OpId,
+                            AideonEdgeExistsFacts::IsTombstone,
+                        ])
+                        .values_panic([
+                            id_value(self.backend, opts.target_partition.0).into(),
+                            opt_id_value(self.backend, opts.scenario_id.map(|s| s.0)).into(),
+                            id_value(self.backend, edge_id).into(),
+                            valid_from.into(),
+                            valid_to.into(),
+                            layer.into(),
+                            asserted_at.into(),
+                            none_id_value(self.backend).into(),
+                            is_tombstone.into(),
+                        ])
+                        .to_owned();
+                    exec(&self.conn, &insert).await?;
+                }
+                "snapshot_fact_str"
+                | "snapshot_fact_i64"
+                | "snapshot_fact_f64"
+                | "snapshot_fact_bool"
+                | "snapshot_fact_time"
+                | "snapshot_fact_ref"
+                | "snapshot_fact_blob"
+                | "snapshot_fact_json" => {
+                    self.import_fact_record(&opts, &record).await?;
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+}
+
 
 #[derive(Clone)]
 struct PropertyFact {

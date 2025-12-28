@@ -159,6 +159,9 @@ impl MigrationTrait for Migration {
                             .boolean()
                             .not_null(),
                     )
+                    .col(ColumnDef::new(AideonEntities::AclGroupId).string())
+                    .col(id_col(backend, AideonEntities::OwnerActorId, true))
+                    .col(ColumnDef::new(AideonEntities::Visibility).tiny_integer())
                     .col(id_col(backend, AideonEntities::CreatedOpId, false))
                     .col(id_col(backend, AideonEntities::UpdatedOpId, false))
                     .col(
@@ -216,6 +219,7 @@ impl MigrationTrait for Migration {
                             .not_null(),
                     )
                     .col(ColumnDef::new(AideonEdgeExistsFacts::ValidTo).big_integer())
+                    .col(ColumnDef::new(AideonEdgeExistsFacts::ValidBucket).integer())
                     .col(
                         ColumnDef::new(AideonEdgeExistsFacts::Layer)
                             .tiny_integer()
@@ -255,6 +259,7 @@ impl MigrationTrait for Migration {
             AideonPropFactStr::FieldId,
             AideonPropFactStr::ValidFrom,
             AideonPropFactStr::ValidTo,
+            AideonPropFactStr::ValidBucket,
             AideonPropFactStr::Layer,
             AideonPropFactStr::AssertedAtHlc,
             AideonPropFactStr::OpId,
@@ -277,6 +282,7 @@ impl MigrationTrait for Migration {
             AideonPropFactI64::FieldId,
             AideonPropFactI64::ValidFrom,
             AideonPropFactI64::ValidTo,
+            AideonPropFactI64::ValidBucket,
             AideonPropFactI64::Layer,
             AideonPropFactI64::AssertedAtHlc,
             AideonPropFactI64::OpId,
@@ -299,6 +305,7 @@ impl MigrationTrait for Migration {
             AideonPropFactF64::FieldId,
             AideonPropFactF64::ValidFrom,
             AideonPropFactF64::ValidTo,
+            AideonPropFactF64::ValidBucket,
             AideonPropFactF64::Layer,
             AideonPropFactF64::AssertedAtHlc,
             AideonPropFactF64::OpId,
@@ -321,6 +328,7 @@ impl MigrationTrait for Migration {
             AideonPropFactBool::FieldId,
             AideonPropFactBool::ValidFrom,
             AideonPropFactBool::ValidTo,
+            AideonPropFactBool::ValidBucket,
             AideonPropFactBool::Layer,
             AideonPropFactBool::AssertedAtHlc,
             AideonPropFactBool::OpId,
@@ -343,6 +351,7 @@ impl MigrationTrait for Migration {
             AideonPropFactTime::FieldId,
             AideonPropFactTime::ValidFrom,
             AideonPropFactTime::ValidTo,
+            AideonPropFactTime::ValidBucket,
             AideonPropFactTime::Layer,
             AideonPropFactTime::AssertedAtHlc,
             AideonPropFactTime::OpId,
@@ -365,6 +374,7 @@ impl MigrationTrait for Migration {
             AideonPropFactRef::FieldId,
             AideonPropFactRef::ValidFrom,
             AideonPropFactRef::ValidTo,
+            AideonPropFactRef::ValidBucket,
             AideonPropFactRef::Layer,
             AideonPropFactRef::AssertedAtHlc,
             AideonPropFactRef::OpId,
@@ -384,6 +394,7 @@ impl MigrationTrait for Migration {
             AideonPropFactBlob::FieldId,
             AideonPropFactBlob::ValidFrom,
             AideonPropFactBlob::ValidTo,
+            AideonPropFactBlob::ValidBucket,
             AideonPropFactBlob::Layer,
             AideonPropFactBlob::AssertedAtHlc,
             AideonPropFactBlob::OpId,
@@ -406,6 +417,7 @@ impl MigrationTrait for Migration {
             AideonPropFactJson::FieldId,
             AideonPropFactJson::ValidFrom,
             AideonPropFactJson::ValidTo,
+            AideonPropFactJson::ValidBucket,
             AideonPropFactJson::Layer,
             AideonPropFactJson::AssertedAtHlc,
             AideonPropFactJson::OpId,
@@ -791,6 +803,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(AideonJobs::Attempts).integer().not_null())
                     .col(ColumnDef::new(AideonJobs::MaxAttempts).integer().not_null())
                     .col(ColumnDef::new(AideonJobs::LeaseExpiresAt).big_integer())
+                    .col(ColumnDef::new(AideonJobs::NextRunAfter).big_integer())
                     .col(
                         ColumnDef::new(AideonJobs::CreatedAssertedAtHlc)
                             .big_integer()
@@ -803,6 +816,7 @@ impl MigrationTrait for Migration {
                     )
                     .col(ColumnDef::new(AideonJobs::Payload).blob().not_null())
                     .col(ColumnDef::new(AideonJobs::DedupeKey).string())
+                    .col(ColumnDef::new(AideonJobs::LastError).text())
                     .primary_key(
                         Index::create()
                             .name("pk_aideon_jobs")
@@ -1257,6 +1271,7 @@ impl MigrationTrait for Migration {
             AideonIdxFieldStr::EntityId,
             AideonIdxFieldStr::ValidFrom,
             AideonIdxFieldStr::ValidTo,
+            AideonIdxFieldStr::ValidBucket,
             AideonIdxFieldStr::AssertedAtHlc,
             AideonIdxFieldStr::Layer,
             ColumnDef::new(AideonIdxFieldStr::ValueTextNorm)
@@ -1277,6 +1292,7 @@ impl MigrationTrait for Migration {
             AideonIdxFieldI64::EntityId,
             AideonIdxFieldI64::ValidFrom,
             AideonIdxFieldI64::ValidTo,
+            AideonIdxFieldI64::ValidBucket,
             AideonIdxFieldI64::AssertedAtHlc,
             AideonIdxFieldI64::Layer,
             ColumnDef::new(AideonIdxFieldI64::ValueI64)
@@ -1297,6 +1313,7 @@ impl MigrationTrait for Migration {
             AideonIdxFieldF64::EntityId,
             AideonIdxFieldF64::ValidFrom,
             AideonIdxFieldF64::ValidTo,
+            AideonIdxFieldF64::ValidBucket,
             AideonIdxFieldF64::AssertedAtHlc,
             AideonIdxFieldF64::Layer,
             ColumnDef::new(AideonIdxFieldF64::ValueF64)
@@ -1317,6 +1334,7 @@ impl MigrationTrait for Migration {
             AideonIdxFieldBool::EntityId,
             AideonIdxFieldBool::ValidFrom,
             AideonIdxFieldBool::ValidTo,
+            AideonIdxFieldBool::ValidBucket,
             AideonIdxFieldBool::AssertedAtHlc,
             AideonIdxFieldBool::Layer,
             ColumnDef::new(AideonIdxFieldBool::ValueBool)
@@ -1337,6 +1355,7 @@ impl MigrationTrait for Migration {
             AideonIdxFieldTime::EntityId,
             AideonIdxFieldTime::ValidFrom,
             AideonIdxFieldTime::ValidTo,
+            AideonIdxFieldTime::ValidBucket,
             AideonIdxFieldTime::AssertedAtHlc,
             AideonIdxFieldTime::Layer,
             ColumnDef::new(AideonIdxFieldTime::ValueTime)
@@ -1357,6 +1376,7 @@ impl MigrationTrait for Migration {
             AideonIdxFieldRef::EntityId,
             AideonIdxFieldRef::ValidFrom,
             AideonIdxFieldRef::ValidTo,
+            AideonIdxFieldRef::ValidBucket,
             AideonIdxFieldRef::AssertedAtHlc,
             AideonIdxFieldRef::Layer,
             id_col(backend, AideonIdxFieldRef::ValueRefEntityId, false),
@@ -1648,6 +1668,7 @@ async fn create_property_fact_table(
     field_col: impl Iden + Clone,
     valid_from_col: impl Iden + Clone,
     valid_to_col: impl Iden + Clone,
+    valid_bucket_col: impl Iden + Clone,
     layer_col: impl Iden + Clone,
     asserted_col: impl Iden + Clone,
     op_col: impl Iden + Clone,
@@ -1670,6 +1691,7 @@ async fn create_property_fact_table(
                         .not_null(),
                 )
                 .col(ColumnDef::new(valid_to_col.clone()).big_integer())
+                .col(ColumnDef::new(valid_bucket_col.clone()).integer())
                 .col(
                     ColumnDef::new(layer_col.clone())
                         .tiny_integer()
@@ -1709,6 +1731,7 @@ async fn create_index_field_table(
     entity_col: impl Iden + Clone,
     valid_from_col: impl Iden + Clone,
     valid_to_col: impl Iden + Clone,
+    valid_bucket_col: impl Iden + Clone,
     asserted_col: impl Iden + Clone,
     layer_col: impl Iden + Clone,
     value_col: ColumnDef,
@@ -1730,6 +1753,7 @@ async fn create_index_field_table(
                         .not_null(),
                 )
                 .col(ColumnDef::new(valid_to_col.clone()).big_integer())
+                .col(ColumnDef::new(valid_bucket_col.clone()).integer())
                 .col(
                     ColumnDef::new(asserted_col.clone())
                         .big_integer()
@@ -1932,6 +1956,16 @@ async fn create_indexes(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
                 .to_owned(),
         )
         .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name("aideon_edge_exists_partition_bucket_idx")
+                .table(AideonEdgeExistsFacts::Table)
+                .col(AideonEdgeExistsFacts::PartitionId)
+                .col(AideonEdgeExistsFacts::ValidBucket)
+                .to_owned(),
+        )
+        .await?;
 
     create_prop_indexes(manager, AideonPropFactStr::Table, "aideon_prop_fact_str").await?;
     create_prop_indexes(manager, AideonPropFactI64::Table, "aideon_prop_fact_i64").await?;
@@ -2055,10 +2089,22 @@ async fn create_indexes(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
         "aideon_idx_field_str_entity_idx",
     )
     .await?;
+    create_index_table_bucket_index(
+        manager,
+        AideonIdxFieldStr::Table,
+        "aideon_idx_field_str_bucket_idx",
+    )
+    .await?;
     create_index_table_index(
         manager,
         AideonIdxFieldI64::Table,
         "aideon_idx_field_i64_entity_idx",
+    )
+    .await?;
+    create_index_table_bucket_index(
+        manager,
+        AideonIdxFieldI64::Table,
+        "aideon_idx_field_i64_bucket_idx",
     )
     .await?;
     create_index_table_index(
@@ -2067,10 +2113,22 @@ async fn create_indexes(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
         "aideon_idx_field_f64_entity_idx",
     )
     .await?;
+    create_index_table_bucket_index(
+        manager,
+        AideonIdxFieldF64::Table,
+        "aideon_idx_field_f64_bucket_idx",
+    )
+    .await?;
     create_index_table_index(
         manager,
         AideonIdxFieldBool::Table,
         "aideon_idx_field_bool_entity_idx",
+    )
+    .await?;
+    create_index_table_bucket_index(
+        manager,
+        AideonIdxFieldBool::Table,
+        "aideon_idx_field_bool_bucket_idx",
     )
     .await?;
     create_index_table_index(
@@ -2079,10 +2137,22 @@ async fn create_indexes(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
         "aideon_idx_field_time_entity_idx",
     )
     .await?;
+    create_index_table_bucket_index(
+        manager,
+        AideonIdxFieldTime::Table,
+        "aideon_idx_field_time_bucket_idx",
+    )
+    .await?;
     create_index_table_index(
         manager,
         AideonIdxFieldRef::Table,
         "aideon_idx_field_ref_entity_idx",
+    )
+    .await?;
+    create_index_table_bucket_index(
+        manager,
+        AideonIdxFieldRef::Table,
+        "aideon_idx_field_ref_bucket_idx",
     )
     .await?;
 
@@ -2222,6 +2292,18 @@ async fn create_indexes(manager: &SchemaManager<'_>) -> Result<(), DbErr> {
     manager
         .create_index(
             Index::create()
+                .name("aideon_jobs_ready_idx")
+                .table(AideonJobs::Table)
+                .col(AideonJobs::PartitionId)
+                .col(AideonJobs::Status)
+                .col(AideonJobs::NextRunAfter)
+                .col(AideonJobs::Priority)
+                .to_owned(),
+        )
+        .await?;
+    manager
+        .create_index(
+            Index::create()
                 .name("aideon_jobs_lease_idx")
                 .table(AideonJobs::Table)
                 .col(AideonJobs::PartitionId)
@@ -2255,10 +2337,12 @@ async fn create_prop_indexes(
     let to_name = format!("{prefix}_to_idx");
     let field_from_name = format!("{prefix}_field_from_idx");
     let field_to_name = format!("{prefix}_field_to_idx");
+    let bucket_name = format!("{prefix}_bucket_idx");
     let table_from = table.clone();
     let table_to = table.clone();
     let table_field_from = table.clone();
-    let table_field_to = table;
+    let table_field_to = table.clone();
+    let table_bucket = table;
     manager
         .create_index(
             Index::create()
@@ -2309,6 +2393,16 @@ async fn create_prop_indexes(
                 .to_owned(),
         )
         .await?;
+    manager
+        .create_index(
+            Index::create()
+                .name(&bucket_name)
+                .table(table_bucket)
+                .col(AideonPropFactStr::PartitionId)
+                .col(AideonPropFactStr::ValidBucket)
+                .to_owned(),
+        )
+        .await?;
     Ok(())
 }
 
@@ -2326,6 +2420,24 @@ async fn create_index_table_index(
                 .col(AideonIdxFieldStr::ScenarioId)
                 .col(AideonIdxFieldStr::FieldId)
                 .col(AideonIdxFieldStr::EntityId)
+                .to_owned(),
+        )
+        .await?;
+    Ok(())
+}
+
+async fn create_index_table_bucket_index(
+    manager: &SchemaManager<'_>,
+    table: impl Iden + Clone,
+    name: &str,
+) -> Result<(), DbErr> {
+    manager
+        .create_index(
+            Index::create()
+                .name(name)
+                .table(table)
+                .col(AideonIdxFieldStr::PartitionId)
+                .col(AideonIdxFieldStr::ValidBucket)
                 .to_owned(),
         )
         .await?;

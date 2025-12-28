@@ -307,9 +307,11 @@ pub struct JobSummary {
     pub attempts: i32,
     pub max_attempts: i32,
     pub lease_expires_at: Option<i64>,
+    pub next_run_after: Option<i64>,
     pub created_asserted_at: Hlc,
     pub updated_asserted_at: Hlc,
     pub dedupe_key: Option<String>,
+    pub last_error: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -322,9 +324,11 @@ pub struct JobRecord {
     pub attempts: i32,
     pub max_attempts: i32,
     pub lease_expires_at: Option<i64>,
+    pub next_run_after: Option<i64>,
     pub created_asserted_at: Hlc,
     pub updated_asserted_at: Hlc,
     pub dedupe_key: Option<String>,
+    pub last_error: Option<String>,
     pub payload: Vec<u8>,
 }
 

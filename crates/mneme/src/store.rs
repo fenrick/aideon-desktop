@@ -14,6 +14,7 @@ use sea_orm::{
     Statement, TransactionTrait,
 };
 use uuid::Uuid;
+use unicode_normalization::UnicodeNormalization;
 
 use crate::api::{
     AnalyticsApi, AnalyticsResultsApi, ChangeEvent, ChangeFeedApi, CreateScenarioInput, DiagnosticsApi,
@@ -542,6 +543,7 @@ impl MnemeStore {
                         AideonPropFactStr::FieldId,
                         AideonPropFactStr::ValidFrom,
                         AideonPropFactStr::ValidTo,
+                        AideonPropFactStr::ValidBucket,
                         AideonPropFactStr::Layer,
                         AideonPropFactStr::AssertedAtHlc,
                         AideonPropFactStr::OpId,
@@ -555,6 +557,7 @@ impl MnemeStore {
                         id_value(self.backend, field_id).into(),
                         valid_from.into(),
                         valid_to.into(),
+                        valid_bucket(ValidTime(valid_from)).into(),
                         layer.into(),
                         asserted_at.into(),
                         none_id_value(self.backend).into(),
@@ -575,6 +578,7 @@ impl MnemeStore {
                         AideonPropFactI64::FieldId,
                         AideonPropFactI64::ValidFrom,
                         AideonPropFactI64::ValidTo,
+                        AideonPropFactI64::ValidBucket,
                         AideonPropFactI64::Layer,
                         AideonPropFactI64::AssertedAtHlc,
                         AideonPropFactI64::OpId,
@@ -588,6 +592,7 @@ impl MnemeStore {
                         id_value(self.backend, field_id).into(),
                         valid_from.into(),
                         valid_to.into(),
+                        valid_bucket(ValidTime(valid_from)).into(),
                         layer.into(),
                         asserted_at.into(),
                         none_id_value(self.backend).into(),
@@ -608,6 +613,7 @@ impl MnemeStore {
                         AideonPropFactF64::FieldId,
                         AideonPropFactF64::ValidFrom,
                         AideonPropFactF64::ValidTo,
+                        AideonPropFactF64::ValidBucket,
                         AideonPropFactF64::Layer,
                         AideonPropFactF64::AssertedAtHlc,
                         AideonPropFactF64::OpId,
@@ -621,6 +627,7 @@ impl MnemeStore {
                         id_value(self.backend, field_id).into(),
                         valid_from.into(),
                         valid_to.into(),
+                        valid_bucket(ValidTime(valid_from)).into(),
                         layer.into(),
                         asserted_at.into(),
                         none_id_value(self.backend).into(),
@@ -641,6 +648,7 @@ impl MnemeStore {
                         AideonPropFactBool::FieldId,
                         AideonPropFactBool::ValidFrom,
                         AideonPropFactBool::ValidTo,
+                        AideonPropFactBool::ValidBucket,
                         AideonPropFactBool::Layer,
                         AideonPropFactBool::AssertedAtHlc,
                         AideonPropFactBool::OpId,
@@ -654,6 +662,7 @@ impl MnemeStore {
                         id_value(self.backend, field_id).into(),
                         valid_from.into(),
                         valid_to.into(),
+                        valid_bucket(ValidTime(valid_from)).into(),
                         layer.into(),
                         asserted_at.into(),
                         none_id_value(self.backend).into(),
@@ -674,6 +683,7 @@ impl MnemeStore {
                         AideonPropFactTime::FieldId,
                         AideonPropFactTime::ValidFrom,
                         AideonPropFactTime::ValidTo,
+                        AideonPropFactTime::ValidBucket,
                         AideonPropFactTime::Layer,
                         AideonPropFactTime::AssertedAtHlc,
                         AideonPropFactTime::OpId,
@@ -687,6 +697,7 @@ impl MnemeStore {
                         id_value(self.backend, field_id).into(),
                         valid_from.into(),
                         valid_to.into(),
+                        valid_bucket(ValidTime(valid_from)).into(),
                         layer.into(),
                         asserted_at.into(),
                         none_id_value(self.backend).into(),
@@ -707,6 +718,7 @@ impl MnemeStore {
                         AideonPropFactRef::FieldId,
                         AideonPropFactRef::ValidFrom,
                         AideonPropFactRef::ValidTo,
+                        AideonPropFactRef::ValidBucket,
                         AideonPropFactRef::Layer,
                         AideonPropFactRef::AssertedAtHlc,
                         AideonPropFactRef::OpId,
@@ -720,6 +732,7 @@ impl MnemeStore {
                         id_value(self.backend, field_id).into(),
                         valid_from.into(),
                         valid_to.into(),
+                        valid_bucket(ValidTime(valid_from)).into(),
                         layer.into(),
                         asserted_at.into(),
                         none_id_value(self.backend).into(),
@@ -747,6 +760,7 @@ impl MnemeStore {
                         AideonPropFactBlob::FieldId,
                         AideonPropFactBlob::ValidFrom,
                         AideonPropFactBlob::ValidTo,
+                        AideonPropFactBlob::ValidBucket,
                         AideonPropFactBlob::Layer,
                         AideonPropFactBlob::AssertedAtHlc,
                         AideonPropFactBlob::OpId,
@@ -760,6 +774,7 @@ impl MnemeStore {
                         id_value(self.backend, field_id).into(),
                         valid_from.into(),
                         valid_to.into(),
+                        valid_bucket(ValidTime(valid_from)).into(),
                         layer.into(),
                         asserted_at.into(),
                         none_id_value(self.backend).into(),
@@ -779,6 +794,7 @@ impl MnemeStore {
                         AideonPropFactJson::FieldId,
                         AideonPropFactJson::ValidFrom,
                         AideonPropFactJson::ValidTo,
+                        AideonPropFactJson::ValidBucket,
                         AideonPropFactJson::Layer,
                         AideonPropFactJson::AssertedAtHlc,
                         AideonPropFactJson::OpId,
@@ -792,6 +808,7 @@ impl MnemeStore {
                         id_value(self.backend, field_id).into(),
                         valid_from.into(),
                         valid_to.into(),
+                        valid_bucket(ValidTime(valid_from)).into(),
                         layer.into(),
                         asserted_at.into(),
                         none_id_value(self.backend).into(),
@@ -916,6 +933,27 @@ impl MnemeStore {
     }
 }
 
+const MICROS_PER_DAY: i64 = 86_400_000_000;
+
+fn valid_bucket(valid_from: ValidTime) -> i64 {
+    valid_from.0 / MICROS_PER_DAY
+}
+
+const JOB_BACKOFF_BASE_MS: i64 = 1_000;
+const JOB_BACKOFF_MAX_MS: i64 = 60_000;
+
+fn job_backoff_millis(attempts: i32) -> i64 {
+    if attempts <= 0 {
+        return JOB_BACKOFF_BASE_MS;
+    }
+    let shift = std::cmp::min(attempts.saturating_sub(1), 10) as u32;
+    let value = JOB_BACKOFF_BASE_MS.saturating_mul(1_i64 << shift);
+    std::cmp::min(value, JOB_BACKOFF_MAX_MS)
+}
+
+fn normalize_index_text(value: &str) -> String {
+    value.trim().nfc().collect::<String>().to_lowercase()
+}
 #[async_trait]
 impl MetamodelApi for MnemeStore {
     async fn upsert_metamodel_batch(
@@ -1421,6 +1459,7 @@ impl GraphWriteApi for MnemeStore {
                 AideonEdgeExistsFacts::EdgeId,
                 AideonEdgeExistsFacts::ValidFrom,
                 AideonEdgeExistsFacts::ValidTo,
+                AideonEdgeExistsFacts::ValidBucket,
                 AideonEdgeExistsFacts::Layer,
                 AideonEdgeExistsFacts::AssertedAtHlc,
                 AideonEdgeExistsFacts::OpId,
@@ -1432,6 +1471,7 @@ impl GraphWriteApi for MnemeStore {
                 id_value(self.backend, input.edge_id).into(),
                 input.exists_valid_from.0.into(),
                 input.exists_valid_to.map(|v| v.0).into(),
+                valid_bucket(input.exists_valid_from).into(),
                 Self::layer_value(input.layer).into(),
                 asserted_at.as_i64().into(),
                 id_value(self.backend, op_id.0).into(),
@@ -1503,6 +1543,7 @@ impl GraphWriteApi for MnemeStore {
                 AideonEdgeExistsFacts::EdgeId,
                 AideonEdgeExistsFacts::ValidFrom,
                 AideonEdgeExistsFacts::ValidTo,
+                AideonEdgeExistsFacts::ValidBucket,
                 AideonEdgeExistsFacts::Layer,
                 AideonEdgeExistsFacts::AssertedAtHlc,
                 AideonEdgeExistsFacts::OpId,
@@ -1514,6 +1555,7 @@ impl GraphWriteApi for MnemeStore {
                 id_value(self.backend, input.edge_id).into(),
                 input.valid_from.0.into(),
                 input.valid_to.map(|v| v.0).into(),
+                valid_bucket(input.valid_from).into(),
                 Self::layer_value(input.layer).into(),
                 asserted_at.as_i64().into(),
                 id_value(self.backend, op_id.0).into(),
@@ -2505,10 +2547,12 @@ impl MnemeStore {
                 AideonJobs::Attempts,
                 AideonJobs::MaxAttempts,
                 AideonJobs::LeaseExpiresAt,
+                AideonJobs::NextRunAfter,
                 AideonJobs::CreatedAssertedAtHlc,
                 AideonJobs::UpdatedAssertedAtHlc,
                 AideonJobs::Payload,
                 AideonJobs::DedupeKey,
+                AideonJobs::LastError,
             ])
             .values_panic([
                 id_value(self.backend, partition.0).into(),
@@ -2519,10 +2563,12 @@ impl MnemeStore {
                 0i64.into(),
                 3i64.into(),
                 SeaValue::BigInt(None).into(),
+                SeaValue::BigInt(None).into(),
                 now.into(),
                 now.into(),
                 payload.into(),
                 dedupe_key.clone().into(),
+                SeaValue::String(None).into(),
             ])
             .to_owned();
         if dedupe_key.is_some() {
@@ -2557,9 +2603,11 @@ impl MnemeStore {
                 AideonJobs::Attempts,
                 AideonJobs::MaxAttempts,
                 AideonJobs::LeaseExpiresAt,
+                AideonJobs::NextRunAfter,
                 AideonJobs::CreatedAssertedAtHlc,
                 AideonJobs::UpdatedAssertedAtHlc,
                 AideonJobs::DedupeKey,
+                AideonJobs::LastError,
                 AideonJobs::Payload,
             ])
             .and_where(Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)))
@@ -2580,10 +2628,14 @@ impl MnemeStore {
             let max_attempts: i64 = row.try_get("", &col_name(AideonJobs::MaxAttempts))?;
             let lease_expires_at: Option<i64> =
                 row.try_get("", &col_name(AideonJobs::LeaseExpiresAt))?;
+            let next_run_after: Option<i64> =
+                row.try_get("", &col_name(AideonJobs::NextRunAfter))?;
             let created_asserted_at = read_hlc(&row, AideonJobs::CreatedAssertedAtHlc)?;
             let updated_asserted_at = read_hlc(&row, AideonJobs::UpdatedAssertedAtHlc)?;
             let dedupe_key: Option<String> =
                 row.try_get("", &col_name(AideonJobs::DedupeKey))?;
+            let last_error: Option<String> =
+                row.try_get("", &col_name(AideonJobs::LastError))?;
             let payload: Vec<u8> = row.try_get("", &col_name(AideonJobs::Payload))?;
             jobs.push(JobRecord {
                 partition,
@@ -2594,9 +2646,11 @@ impl MnemeStore {
                 attempts: attempts as i32,
                 max_attempts: max_attempts as i32,
                 lease_expires_at,
+                next_run_after,
                 created_asserted_at,
                 updated_asserted_at,
                 dedupe_key,
+                last_error,
                 payload,
             });
         }
@@ -2610,6 +2664,7 @@ impl MnemeStore {
         max_jobs: u32,
         lease_millis: u64,
     ) -> MnemeResult<Vec<JobRecord>> {
+        let now = Hlc::now().as_i64();
         let select = Query::select()
             .from(AideonJobs::Table)
             .columns([
@@ -2620,20 +2675,34 @@ impl MnemeStore {
                 AideonJobs::Attempts,
                 AideonJobs::MaxAttempts,
                 AideonJobs::LeaseExpiresAt,
+                AideonJobs::NextRunAfter,
                 AideonJobs::CreatedAssertedAtHlc,
                 AideonJobs::UpdatedAssertedAtHlc,
                 AideonJobs::DedupeKey,
+                AideonJobs::LastError,
                 AideonJobs::Payload,
             ])
             .and_where(Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)))
-            .and_where(Expr::col(AideonJobs::Status).eq(JOB_STATUS_PENDING as i64))
+            .and_where(
+                Expr::col(AideonJobs::Status)
+                    .eq(JOB_STATUS_PENDING as i64)
+                    .or(
+                        Expr::col(AideonJobs::Status)
+                            .eq(JOB_STATUS_RUNNING as i64)
+                            .and(Expr::col(AideonJobs::LeaseExpiresAt).lt(now)),
+                    ),
+            )
+            .and_where(
+                Expr::col(AideonJobs::NextRunAfter)
+                    .is_null()
+                    .or(Expr::col(AideonJobs::NextRunAfter).lte(now)),
+            )
             .order_by(AideonJobs::Priority, Order::Desc)
             .order_by(AideonJobs::CreatedAssertedAtHlc, Order::Asc)
             .limit(max_jobs as u64)
             .to_owned();
         let rows = query_all(tx, &select).await?;
         let mut claimed = Vec::new();
-        let now = Hlc::now().as_i64();
         let lease_expires_at = now + lease_millis as i64;
         for row in rows {
             let job_id = read_id(&row, AideonJobs::JobId)?;
@@ -2642,11 +2711,20 @@ impl MnemeStore {
                 .values([
                     (AideonJobs::Status, (JOB_STATUS_RUNNING as i64).into()),
                     (AideonJobs::LeaseExpiresAt, lease_expires_at.into()),
+                    (AideonJobs::NextRunAfter, SeaValue::BigInt(None).into()),
                     (AideonJobs::UpdatedAssertedAtHlc, now.into()),
                 ])
                 .and_where(Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)))
                 .and_where(Expr::col(AideonJobs::JobId).eq(id_value(self.backend, job_id)))
-                .and_where(Expr::col(AideonJobs::Status).eq(JOB_STATUS_PENDING as i64))
+                .and_where(
+                    Expr::col(AideonJobs::Status)
+                        .eq(JOB_STATUS_PENDING as i64)
+                        .or(
+                            Expr::col(AideonJobs::Status)
+                                .eq(JOB_STATUS_RUNNING as i64)
+                                .and(Expr::col(AideonJobs::LeaseExpiresAt).lt(now)),
+                        ),
+                )
                 .to_owned();
             let result = tx.execute(&update).await?;
             if result.rows_affected() == 0 {
@@ -2659,10 +2737,14 @@ impl MnemeStore {
             let max_attempts: i64 = row.try_get("", &col_name(AideonJobs::MaxAttempts))?;
             let lease_expires_at: Option<i64> =
                 row.try_get("", &col_name(AideonJobs::LeaseExpiresAt))?;
+            let next_run_after: Option<i64> =
+                row.try_get("", &col_name(AideonJobs::NextRunAfter))?;
             let created_asserted_at = read_hlc(&row, AideonJobs::CreatedAssertedAtHlc)?;
             let updated_asserted_at = read_hlc(&row, AideonJobs::UpdatedAssertedAtHlc)?;
             let dedupe_key: Option<String> =
                 row.try_get("", &col_name(AideonJobs::DedupeKey))?;
+            let last_error: Option<String> =
+                row.try_get("", &col_name(AideonJobs::LastError))?;
             let payload: Vec<u8> = row.try_get("", &col_name(AideonJobs::Payload))?;
             claimed.push(JobRecord {
                 partition,
@@ -2673,9 +2755,11 @@ impl MnemeStore {
                 attempts: attempts as i32,
                 max_attempts: max_attempts as i32,
                 lease_expires_at,
+                next_run_after,
                 created_asserted_at,
                 updated_asserted_at,
                 dedupe_key,
+                last_error,
                 payload,
             });
         }
@@ -2694,6 +2778,8 @@ impl MnemeStore {
             .values([
                 (AideonJobs::Status, (JOB_STATUS_SUCCEEDED as i64).into()),
                 (AideonJobs::LeaseExpiresAt, SeaValue::BigInt(None).into()),
+                (AideonJobs::NextRunAfter, SeaValue::BigInt(None).into()),
+                (AideonJobs::LastError, SeaValue::String(None).into()),
                 (AideonJobs::UpdatedAssertedAtHlc, now.into()),
             ])
             .and_where(Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)))
@@ -2717,12 +2803,19 @@ impl MnemeStore {
         } else {
             JOB_STATUS_PENDING
         };
+        let next_run_after = if status == JOB_STATUS_PENDING {
+            Some(now + job_backoff_millis(next_attempts))
+        } else {
+            None
+        };
         let update = Query::update()
             .table(AideonJobs::Table)
             .values([
                 (AideonJobs::Status, (status as i64).into()),
                 (AideonJobs::Attempts, (next_attempts as i64).into()),
                 (AideonJobs::LeaseExpiresAt, SeaValue::BigInt(None).into()),
+                (AideonJobs::NextRunAfter, next_run_after.into()),
+                (AideonJobs::LastError, error.to_string().into()),
                 (AideonJobs::UpdatedAssertedAtHlc, now.into()),
             ])
             .and_where(Expr::col(AideonJobs::PartitionId).eq(id_value(self.backend, partition.0)))
@@ -3198,9 +3291,11 @@ impl MnemeProcessingApi for MnemeStore {
                 attempts: job.attempts,
                 max_attempts: job.max_attempts,
                 lease_expires_at: job.lease_expires_at,
+                next_run_after: job.next_run_after,
                 created_asserted_at: job.created_asserted_at,
                 updated_asserted_at: job.updated_asserted_at,
                 dedupe_key: job.dedupe_key,
+                last_error: job.last_error,
             })
             .collect())
     }
@@ -3452,9 +3547,11 @@ impl DiagnosticsApi for MnemeStore {
                 attempts: job.attempts,
                 max_attempts: job.max_attempts,
                 lease_expires_at: job.lease_expires_at,
+                next_run_after: job.next_run_after,
                 created_asserted_at: job.created_asserted_at,
                 updated_asserted_at: job.updated_asserted_at,
                 dedupe_key: job.dedupe_key,
+                last_error: job.last_error,
             })
             .collect())
     }
@@ -4073,6 +4170,7 @@ impl MnemeSnapshotApi for MnemeStore {
                             AideonEdgeExistsFacts::EdgeId,
                             AideonEdgeExistsFacts::ValidFrom,
                             AideonEdgeExistsFacts::ValidTo,
+                            AideonEdgeExistsFacts::ValidBucket,
                             AideonEdgeExistsFacts::Layer,
                             AideonEdgeExistsFacts::AssertedAtHlc,
                             AideonEdgeExistsFacts::OpId,
@@ -4084,6 +4182,7 @@ impl MnemeSnapshotApi for MnemeStore {
                             id_value(self.backend, edge_id).into(),
                             valid_from.into(),
                             valid_to.into(),
+                            valid_bucket(ValidTime(valid_from)).into(),
                             layer.into(),
                             asserted_at.into(),
                             none_id_value(self.backend).into(),
@@ -4445,6 +4544,7 @@ async fn insert_property_fact(
             Alias::new("field_id"),
             Alias::new("valid_from"),
             Alias::new("valid_to"),
+            Alias::new("valid_bucket"),
             Alias::new("layer"),
             Alias::new("asserted_at_hlc"),
             Alias::new("op_id"),
@@ -4458,6 +4558,7 @@ async fn insert_property_fact(
             id_value(backend, field_id).into(),
             valid_from.0.into(),
             valid_to.map(|v| v.0).into(),
+            valid_bucket(valid_from).into(),
             (layer as i64).into(),
             asserted_at.as_i64().into(),
             id_value(backend, op_id.0).into(),
@@ -4483,7 +4584,7 @@ async fn insert_index_row(
 ) -> MnemeResult<()> {
     match value {
         Value::Str(text) => {
-            let norm = text.to_lowercase();
+            let norm = normalize_index_text(text);
             let insert = Query::insert()
                 .into_table(AideonIdxFieldStr::Table)
                 .columns([
@@ -4494,6 +4595,7 @@ async fn insert_index_row(
                     AideonIdxFieldStr::EntityId,
                     AideonIdxFieldStr::ValidFrom,
                     AideonIdxFieldStr::ValidTo,
+                    AideonIdxFieldStr::ValidBucket,
                     AideonIdxFieldStr::AssertedAtHlc,
                     AideonIdxFieldStr::Layer,
                 ])
@@ -4505,6 +4607,7 @@ async fn insert_index_row(
                     id_value(backend, entity_id).into(),
                     valid_from.0.into(),
                     valid_to.map(|v| v.0).into(),
+                    valid_bucket(valid_from).into(),
                     asserted_at.as_i64().into(),
                     (layer as i64).into(),
                 ])
@@ -4522,6 +4625,7 @@ async fn insert_index_row(
                     AideonIdxFieldI64::EntityId,
                     AideonIdxFieldI64::ValidFrom,
                     AideonIdxFieldI64::ValidTo,
+                    AideonIdxFieldI64::ValidBucket,
                     AideonIdxFieldI64::AssertedAtHlc,
                     AideonIdxFieldI64::Layer,
                 ])
@@ -4533,6 +4637,7 @@ async fn insert_index_row(
                     id_value(backend, entity_id).into(),
                     valid_from.0.into(),
                     valid_to.map(|v| v.0).into(),
+                    valid_bucket(valid_from).into(),
                     asserted_at.as_i64().into(),
                     (layer as i64).into(),
                 ])
@@ -4550,6 +4655,7 @@ async fn insert_index_row(
                     AideonIdxFieldF64::EntityId,
                     AideonIdxFieldF64::ValidFrom,
                     AideonIdxFieldF64::ValidTo,
+                    AideonIdxFieldF64::ValidBucket,
                     AideonIdxFieldF64::AssertedAtHlc,
                     AideonIdxFieldF64::Layer,
                 ])
@@ -4561,6 +4667,7 @@ async fn insert_index_row(
                     id_value(backend, entity_id).into(),
                     valid_from.0.into(),
                     valid_to.map(|v| v.0).into(),
+                    valid_bucket(valid_from).into(),
                     asserted_at.as_i64().into(),
                     (layer as i64).into(),
                 ])
@@ -4578,6 +4685,7 @@ async fn insert_index_row(
                     AideonIdxFieldBool::EntityId,
                     AideonIdxFieldBool::ValidFrom,
                     AideonIdxFieldBool::ValidTo,
+                    AideonIdxFieldBool::ValidBucket,
                     AideonIdxFieldBool::AssertedAtHlc,
                     AideonIdxFieldBool::Layer,
                 ])
@@ -4589,6 +4697,7 @@ async fn insert_index_row(
                     id_value(backend, entity_id).into(),
                     valid_from.0.into(),
                     valid_to.map(|v| v.0).into(),
+                    valid_bucket(valid_from).into(),
                     asserted_at.as_i64().into(),
                     (layer as i64).into(),
                 ])
@@ -4606,6 +4715,7 @@ async fn insert_index_row(
                     AideonIdxFieldTime::EntityId,
                     AideonIdxFieldTime::ValidFrom,
                     AideonIdxFieldTime::ValidTo,
+                    AideonIdxFieldTime::ValidBucket,
                     AideonIdxFieldTime::AssertedAtHlc,
                     AideonIdxFieldTime::Layer,
                 ])
@@ -4617,6 +4727,7 @@ async fn insert_index_row(
                     id_value(backend, entity_id).into(),
                     valid_from.0.into(),
                     valid_to.map(|v| v.0).into(),
+                    valid_bucket(valid_from).into(),
                     asserted_at.as_i64().into(),
                     (layer as i64).into(),
                 ])
@@ -4634,6 +4745,7 @@ async fn insert_index_row(
                     AideonIdxFieldRef::EntityId,
                     AideonIdxFieldRef::ValidFrom,
                     AideonIdxFieldRef::ValidTo,
+                    AideonIdxFieldRef::ValidBucket,
                     AideonIdxFieldRef::AssertedAtHlc,
                     AideonIdxFieldRef::Layer,
                 ])
@@ -4645,6 +4757,7 @@ async fn insert_index_row(
                     id_value(backend, entity_id).into(),
                     valid_from.0.into(),
                     valid_to.map(|v| v.0).into(),
+                    valid_bucket(valid_from).into(),
                     asserted_at.as_i64().into(),
                     (layer as i64).into(),
                 ])
@@ -4667,7 +4780,7 @@ async fn delete_index_row(
 ) -> MnemeResult<()> {
     match value {
         Value::Str(text) => {
-            let norm = text.to_lowercase();
+            let norm = normalize_index_text(text);
             let mut delete = Query::delete()
                 .from_table(AideonIdxFieldStr::Table)
                 .and_where(Expr::col(AideonIdxFieldStr::PartitionId).eq(id_value(backend, partition.0)))
@@ -5240,7 +5353,7 @@ async fn fetch_index_candidates(
     let mut ids = std::collections::HashSet::new();
     match &filter.value {
         Value::Str(value) => {
-            let norm = value.to_lowercase();
+            let norm = normalize_index_text(value);
             let mut select = Query::select()
                 .from(AideonIdxFieldStr::Table)
                 .column(AideonIdxFieldStr::EntityId)
@@ -5615,8 +5728,8 @@ fn filter_matches(resolved: Option<ReadValue>, filter: &FieldFilter) -> MnemeRes
 fn compare_value(value: &Value, filter: &FieldFilter) -> MnemeResult<bool> {
     match (value, &filter.value) {
         (Value::Str(actual), Value::Str(expected)) => {
-            let actual_norm = actual.to_lowercase();
-            let expected_norm = expected.to_lowercase();
+            let actual_norm = normalize_index_text(actual);
+            let expected_norm = normalize_index_text(expected);
             match filter.op {
                 CompareOp::Eq => Ok(actual_norm == expected_norm),
                 CompareOp::Ne => Ok(actual_norm != expected_norm),

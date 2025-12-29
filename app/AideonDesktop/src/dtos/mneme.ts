@@ -2,17 +2,10 @@
  * Mneme DTOs and shared primitives for IPC bindings.
  */
 
-export type Id = string;
-export type PartitionId = string;
-export type ActorId = string;
-export type OpId = string;
-export type EntityId = string;
-export type TypeId = string;
-export type FieldId = string;
-export type ScenarioId = string;
-
-export type ValidTime = string; // ISO-8601 UTC
-export type AssertedTime = string; // HLC encoded as string
+// ISO-8601 UTC
+export type ValidTime = string;
+// HLC encoded as string
+export type AssertedTime = string;
 
 export type Layer = 'Plan' | 'Actual';
 
@@ -22,7 +15,7 @@ export type Value =
   | { t: 'f64'; v: number }
   | { t: 'bool'; v: boolean }
   | { t: 'time'; v: ValidTime }
-  | { t: 'ref'; v: EntityId }
+  | { t: 'ref'; v: string }
   | { t: 'blob'; v: Uint8Array }
   | { t: 'json'; v: unknown };
 
@@ -31,16 +24,16 @@ export type ReadValue =
   | { k: 'multi'; v: Value[] }
   | { k: 'multi_limited'; v: { values: Value[]; moreAvailable: boolean } };
 
-export interface TypeDef {
-  typeId: TypeId;
+export interface TypeDefinition {
+  typeId: string;
   appliesTo: 'Node' | 'Edge';
   label: string;
   isAbstract: boolean;
-  parentTypeId?: TypeId;
+  parentTypeId?: string;
 }
 
-export interface FieldDef {
-  fieldId: FieldId;
+export interface FieldDefinition {
+  fieldId: string;
   label: string;
   valueType: 'str' | 'i64' | 'f64' | 'bool' | 'time' | 'ref' | 'blob' | 'json';
   cardinality: 'single' | 'multi';
@@ -48,27 +41,27 @@ export interface FieldDef {
   indexed: boolean;
 }
 
-export interface TypeFieldDef {
-  typeId: TypeId;
-  fieldId: FieldId;
+export interface TypeFieldDefinition {
+  typeId: string;
+  fieldId: string;
   required: boolean;
   defaultValue?: Value;
   overrideDefault?: boolean;
   tightenRequired?: boolean;
 }
 
-export interface EdgeTypeRuleDef {
-  edgeTypeId: TypeId;
+export interface EdgeTypeRuleDefinition {
+  edgeTypeId: string;
   semanticDirection: string;
-  allowedSrcTypeIds?: TypeId[];
-  allowedDstTypeIds?: TypeId[];
+  allowedSrcTypeIds?: string[];
+  allowedDstTypeIds?: string[];
 }
 
 export interface MetamodelBatch {
-  types: TypeDef[];
-  fields: FieldDef[];
-  typeFields: TypeFieldDef[];
-  edgeTypeRules?: EdgeTypeRuleDef[];
+  types: TypeDefinition[];
+  fields: FieldDefinition[];
+  typeFields: TypeFieldDefinition[];
+  edgeTypeRules?: EdgeTypeRuleDefinition[];
 }
 
 export interface SchemaCompileResult {
@@ -76,97 +69,161 @@ export interface SchemaCompileResult {
 }
 
 export interface CreateNodeInput {
-  partitionId: PartitionId;
-  actorId: ActorId;
+  partitionId: string;
+  actorId: string;
   assertedAt: AssertedTime;
-  nodeId: EntityId;
-  typeId?: TypeId;
-  scenarioId?: ScenarioId;
+  nodeId: string;
+  typeId?: string;
+  scenarioId?: string;
 }
 
 export interface CreateEdgeInput {
-  partitionId: PartitionId;
-  actorId: ActorId;
+  partitionId: string;
+  actorId: string;
   assertedAt: AssertedTime;
-  edgeId: EntityId;
-  typeId?: TypeId;
-  srcId: EntityId;
-  dstId: EntityId;
+  edgeId: string;
+  typeId?: string;
+  srcId: string;
+  dstId: string;
   existsValidFrom: ValidTime;
   existsValidTo?: ValidTime;
   layer?: Layer;
   weight?: number;
-  scenarioId?: ScenarioId;
+  scenarioId?: string;
 }
 
 export interface SetEdgeExistenceIntervalInput {
-  partitionId: PartitionId;
-  actorId: ActorId;
+  partitionId: string;
+  actorId: string;
   assertedAt: AssertedTime;
-  edgeId: EntityId;
+  edgeId: string;
   validFrom: ValidTime;
   validTo?: ValidTime;
   layer?: Layer;
   isTombstone?: boolean;
-  scenarioId?: ScenarioId;
+  scenarioId?: string;
 }
 
 export interface TombstoneEntityInput {
-  partitionId: PartitionId;
-  actorId: ActorId;
+  partitionId: string;
+  actorId: string;
   assertedAt: AssertedTime;
-  entityId: EntityId;
-  scenarioId?: ScenarioId;
+  entityId: string;
+  scenarioId?: string;
 }
 
 export interface SetPropertyIntervalInput {
-  partitionId: PartitionId;
-  actorId: ActorId;
+  partitionId: string;
+  actorId: string;
   assertedAt: AssertedTime;
-  entityId: EntityId;
-  fieldId: FieldId;
+  entityId: string;
+  fieldId: string;
   value: Value;
   validFrom: ValidTime;
   validTo?: ValidTime;
   layer?: Layer;
-  scenarioId?: ScenarioId;
+  scenarioId?: string;
 }
 
 export interface ClearPropertyIntervalInput {
-  partitionId: PartitionId;
-  actorId: ActorId;
+  partitionId: string;
+  actorId: string;
   assertedAt: AssertedTime;
-  entityId: EntityId;
-  fieldId: FieldId;
+  entityId: string;
+  fieldId: string;
   validFrom: ValidTime;
   validTo?: ValidTime;
   layer?: Layer;
-  scenarioId?: ScenarioId;
+  scenarioId?: string;
 }
 
 export interface OrSetUpdateInput {
-  partitionId: PartitionId;
-  actorId: ActorId;
+  partitionId: string;
+  actorId: string;
   assertedAt: AssertedTime;
-  entityId: EntityId;
-  fieldId: FieldId;
+  entityId: string;
+  fieldId: string;
   op: 'Add' | 'Remove';
   element: Value;
   validFrom: ValidTime;
   validTo?: ValidTime;
   layer?: Layer;
-  scenarioId?: ScenarioId;
+  scenarioId?: string;
 }
 
 export interface CounterUpdateInput {
-  partitionId: PartitionId;
-  actorId: ActorId;
+  partitionId: string;
+  actorId: string;
   assertedAt: AssertedTime;
-  entityId: EntityId;
-  fieldId: FieldId;
+  entityId: string;
+  fieldId: string;
   delta: number;
   validFrom: ValidTime;
   validTo?: ValidTime;
   layer?: Layer;
-  scenarioId?: ScenarioId;
+  scenarioId?: string;
+}
+
+export type CompareOp = 'Eq' | 'Ne' | 'Lt' | 'Lte' | 'Gt' | 'Gte' | 'Prefix' | 'Contains';
+
+export interface FieldFilter {
+  fieldId: string;
+  op: CompareOp;
+  value: Value;
+}
+
+export interface ReadEntityAtTimeInput {
+  partitionId: string;
+  entityId: string;
+  at: ValidTime;
+  asOfAssertedAt?: AssertedTime;
+  fieldIds?: string[];
+  includeDefaults?: boolean;
+  scenarioId?: string;
+}
+
+export interface ReadEntityAtTimeResult {
+  entityId: string;
+  kind: 'Node' | 'Edge';
+  typeId?: string;
+  isDeleted: boolean;
+  properties: Record<string, ReadValue>;
+}
+
+export type Direction = 'out' | 'in';
+
+export interface TraverseAtTimeInput {
+  partitionId: string;
+  fromEntityId: string;
+  direction: Direction;
+  edgeTypeId?: string;
+  at: ValidTime;
+  asOfAssertedAt?: AssertedTime;
+  limit?: number;
+  scenarioId?: string;
+}
+
+export interface TraverseEdgeItem {
+  edgeId: string;
+  srcId: string;
+  dstId: string;
+  edgeTypeId?: string;
+}
+
+export interface ListEntitiesInput {
+  partitionId: string;
+  at: ValidTime;
+  asOfAssertedAt?: AssertedTime;
+  kind?: 'Node' | 'Edge';
+  typeId?: string;
+  filters?: FieldFilter[];
+  limit?: number;
+  cursor?: string;
+  scenarioId?: string;
+}
+
+export interface ListEntitiesResultItem {
+  entityId: string;
+  kind: 'Node' | 'Edge';
+  typeId?: string;
 }

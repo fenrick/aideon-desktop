@@ -2,21 +2,29 @@ import { invoke } from '@tauri-apps/api/core';
 import type {
   ActorId,
   AssertedTime,
+  ClearPropertyIntervalInput,
   CreateEdgeInput,
   CreateNodeInput,
+  CounterUpdateInput,
   EdgeTypeRuleDef,
   FieldId,
   FieldDef,
+  FieldFilter,
+  ListEntitiesInput,
+  ListEntitiesResultItem,
+  OrSetUpdateInput,
+  ReadEntityAtTimeInput,
+  ReadEntityAtTimeResult,
+  ReadValue,
+  SetPropertyIntervalInput,
+  SetEdgeExistenceIntervalInput,
+  TraverseAtTimeInput,
+  TraverseEdgeItem,
   Value,
   MetamodelBatch,
   OpId,
   PartitionId,
   SchemaCompileResult,
-  SetEdgeExistenceIntervalInput,
-  SetPropertyIntervalInput,
-  ClearPropertyIntervalInput,
-  OrSetUpdateInput,
-  CounterUpdateInput,
   TombstoneEntityInput,
   TypeDef,
   TypeFieldDef,
@@ -38,7 +46,14 @@ const COMMANDS = {
   clearPropertyInterval: 'mneme_clear_property_interval',
   orSetUpdate: 'mneme_or_set_update',
   counterUpdate: 'mneme_counter_update',
+  readEntityAtTime: 'mneme_read_entity_at_time',
+  traverseAtTime: 'mneme_traverse_at_time',
+  listEntities: 'mneme_list_entities',
 } as const;
+
+function toInvokeArgs<T extends object>(value: T): Record<string, unknown> {
+  return value as Record<string, unknown>;
+}
 
 export interface UpsertMetamodelBatchInput {
   partitionId: PartitionId;
@@ -101,7 +116,10 @@ export async function compileEffectiveSchema(
     return { schemaVersionHash: 'mock-schema-hash' };
   }
   try {
-    return await invoke<SchemaCompileResult>(COMMANDS.compileEffectiveSchema, input);
+    return await invoke<SchemaCompileResult>(
+      COMMANDS.compileEffectiveSchema,
+      toInvokeArgs(input),
+    );
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.compileEffectiveSchema}' failed: ${String(error)}`, {
       cause: error,
@@ -114,7 +132,7 @@ export async function createNode(input: CreateNodeInput): Promise<MnemeOpResult>
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.createNode, input);
+    return await invoke<MnemeOpResult>(COMMANDS.createNode, toInvokeArgs(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.createNode}' failed: ${String(error)}`, {
       cause: error,
@@ -127,7 +145,7 @@ export async function createEdge(input: CreateEdgeInput): Promise<MnemeOpResult>
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.createEdge, input);
+    return await invoke<MnemeOpResult>(COMMANDS.createEdge, toInvokeArgs(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.createEdge}' failed: ${String(error)}`, {
       cause: error,
@@ -142,7 +160,10 @@ export async function setEdgeExistenceInterval(
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.setEdgeExistenceInterval, input);
+    return await invoke<MnemeOpResult>(
+      COMMANDS.setEdgeExistenceInterval,
+      toInvokeArgs(input),
+    );
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.setEdgeExistenceInterval}' failed: ${String(error)}`, {
       cause: error,
@@ -155,7 +176,7 @@ export async function tombstoneEntity(input: TombstoneEntityInput): Promise<Mnem
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.tombstoneEntity, input);
+    return await invoke<MnemeOpResult>(COMMANDS.tombstoneEntity, toInvokeArgs(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.tombstoneEntity}' failed: ${String(error)}`, {
       cause: error,
@@ -186,7 +207,10 @@ export async function clearPropertyInterval(
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.clearPropertyInterval, input);
+    return await invoke<MnemeOpResult>(
+      COMMANDS.clearPropertyInterval,
+      toInvokeArgs(input),
+    );
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.clearPropertyInterval}' failed: ${String(error)}`, {
       cause: error,
@@ -215,9 +239,74 @@ export async function counterUpdate(input: CounterUpdateInput): Promise<MnemeOpR
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.counterUpdate, input);
+    return await invoke<MnemeOpResult>(COMMANDS.counterUpdate, toInvokeArgs(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.counterUpdate}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function readEntityAtTime(
+  input: ReadEntityAtTimeInput,
+): Promise<ReadEntityAtTimeResult> {
+  if (!isTauri()) {
+    return {
+      entityId: input.entityId,
+      kind: 'Node',
+      isDeleted: false,
+      properties: {},
+    };
+  }
+  try {
+    const raw = await invoke<RustReadEntityAtTimeResult>(COMMANDS.readEntityAtTime, input);
+    return fromRustReadEntityAtTime(raw);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.readEntityAtTime}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function traverseAtTime(
+  input: TraverseAtTimeInput,
+): Promise<TraverseEdgeItem[]> {
+  if (!isTauri()) {
+    return [];
+  }
+  try {
+    const raw = await invoke<RustTraverseEdgeItem[]>(COMMANDS.traverseAtTime, input);
+    return raw.map((edge) => ({
+      edgeId: edge.edge_id,
+      srcId: edge.src_id,
+      dstId: edge.dst_id,
+      edgeTypeId: edge.type_id ?? undefined,
+    }));
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.traverseAtTime}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function listEntities(
+  input: ListEntitiesInput,
+): Promise<ListEntitiesResultItem[]> {
+  if (!isTauri()) {
+    return [];
+  }
+  try {
+    const raw = await invoke<RustListEntitiesResultItem[]>(COMMANDS.listEntities, {
+      ...input,
+      filters: (input.filters ?? []).map(toRustFieldFilter),
+    });
+    return raw.map((item) => ({
+      entityId: item.entity_id,
+      kind: item.kind,
+      typeId: item.type_id ?? undefined,
+    }));
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.listEntities}' failed: ${String(error)}`, {
       cause: error,
     });
   }
@@ -325,6 +414,27 @@ interface RustEffectiveSchema {
   fields: RustEffectiveSchemaField[];
 }
 
+interface RustReadEntityAtTimeResult {
+  entity_id: TypeId;
+  kind: 'Node' | 'Edge';
+  type_id?: TypeId;
+  is_deleted: boolean;
+  properties: Record<FieldId, RustReadValue>;
+}
+
+interface RustTraverseEdgeItem {
+  edge_id: TypeId;
+  src_id: TypeId;
+  dst_id: TypeId;
+  type_id?: TypeId;
+}
+
+interface RustListEntitiesResultItem {
+  entity_id: TypeId;
+  kind: 'Node' | 'Edge';
+  type_id?: TypeId;
+}
+
 type RustValue =
   | { Str: string }
   | { I64: number }
@@ -334,6 +444,11 @@ type RustValue =
   | { Ref: string }
   | { Blob: Uint8Array }
   | { Json: unknown };
+
+type RustReadValue =
+  | { Single: RustValue }
+  | { Multi: RustValue[] }
+  | { MultiLimited: { values: RustValue[]; more_available: boolean } };
 
 const VALUE_TYPE_MAP: Record<EffectiveSchema['fields'][number]['valueType'], RustValueType> = {
   str: 'Str',
@@ -419,6 +534,14 @@ function toRustMetamodelBatch(batch: MetamodelBatch): RustMetamodelBatch {
   };
 }
 
+function toRustFieldFilter(filter: FieldFilter) {
+  return {
+    fieldId: filter.fieldId,
+    op: filter.op,
+    value: toRustValue(filter.value),
+  };
+}
+
 function toRustValue(value: Value): RustValue {
   switch (value.t) {
     case 'str':
@@ -455,6 +578,65 @@ function toValidTimeMicros(value: string): number {
     throw new Error(`Invalid ISO-8601 timestamp: ${value}`);
   }
   return parsed * 1000;
+}
+
+function fromRustValue(value: RustValue): Value {
+  if ('Str' in value) {
+    return { t: 'str', v: value.Str };
+  }
+  if ('I64' in value) {
+    return { t: 'i64', v: BigInt(value.I64) };
+  }
+  if ('F64' in value) {
+    return { t: 'f64', v: value.F64 };
+  }
+  if ('Bool' in value) {
+    return { t: 'bool', v: value.Bool };
+  }
+  if ('Time' in value) {
+    return { t: 'time', v: new Date(value.Time / 1000).toISOString() };
+  }
+  if ('Ref' in value) {
+    return { t: 'ref', v: value.Ref };
+  }
+  if ('Blob' in value) {
+    const blob = value.Blob instanceof Uint8Array ? value.Blob : Uint8Array.from(value.Blob);
+    return { t: 'blob', v: blob };
+  }
+  if ('Json' in value) {
+    return { t: 'json', v: value.Json };
+  }
+  throw new Error('Unsupported Rust value variant');
+}
+
+function fromRustReadEntityAtTime(raw: RustReadEntityAtTimeResult): ReadEntityAtTimeResult {
+  const properties: Record<FieldId, ReadValue> = {};
+  Object.entries(raw.properties).forEach(([fieldId, value]) => {
+    properties[fieldId] = toReadValue(value);
+  });
+  return {
+    entityId: raw.entity_id,
+    kind: raw.kind,
+    typeId: raw.type_id ?? undefined,
+    isDeleted: raw.is_deleted,
+    properties,
+  };
+}
+
+function toReadValue(value: RustReadValue): ReadValue {
+  if ('Single' in value) {
+    return { k: 'single', v: fromRustValue(value.Single) };
+  }
+  if ('Multi' in value) {
+    return { k: 'multi', v: value.Multi.map(fromRustValue) };
+  }
+  return {
+    k: 'multi_limited',
+    v: {
+      values: value.MultiLimited.values.map(fromRustValue),
+      moreAvailable: value.MultiLimited.more_available,
+    },
+  };
 }
 
 const VALUE_TYPE_FROM_RUST: Record<RustValueType, EffectiveSchema['fields'][number]['valueType']> = {

@@ -17,6 +17,9 @@ import {
   setPropertyInterval,
   clearPropertyInterval,
   setEdgeExistenceInterval,
+  listEntities,
+  readEntityAtTime,
+  traverseAtTime,
   tombstoneEntity,
   upsertMetamodelBatch,
 } from 'workspaces/mneme/mneme-api';
@@ -399,5 +402,84 @@ describe('mneme-api metamodel bindings', () => {
       layer: undefined,
       scenarioId: undefined,
     });
+  });
+
+  it('maps read entity results from rust to ts', async () => {
+    invokeMock.mockResolvedValue({
+      entity_id: 'n-1',
+      kind: 'Node',
+      type_id: 't-1',
+      is_deleted: false,
+      properties: {
+        'f-1': { Single: { Str: 'alpha' } },
+        'f-2': { Multi: [{ I64: 7 }, { I64: 8 }] },
+        'f-3': {
+          MultiLimited: { values: [{ Bool: true }], more_available: true },
+        },
+      },
+    });
+
+    const result = await readEntityAtTime({
+      partitionId: 'p-1',
+      entityId: 'n-1',
+      at: '2025-01-01T00:00:00Z',
+    });
+
+    expect(result).toEqual({
+      entityId: 'n-1',
+      kind: 'Node',
+      typeId: 't-1',
+      isDeleted: false,
+      properties: {
+        'f-1': { k: 'single', v: { t: 'str', v: 'alpha' } },
+        'f-2': {
+          k: 'multi',
+          v: [
+            { t: 'i64', v: 7n },
+            { t: 'i64', v: 8n },
+          ],
+        },
+        'f-3': {
+          k: 'multi_limited',
+          v: { values: [{ t: 'bool', v: true }], moreAvailable: true },
+        },
+      },
+    });
+  });
+
+  it('maps traverse results from rust to ts', async () => {
+    invokeMock.mockResolvedValue([
+      { edge_id: 'e-1', src_id: 'n-1', dst_id: 'n-2', type_id: 'et-1' },
+    ]);
+
+    const edges = await traverseAtTime({
+      partitionId: 'p-1',
+      fromEntityId: 'n-1',
+      direction: 'out',
+      at: '2025-01-01T00:00:00Z',
+    });
+
+    expect(edges).toEqual([
+      { edgeId: 'e-1', srcId: 'n-1', dstId: 'n-2', edgeTypeId: 'et-1' },
+    ]);
+  });
+
+  it('maps list entity inputs and results', async () => {
+    invokeMock.mockResolvedValue([{ entity_id: 'n-1', kind: 'Node', type_id: 't-1' }]);
+
+    const results = await listEntities({
+      partitionId: 'p-1',
+      at: '2025-01-01T00:00:00Z',
+      filters: [{ fieldId: 'f-1', op: 'Eq', value: { t: 'str', v: 'alpha' } }],
+      limit: 5,
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('mneme_list_entities', {
+      partitionId: 'p-1',
+      at: '2025-01-01T00:00:00Z',
+      filters: [{ fieldId: 'f-1', op: 'Eq', value: { Str: 'alpha' } }],
+      limit: 5,
+    });
+    expect(results).toEqual([{ entityId: 'n-1', kind: 'Node', typeId: 't-1' }]);
   });
 });

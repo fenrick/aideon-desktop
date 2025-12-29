@@ -1,10 +1,12 @@
 //! Host-side Mneme commands bridging renderer IPC calls to the Mneme store.
 
 use aideon_praxis_facade::mneme::{
-    ClearPropIntervalInput, CounterUpdateInput, CreateEdgeInput, CreateNodeInput, EdgeTypeRule,
-    GraphWriteApi, MetamodelApi, MetamodelBatch, MnemeError, OpId, OrSetUpdateInput, PartitionId,
-    PropertyWriteApi, SchemaVersion, SetEdgeExistenceIntervalInput, SetOp, SetPropIntervalInput,
-    ValidTime, Value,
+    ClearPropIntervalInput, CompareOp, CounterUpdateInput, CreateEdgeInput, CreateNodeInput,
+    Direction, EdgeTypeRule, EntityKind, FieldFilter, GraphReadApi, GraphWriteApi, ListEntitiesInput,
+    ListEntitiesResultItem, MetamodelApi, MetamodelBatch, MnemeError, OpId, OrSetUpdateInput,
+    PartitionId, PropertyWriteApi, ReadEntityAtTimeInput, ReadEntityAtTimeResult, SchemaVersion,
+    SetEdgeExistenceIntervalInput, SetOp, SetPropIntervalInput, TraverseAtTimeInput,
+    TraverseEdgeItem, ValidTime, Value,
 };
 use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
 use log::{debug, error, info};
@@ -305,6 +307,97 @@ pub async fn mneme_counter_update(
 }
 
 #[tauri::command]
+pub async fn mneme_read_entity_at_time(
+    state: State<'_, WorkerState>,
+    payload: ReadEntityAtTimePayload,
+) -> Result<ReadEntityAtTimeResult, HostError> {
+    let store = state.mneme();
+    let as_of = payload
+        .as_of_asserted_at
+        .as_deref()
+        .map(parse_hlc)
+        .transpose()?;
+    store
+        .read_entity_at_time(ReadEntityAtTimeInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            security_context: None,
+            entity_id: payload.entity_id,
+            at_valid_time: parse_valid_time(&payload.at)?,
+            as_of_asserted_at: as_of,
+            field_ids: payload.field_ids,
+            include_defaults: payload.include_defaults.unwrap_or(false),
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_traverse_at_time(
+    state: State<'_, WorkerState>,
+    payload: TraverseAtTimePayload,
+) -> Result<Vec<TraverseEdgeItem>, HostError> {
+    let store = state.mneme();
+    let as_of = payload
+        .as_of_asserted_at
+        .as_deref()
+        .map(parse_hlc)
+        .transpose()?;
+    store
+        .traverse_at_time(TraverseAtTimeInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            security_context: None,
+            from_entity_id: payload.from_entity_id,
+            direction: payload.direction,
+            edge_type_id: payload.edge_type_id,
+            at_valid_time: parse_valid_time(&payload.at)?,
+            as_of_asserted_at: as_of,
+            limit: payload.limit.unwrap_or(200),
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_list_entities(
+    state: State<'_, WorkerState>,
+    payload: ListEntitiesPayload,
+) -> Result<Vec<ListEntitiesResultItem>, HostError> {
+    let store = state.mneme();
+    let as_of = payload
+        .as_of_asserted_at
+        .as_deref()
+        .map(parse_hlc)
+        .transpose()?;
+    let filters = payload
+        .filters
+        .unwrap_or_default()
+        .into_iter()
+        .map(|filter| FieldFilter {
+            field_id: filter.field_id,
+            op: filter.op,
+            value: filter.value,
+        })
+        .collect();
+    store
+        .list_entities(ListEntitiesInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            security_context: None,
+            kind: payload.kind,
+            type_id: payload.type_id,
+            at_valid_time: parse_valid_time(&payload.at)?,
+            as_of_asserted_at: as_of,
+            filters,
+            limit: payload.limit.unwrap_or(200),
+            cursor: payload.cursor,
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
 pub async fn mneme_get_effective_schema(
     state: State<'_, WorkerState>,
     partition_id: PartitionId,
@@ -489,6 +582,53 @@ pub struct CounterUpdatePayload {
     pub valid_from: String,
     pub valid_to: Option<String>,
     pub layer: Option<Layer>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReadEntityAtTimePayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub entity_id: aideon_praxis_facade::mneme::Id,
+    pub at: String,
+    pub as_of_asserted_at: Option<String>,
+    pub field_ids: Option<Vec<aideon_praxis_facade::mneme::Id>>,
+    pub include_defaults: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TraverseAtTimePayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub from_entity_id: aideon_praxis_facade::mneme::Id,
+    pub direction: Direction,
+    pub edge_type_id: Option<aideon_praxis_facade::mneme::Id>,
+    pub at: String,
+    pub as_of_asserted_at: Option<String>,
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListEntitiesPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub kind: Option<EntityKind>,
+    pub type_id: Option<aideon_praxis_facade::mneme::Id>,
+    pub at: String,
+    pub as_of_asserted_at: Option<String>,
+    pub filters: Option<Vec<ListEntitiesFilterPayload>>,
+    pub limit: Option<u32>,
+    pub cursor: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListEntitiesFilterPayload {
+    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub op: CompareOp,
+    pub value: Value,
 }
 
 #[cfg(test)]

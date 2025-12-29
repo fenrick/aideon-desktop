@@ -7,6 +7,16 @@ import type { GraphViewModel } from 'praxis/praxis-api';
 
 import { Badge } from 'design-system/components/ui/badge';
 import { Button } from 'design-system/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from 'design-system/components/ui/card';
+import { Separator } from 'design-system/components/ui/separator';
+import { Skeleton } from 'design-system/components/ui/skeleton';
 import { cn } from 'design-system/lib/utilities';
 
 import type {
@@ -127,8 +137,11 @@ export interface PraxisCanvasWorkspaceProperties {
   readonly selection: SelectionState;
   readonly onSelectionChange?: (selection: SelectionState) => void;
   readonly onRequestMetaModelFocus?: (types: string[]) => void;
+  readonly onAddWidget?: () => void;
   readonly reloadSignal?: number;
 }
+
+const SUGGESTED_WIDGETS = ['KPI', 'Graph', 'Catalogue snapshot'] as const;
 
 /**
  * Full-height canvas surface with overlay stats and actions.
@@ -144,6 +157,7 @@ export function PraxisCanvasWorkspace({
   selection,
   onSelectionChange,
   onRequestMetaModelFocus,
+  onAddWidget,
   reloadSignal,
 }: PraxisCanvasWorkspaceProperties) {
   const { reloadVersion, triggerReload } = useReloadVersion(reloadSignal);
@@ -173,6 +187,11 @@ export function PraxisCanvasWorkspace({
   const pageBreakToggle = showPageBreaks
     ? { variant: 'default' as const, label: 'Hide Pages' }
     : { variant: 'secondary' as const, label: 'Show Pages' };
+  const emptyCanvas = widgets.length === 0;
+  const showLoadingPlaceholder = emptyCanvas && !metadata && !stats && !error;
+  const handleAddWidget = useCallback(() => {
+    onAddWidget?.();
+  }, [onAddWidget]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -214,7 +233,51 @@ export function PraxisCanvasWorkspace({
 
       {error ? <p className="text-sm text-destructive">{error}</p> : undefined}
 
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
+        {showLoadingPlaceholder && (
+          <div className="absolute inset-0">
+            <Skeleton className="h-full w-full" />
+          </div>
+        )}
+        {emptyCanvas && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
+            <Card className="pointer-events-auto w-full max-w-xl space-y-3 rounded-2xl shadow-xl">
+              <CardHeader className="space-y-1 px-6 py-4">
+                <CardTitle className="text-lg font-semibold text-foreground">
+                  Nothing on this page yet
+                </CardTitle>
+                <CardDescription>
+                  Add a widget to start building your executive overview.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 px-6">
+                <p className="text-sm text-muted-foreground">
+                  Choose a widget type or browse templates to jump-start the storyboard.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {SUGGESTED_WIDGETS.map((widgetLabel) => (
+                    <Badge
+                      key={widgetLabel}
+                      variant="outline"
+                      className="px-3 py-1 text-xs uppercase tracking-wide text-muted-foreground"
+                    >
+                      {widgetLabel}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+              <Separator />
+              <CardFooter className="flex flex-wrap gap-3 px-6">
+                <Button variant="default" size="sm" onClick={handleAddWidget}>
+                  Add widget
+                </Button>
+                <Button variant="secondary" size="sm">
+                  Browse templates
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
+        )}
         <AideonCanvasRuntime<PraxisCanvasWidget>
           widgets={widgets}
           showPageBreaks={showPageBreaks}

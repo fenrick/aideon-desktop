@@ -19,6 +19,7 @@ interface OverviewTabsProperties {
   readonly selection: SelectionState;
   readonly onSelectionChange: (selection: SelectionState) => void;
   readonly onRequestMetaModelFocus: (types: string[]) => void;
+  readonly onAddWidget?: () => void;
   readonly timelineContent?: ReactNode;
   readonly activityContent?: ReactNode;
   readonly initialTab?: 'canvas' | 'overview' | 'timeline' | 'activity';
@@ -50,6 +51,7 @@ export function OverviewTabs({
   selection,
   onSelectionChange,
   onRequestMetaModelFocus,
+  onAddWidget,
   timelineContent,
   activityContent,
   initialTab = 'canvas',
@@ -74,6 +76,7 @@ export function OverviewTabs({
           selection={selection}
           onSelectionChange={onSelectionChange}
           onRequestMetaModelFocus={onRequestMetaModelFocus}
+          onAddWidget={onAddWidget}
           reloadSignal={reloadSignal}
         />
       </TabsContent>

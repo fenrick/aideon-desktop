@@ -725,6 +725,7 @@ export function PraxisWorkspaceContent() {
           }}
           reloadSignal={propertyState.reloadTick}
           branchTriggerRef={branchSelectReferenceCallback}
+          onAddWidget={() => onToggleWidgetLibrary(true)}
         />
       </div>
       <DebugOverlay

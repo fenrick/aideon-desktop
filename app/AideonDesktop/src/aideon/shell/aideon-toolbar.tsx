@@ -720,6 +720,19 @@ export function AideonToolbar({
     },
   });
 
+  useEffect(() => {
+    if (typeof globalThis === 'undefined') {
+      return;
+    }
+    const handleCommandPalette = () => {
+      setCommandPaletteOpen(true);
+    };
+    globalThis.addEventListener('aideon.workspace.open-command-palette', handleCommandPalette);
+    return () => {
+      globalThis.removeEventListener('aideon.workspace.open-command-palette', handleCommandPalette);
+    };
+  }, []);
+
   return (
     <div
       data-tauri-drag-region="false"

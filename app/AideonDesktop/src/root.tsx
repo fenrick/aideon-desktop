@@ -93,7 +93,7 @@ export function AideonDesktopRoot() {
       ? (PraxisWorkspaceProvider as ComponentType<WorkspaceProviderProperties>)
       : WorkspaceProviderPassthrough;
 
-  const modeLabel = isTauriRuntime() ? 'Desktop' : 'Browser preview';
+  const modeLabel = isTauriRuntime() ? 'Desktop' : undefined;
   const WorkspaceNavigation = ws.Navigation;
   const WorkspaceToolbar = ws.Toolbar;
   const WorkspaceContent = ws.Content;

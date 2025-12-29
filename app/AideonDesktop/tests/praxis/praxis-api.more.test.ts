@@ -46,15 +46,22 @@ describe('praxis-api host paths', () => {
 
   it('invokes host for chart view when in tauri', async () => {
     const chartView: ChartViewModel = {
-      metadata: { ...baseMeta, kind: 'chart' },
+      metadata: baseMeta,
       chartType: 'kpi',
       series: [],
     };
     invoke.mockResolvedValueOnce(chartView);
 
-    await expect(
-      getChartView({ ...baseMeta, kind: 'chart', chartType: 'kpi', measure: 'm' }),
-    ).resolves.toMatchObject<ChartViewModel>({
+    const definition = {
+      id: 'chart1',
+      name: 'Chart',
+      kind: 'chart',
+      asOf: '2025-01-01T00:00:00Z',
+      chartType: 'kpi',
+      measure: 'm',
+    } as const;
+
+    await expect(getChartView(definition)).resolves.toMatchObject({
       chartType: 'kpi',
     });
     const definitionMatcher = expect.objectContaining({ kind: 'chart' }) as unknown;

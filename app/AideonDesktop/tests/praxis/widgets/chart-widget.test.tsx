@@ -9,12 +9,29 @@ vi.mock('praxis/praxis-api', () => ({
 }));
 const mockedGetChartView = vi.mocked(getChartView);
 
+const baseDefinition = {
+  id: 'view-1',
+  name: 'Chart',
+  kind: 'chart' as const,
+  asOf: 'c1',
+  chartType: 'kpi' as const,
+  measure: 'm1',
+};
+
+const baseMetadata = {
+  id: 'view-1',
+  name: 'Chart',
+  asOf: 'c1',
+  fetchedAt: '2025-01-01T00:00:00Z',
+  source: 'host' as const,
+};
+
 const widget = {
   id: 'w1',
   title: 'Chart',
   size: 'full' as const,
   kind: 'chart' as const,
-  view: { chartType: 'kpi' },
+  view: baseDefinition,
 };
 
 describe('ChartWidget', () => {
@@ -28,7 +45,7 @@ describe('ChartWidget', () => {
       chartType: 'kpi',
       kpi: { value: 4200, trend: 'up', delta: 12, units: '%' },
       series: [],
-      metadata: { title: 'KPI' },
+      metadata: baseMetadata,
     });
 
     render(<ChartWidget widget={widget} reloadVersion={0} />);
@@ -41,7 +58,7 @@ describe('ChartWidget', () => {
       chartType: 'kpi',
       kpi: { value: 10, trend: 'down', units: undefined, delta: undefined },
       series: [],
-      metadata: { title: 'KPI' },
+      metadata: baseMetadata,
     });
 
     render(<ChartWidget widget={widget} reloadVersion={10} />);
@@ -54,7 +71,7 @@ describe('ChartWidget', () => {
       chartType: 'kpi',
       kpi: undefined,
       series: [],
-      metadata: {},
+      metadata: baseMetadata,
     });
 
     render(<ChartWidget widget={widget} reloadVersion={11} />);
@@ -74,10 +91,12 @@ describe('ChartWidget', () => {
           ],
         },
       ],
-      metadata: {},
+      metadata: baseMetadata,
     });
 
-    render(<ChartWidget widget={{ ...widget, view: { chartType: 'line' } }} reloadVersion={1} />);
+    render(
+      <ChartWidget widget={{ ...widget, view: { ...baseDefinition, chartType: 'line' } }} reloadVersion={1} />,
+    );
     await waitFor(() => expect(screen.getByLabelText(/Throughput trend/)).toBeInTheDocument());
     expect(screen.getByText(/Jan:10/)).toBeInTheDocument();
   });
@@ -86,10 +105,12 @@ describe('ChartWidget', () => {
     mockedGetChartView.mockResolvedValueOnce({
       chartType: 'line',
       series: [],
-      metadata: {},
+      metadata: baseMetadata,
     });
 
-    render(<ChartWidget widget={{ ...widget, view: { chartType: 'line' } }} reloadVersion={12} />);
+    render(
+      <ChartWidget widget={{ ...widget, view: { ...baseDefinition, chartType: 'line' } }} reloadVersion={12} />,
+    );
     await waitFor(() => expect(screen.getByText(/No data/i)).toBeInTheDocument());
 
     cleanup();
@@ -97,10 +118,12 @@ describe('ChartWidget', () => {
     mockedGetChartView.mockResolvedValueOnce({
       chartType: 'line',
       series: [{ id: 's1', label: 'Empty', points: [], color: '#000' }],
-      metadata: {},
+      metadata: baseMetadata,
     });
 
-    render(<ChartWidget widget={{ ...widget, view: { chartType: 'line' } }} reloadVersion={13} />);
+    render(
+      <ChartWidget widget={{ ...widget, view: { ...baseDefinition, chartType: 'line' } }} reloadVersion={13} />,
+    );
     await waitFor(() => expect(screen.getByLabelText(/Empty trend/)).toBeInTheDocument());
   });
 
@@ -118,10 +141,12 @@ describe('ChartWidget', () => {
           ],
         },
       ],
-      metadata: {},
+      metadata: baseMetadata,
     });
 
-    render(<ChartWidget widget={{ ...widget, view: { chartType: 'bar' } }} reloadVersion={2} />);
+    render(
+      <ChartWidget widget={{ ...widget, view: { ...baseDefinition, chartType: 'bar' } }} reloadVersion={2} />,
+    );
     await waitFor(() => expect(screen.getByText('Q1')).toBeInTheDocument());
     expect(screen.getByText('Capex')).toBeInTheDocument();
   });
@@ -130,9 +155,11 @@ describe('ChartWidget', () => {
     mockedGetChartView.mockResolvedValueOnce({
       chartType: 'bar',
       series: [],
-      metadata: {},
+      metadata: baseMetadata,
     });
-    render(<ChartWidget widget={{ ...widget, view: { chartType: 'bar' } }} reloadVersion={14} />);
+    render(
+      <ChartWidget widget={{ ...widget, view: { ...baseDefinition, chartType: 'bar' } }} reloadVersion={14} />,
+    );
     await waitFor(() => expect(screen.getByText(/No data/i)).toBeInTheDocument());
 
     cleanup();
@@ -154,9 +181,11 @@ describe('ChartWidget', () => {
           points: [{ label: 'Q1', value: 50 }],
         },
       ],
-      metadata: {},
+      metadata: baseMetadata,
     });
-    render(<ChartWidget widget={{ ...widget, view: { chartType: 'bar' } }} reloadVersion={15} />);
+    render(
+      <ChartWidget widget={{ ...widget, view: { ...baseDefinition, chartType: 'bar' } }} reloadVersion={15} />,
+    );
     await waitFor(() => expect(screen.getByText('Primary')).toBeInTheDocument());
     expect(screen.getByText('Secondary')).toBeInTheDocument();
     expect(screen.getByText('Q2')).toBeInTheDocument();
@@ -164,7 +193,9 @@ describe('ChartWidget', () => {
 
   it('renders errors from host', async () => {
     mockedGetChartView.mockRejectedValue(new Error('boom'));
-    render(<ChartWidget widget={{ ...widget, view: { chartType: 'kpi' } }} reloadVersion={3} />);
+    render(
+      <ChartWidget widget={{ ...widget, view: { ...baseDefinition, chartType: 'kpi' } }} reloadVersion={3} />,
+    );
     await waitFor(() => expect(screen.getByText(/boom/)).toBeInTheDocument());
   });
 });

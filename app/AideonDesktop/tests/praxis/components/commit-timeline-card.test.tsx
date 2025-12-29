@@ -88,8 +88,7 @@ describe('CommitTimelineCard', () => {
   it('invokes branch selection when chips are clicked', () => {
     render(<CommitTimelineCard />);
 
-    const [mainChip] = screen.getAllByText('main');
-    fireEvent.click(mainChip);
+    fireEvent.click(screen.getByText('main'));
     expect(selectBranchSpy).toHaveBeenCalledWith('main');
   });
 });

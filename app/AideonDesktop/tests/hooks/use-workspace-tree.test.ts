@@ -42,7 +42,7 @@ describe('useWorkspaceTree', () => {
     expect(result.current.error).toBeUndefined();
     expect(result.current.items).toHaveLength(1);
 
-    const [project] = result.current.items;
+    const project = result.current.items[0]!;
     expect(project.label).toBe('Scenarios');
     expect(project.children).toHaveLength(2);
 

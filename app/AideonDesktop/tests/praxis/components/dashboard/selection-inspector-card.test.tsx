@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { SelectionState } from 'aideon/canvas/types';
 import { SelectionInspectorCard } from 'praxis/components/dashboard/selection-inspector-card';
+import type { PraxisCanvasWidget } from 'praxis/types';
 
 const sampleSelection: SelectionState = {
   nodeIds: ['n1', 'n2', 'n3'],
@@ -10,7 +11,21 @@ const sampleSelection: SelectionState = {
   sourceWidgetId: 'w1',
 };
 
-const widgets = [{ id: 'w1', title: 'Graph', kind: 'graph' }];
+const widgets: PraxisCanvasWidget[] = [
+  {
+    id: 'w1',
+    title: 'Graph',
+    kind: 'graph',
+    size: 'full',
+    view: {
+      id: 'view-1',
+      name: 'Graph',
+      kind: 'graph',
+      asOf: 'c1',
+      filters: {},
+    },
+  },
+];
 
 describe('SelectionInspectorCard', () => {
   it('shows empty state and disables clear', () => {
@@ -42,7 +57,11 @@ describe('SelectionInspectorCard', () => {
 
     const clearButton = screen
       .getAllByRole('button', { name: /Clear/ })
-      .find((button) => !button.disabled);
+      .find(
+        (button): button is HTMLButtonElement =>
+          button instanceof HTMLButtonElement && !button.disabled,
+      );
+    expect(clearButton).toBeDefined();
     clearButton?.click();
     expect(onSelectionChange).toHaveBeenCalledWith({
       nodeIds: [],

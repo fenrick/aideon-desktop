@@ -8,7 +8,15 @@ const refreshBranchesSpy = vi.fn();
 
 vi.mock('praxis/time/use-temporal-panel', () => ({
   useTemporalPanel: () =>
-    [mockState, { selectCommit: selectCommitSpy, refreshBranches: refreshBranchesSpy }] as const,
+    [
+      mockState,
+      {
+        selectCommit: selectCommitSpy,
+        refreshBranches: refreshBranchesSpy,
+        selectBranch: vi.fn().mockResolvedValue(undefined),
+        mergeIntoMain: vi.fn().mockResolvedValue(undefined),
+      },
+    ] as const,
 }));
 
 let mockState: TemporalPanelState;
@@ -60,8 +68,7 @@ describe('ActivityFeedCard', () => {
 
   it('handles refresh control', () => {
     render(<ActivityFeedCard />);
-    const [refreshButton] = screen.getAllByText('Refresh timeline');
-    fireEvent.click(refreshButton);
+    fireEvent.click(screen.getByText('Refresh timeline'));
     expect(refreshBranchesSpy).toHaveBeenCalled();
   });
 });

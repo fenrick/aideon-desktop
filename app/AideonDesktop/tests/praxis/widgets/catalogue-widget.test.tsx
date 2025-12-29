@@ -3,10 +3,7 @@ import type * as PraxisApi from 'praxis/praxis-api';
 import type { PraxisCatalogueWidgetConfig as CatalogueWidgetConfig } from 'praxis/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getCatalogueViewMock = vi.fn<
-  Parameters<typeof PraxisApi.getCatalogueView>,
-  ReturnType<typeof PraxisApi.getCatalogueView>
->();
+const getCatalogueViewMock = vi.fn<typeof PraxisApi.getCatalogueView>();
 
 vi.mock('praxis/praxis-api', async () => {
   const actual = await vi.importActual<typeof PraxisApi>('praxis/praxis-api');

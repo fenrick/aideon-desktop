@@ -218,6 +218,14 @@ function buildShellCommands({
   return [...viewCommands, ...themeCommands, ...workspaceCommands];
 }
 
+/**
+ *
+ * @param root0
+ * @param root0.isTauri
+ * @param root0.sidebar
+ * @param root0.shell
+ * @param root0.openCommandPalette
+ */
 function useBrowserShortcutHandler({
   isTauri,
   sidebar,
@@ -258,6 +266,15 @@ function useBrowserShortcutHandler({
   }, [isTauri, openCommandPalette, shell, sidebar]);
 }
 
+/**
+ *
+ * @param root0
+ * @param root0.isTauri
+ * @param root0.sidebar
+ * @param root0.shell
+ * @param root0.onShellCommand
+ * @param root0.openCommandPalette
+ */
 function useTauriShellCommandListener({
   isTauri,
   sidebar,

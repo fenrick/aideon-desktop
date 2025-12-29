@@ -31,8 +31,8 @@ describe('PropertiesInspector', () => {
 
   it('disables actions without a selection id', () => {
     render(<PropertiesInspector selectionKind="node" />);
-    expect(screen.getAllByRole('button', { name: /save changes/i })[0]).toBeDisabled();
-    expect(screen.getAllByRole('button', { name: /reset/i })[0]).toBeDisabled();
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /reset/i })).toBeDisabled();
   });
 
   it('invokes save/reset callbacks and renders error state', () => {
@@ -50,8 +50,8 @@ describe('PropertiesInspector', () => {
     );
 
     fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Edge 2' } });
-    fireEvent.click(screen.getAllByRole('button', { name: /save changes/i })[0]);
-    fireEvent.click(screen.getAllByRole('button', { name: /reset/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    fireEvent.click(screen.getByRole('button', { name: /reset/i }));
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ name: 'Edge 2' }));
     expect(onReset).toHaveBeenCalled();

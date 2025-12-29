@@ -4,10 +4,7 @@ import type { PraxisGraphWidgetConfig as GraphWidgetConfig } from 'praxis/types'
 import * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getGraphViewMock = vi.fn<
-  Parameters<typeof PraxisApi.getGraphView>,
-  ReturnType<typeof PraxisApi.getGraphView>
->();
+const getGraphViewMock = vi.fn<typeof PraxisApi.getGraphView>();
 
 vi.mock('praxis/praxis-api', async () => {
   const actual = await vi.importActual<typeof PraxisApi>('praxis/praxis-api');
@@ -174,7 +171,6 @@ describe('GraphWidget', () => {
           label: 'Cap',
           type: 'Capability',
           position: { x: 0, y: 0 },
-          entityTypes: ['Capability'],
         },
       ],
       edges: [],

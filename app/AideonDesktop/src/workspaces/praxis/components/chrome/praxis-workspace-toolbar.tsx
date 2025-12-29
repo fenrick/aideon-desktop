@@ -6,10 +6,10 @@ import type { TemporalPanelActions, TemporalPanelState } from 'praxis/time/use-t
 import { searchStore } from 'praxis/lib/search';
 import type { CanvasTemplate } from 'praxis/templates';
 
-import { cn } from 'design-system/lib/utilities';
 import { Button } from 'design-system/components/ui/button';
 import { Input } from 'design-system/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from 'design-system/components/ui/popover';
+import { cn } from 'design-system/lib/utilities';
 import { TimeControlPanel } from '../blocks/time-control-panel';
 import { TemplateToolbar } from './template-toolbar';
 import { WorkspaceActions } from './workspace-actions';
@@ -43,6 +43,7 @@ export interface PraxisWorkspaceToolbarProperties {
  * @param root0.temporalActions
  * @param root0.timeTriggerRef
  * @param root0.loading
+ * @param root0.className
  */
 export function PraxisWorkspaceToolbar({
   scenarioName,

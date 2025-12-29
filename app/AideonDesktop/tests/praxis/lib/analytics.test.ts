@@ -12,7 +12,9 @@ describe('analytics', () => {
     }
 
     expect(sink).toHaveBeenCalled();
-    expect(recentAnalytics().length).toBeLessThanOrEqual(50);
-    expect(recentAnalytics()[0].payload?.fn).toBeUndefined();
+    const recent = recentAnalytics();
+    expect(recent.length).toBeLessThanOrEqual(50);
+    expect(recent).not.toHaveLength(0);
+    expect(recent[0]!.payload?.fn).toBeUndefined();
   });
 });

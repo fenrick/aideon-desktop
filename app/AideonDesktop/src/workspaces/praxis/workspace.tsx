@@ -113,7 +113,7 @@ interface PraxisWorkspaceContextValue {
   readonly scenarioName?: string;
   readonly widgets: CanvasWidget[];
   readonly selection: SelectionState;
-  readonly selectedProperties: SelectionProperties[];
+  readonly selectedProperties?: SelectionProperties;
   readonly selectionKind?: string;
   readonly selectionId?: string;
   readonly propertyState: {
@@ -130,7 +130,7 @@ interface PraxisWorkspaceContextValue {
   readonly onSelectScenario: (scenarioId: string) => void;
   readonly onRetryProjects: () => void;
   readonly onSelectionChange: (selection: SelectionState) => void;
-  readonly onInspectorSave: (updates: SelectionProperties) => void;
+  readonly onInspectorSave: (patch: Record<string, string | undefined>) => void;
   readonly onInspectorReset: () => void;
   readonly debugVisible: boolean;
   readonly widgetLibraryOpen: boolean;

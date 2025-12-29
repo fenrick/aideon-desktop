@@ -3,10 +3,7 @@ import type * as PraxisApi from 'praxis/praxis-api';
 import type { PraxisMatrixWidgetConfig as MatrixWidgetConfig } from 'praxis/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const getMatrixViewMock = vi.fn<
-  Parameters<typeof PraxisApi.getMatrixView>,
-  ReturnType<typeof PraxisApi.getMatrixView>
->();
+const getMatrixViewMock = vi.fn<typeof PraxisApi.getMatrixView>();
 
 vi.mock('praxis/praxis-api', async () => {
   const actual = await vi.importActual<typeof PraxisApi>('praxis/praxis-api');

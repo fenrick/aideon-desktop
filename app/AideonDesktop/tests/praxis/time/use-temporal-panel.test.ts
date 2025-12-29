@@ -48,11 +48,11 @@ type MergeMock = (request: {
   strategy?: string;
 }) => Promise<TemporalMergeResult>;
 
-const listBranchesSpy = vi.fn<Parameters<BranchesMock>, ReturnType<BranchesMock>>();
-const listCommitsSpy = vi.fn<Parameters<CommitsMock>, ReturnType<CommitsMock>>();
-const getSnapshotSpy = vi.fn<Parameters<SnapshotMock>, ReturnType<SnapshotMock>>();
-const getDiffSpy = vi.fn<Parameters<DiffMock>, ReturnType<DiffMock>>();
-const mergeSpy = vi.fn<Parameters<MergeMock>, ReturnType<MergeMock>>();
+const listBranchesSpy = vi.fn<BranchesMock>();
+const listCommitsSpy = vi.fn<CommitsMock>();
+const getSnapshotSpy = vi.fn<SnapshotMock>();
+const getDiffSpy = vi.fn<DiffMock>();
+const mergeSpy = vi.fn<MergeMock>();
 
 vi.mock('praxis/praxis-api', () => ({
   listTemporalBranches: (...arguments_: Parameters<typeof listBranchesSpy>) =>
@@ -198,7 +198,7 @@ describe('useTemporalPanel', () => {
       { name: 'chronaplay', head: 'commit-feature-001' },
     ]);
 
-    listCommitsSpy.mockImplementation((branch: string) => {
+    listCommitsSpy.mockImplementation(async (branch: string) => {
       if (branch === 'main') {
         return MAIN_COMMITS;
       }
@@ -208,13 +208,15 @@ describe('useTemporalPanel', () => {
       return [];
     });
 
-    getSnapshotSpy.mockImplementation(({ asOf }: { asOf: string }) => {
+    getSnapshotSpy.mockImplementation(
+      async ({ asOf }: { asOf: string; scenario?: string }) => {
       const snapshot = SNAPSHOT_MAP.get(asOf);
       if (!snapshot) {
         throw new Error(`Missing snapshot for ${asOf}`);
       }
       return snapshot;
-    });
+      },
+    );
 
     getDiffSpy.mockResolvedValue({
       from: 'commit-main-001',
@@ -253,7 +255,7 @@ describe('useTemporalPanel', () => {
       await waitForState(() => harness.state.commitId === 'commit-main-002');
 
       getSnapshotSpy.mockClear();
-      getSnapshotSpy.mockResolvedValueOnce(SNAPSHOTS['commit-main-001']);
+      getSnapshotSpy.mockResolvedValueOnce(SNAPSHOTS['commit-main-001']!);
 
       act(() => {
         harness.actions.selectCommit('commit-main-001');
@@ -262,7 +264,7 @@ describe('useTemporalPanel', () => {
       await waitForState(() => harness.state.commitId === 'commit-main-001');
       await waitForState(() => harness.state.snapshot?.asOf === 'commit-main-001');
       expect(getSnapshotSpy).toHaveBeenCalledWith({ asOf: 'commit-main-001', scenario: 'main' });
-      expect(harness.state.snapshot).toEqual(SNAPSHOTS['commit-main-001']);
+      expect(harness.state.snapshot).toEqual(SNAPSHOTS['commit-main-001']!);
     } finally {
       harness.unmount();
     }

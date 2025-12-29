@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import type * as React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 /**
@@ -23,21 +24,31 @@ function withTestId(testId: string) {
 }
 
 vi.mock('design-system/ui/dialog', () => {
-  const Dialog = ({ children, ...properties }: { children: React.ReactNode }) => (
+  const Dialog = (({ children, ...properties }: { children: React.ReactNode }) => (
     <div data-testid="dialog" {...properties}>
       {children}
     </div>
-  );
+  )) as React.FC<{ children: React.ReactNode }> & { displayName?: string };
   Dialog.displayName = 'Dialog';
-  const DialogContent = withTestId('dialog-content');
+  const DialogContent = withTestId('dialog-content') as React.FC<{ children?: React.ReactNode }> & {
+    displayName?: string;
+  };
   DialogContent.displayName = 'DialogContent';
-  const DialogDescription = withTestId('dialog-description');
+  const DialogDescription = withTestId(
+    'dialog-description',
+  ) as React.FC<{ children?: React.ReactNode }> & { displayName?: string };
   DialogDescription.displayName = 'DialogDescription';
-  const DialogFooter = withTestId('dialog-footer');
+  const DialogFooter = withTestId('dialog-footer') as React.FC<{ children?: React.ReactNode }> & {
+    displayName?: string;
+  };
   DialogFooter.displayName = 'DialogFooter';
-  const DialogHeader = withTestId('dialog-header');
+  const DialogHeader = withTestId('dialog-header') as React.FC<{ children?: React.ReactNode }> & {
+    displayName?: string;
+  };
   DialogHeader.displayName = 'DialogHeader';
-  const DialogTitle = withTestId('dialog-title');
+  const DialogTitle = withTestId('dialog-title') as React.FC<{ children?: React.ReactNode }> & {
+    displayName?: string;
+  };
   DialogTitle.displayName = 'DialogTitle';
   return {
     Dialog,

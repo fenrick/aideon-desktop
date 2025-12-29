@@ -38,20 +38,28 @@ vi.mock('praxis/hooks/use-command-stack', () => ({
 vi.mock('praxis/time/use-temporal-panel', () => ({
   useTemporalPanel: () => [
     {
+      branches: [{ name: 'main', head: 'c2' }],
       branch: 'main',
-      commitId: 'c1',
-      loading: false,
       commits: [
         { id: 'c1', message: 'first', parents: [], branch: 'main', tags: [], changeCount: 1 },
         { id: 'c2', message: 'second', parents: ['c1'], branch: 'main', tags: [], changeCount: 1 },
       ],
+      commitId: 'c1',
+      loading: false,
+      snapshotLoading: false,
+      merging: false,
     },
-    { refresh: vi.fn(), selectCommit },
+    {
+      refreshBranches: vi.fn().mockResolvedValue(undefined),
+      selectCommit,
+      selectBranch: vi.fn().mockResolvedValue(undefined),
+      mergeIntoMain: vi.fn().mockResolvedValue(undefined),
+    },
   ],
 }));
 
-const templateError = vi.fn<[], boolean>();
-const projectError = vi.fn<[], boolean>();
+const templateError = vi.fn<() => boolean>();
+const projectError = vi.fn<() => boolean>();
 
 const listProjectsWithScenariosMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 const listTemplatesFromHostMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
@@ -101,7 +109,7 @@ vi.mock('praxis/widgets/registry', () => ({
 }));
 
 vi.mock('praxis/praxis-api', () => ({
-  applyOperations: vi.fn().mockResolvedValue(),
+  applyOperations: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('praxis/components/template-screen/projects-sidebar', () => ({
@@ -185,7 +193,7 @@ describe('PraxisWorkspaceSurface interactions', () => {
     render(<PraxisWorkspaceSurface />);
 
     await screen.findByText(/projects-failed/);
-    fireEvent.click(screen.getAllByTestId('retry-projects')[0]);
+    fireEvent.click(screen.getAllByTestId('retry-projects')[0]!);
     await waitFor(() => {
       expect(listProjectsWithScenariosMock).toHaveBeenCalledTimes(2);
     });
@@ -197,9 +205,9 @@ describe('PraxisWorkspaceSurface interactions', () => {
       expect(screen.getAllByTestId('project-count').length).toBeGreaterThan(0);
     });
 
-    fireEvent.keyDown(globalThis, { key: 'z', metaKey: true });
-    fireEvent.keyDown(globalThis, { key: 'z', ctrlKey: true, shiftKey: true });
-    fireEvent.keyDown(globalThis, { key: 'ArrowRight' });
+    fireEvent.keyDown(window, { key: 'z', metaKey: true });
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
 
     expect(undo).toHaveBeenCalled();
     expect(redo).toHaveBeenCalled();
@@ -212,7 +220,7 @@ describe('PraxisWorkspaceSurface interactions', () => {
       expect(screen.getAllByTestId('project-count').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getAllByTestId('reset-properties')[0]);
+    fireEvent.click(screen.getAllByTestId('reset-properties')[0]!);
     expect(resetProperties).toHaveBeenCalledWith('n1');
   });
 });

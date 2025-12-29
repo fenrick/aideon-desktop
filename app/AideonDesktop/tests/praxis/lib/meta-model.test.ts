@@ -10,7 +10,8 @@ describe('meta-model fetch', () => {
     vi.advanceTimersByTime(150);
     const schema = await promise;
     expect(schema.types.length).toBeGreaterThan(0);
-    expect(schema.relationships[0].from).toContain('Application');
+    expect(schema.relationships).not.toHaveLength(0);
+    expect(schema.relationships[0]!.from).toContain('Application');
     expect(Date.now() - now).toBeGreaterThanOrEqual(0);
     vi.useRealTimers();
   });

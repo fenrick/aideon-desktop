@@ -89,7 +89,7 @@ describe('praxis-api fallbacks and normalization', () => {
   });
 
   it('returns deterministic mock diff summary when offline', async () => {
-    const summary = await getTemporalDiff({ from: 'a', to: 'b', scope: { nodeTypes: ['cap'] } });
+    const summary = await getTemporalDiff({ from: 'a', to: 'b', scope: 'cap' });
 
     expect(summary.from).toBe('a');
     expect(summary.to).toBe('b');
@@ -116,8 +116,9 @@ describe('praxis-api fallbacks and normalization', () => {
         typeof (conflict as { message?: unknown }).message === 'string',
     );
     expect(conflicts).toHaveLength(1);
-    expect(conflicts[0]).toMatchObject({ reference: 'cap-1', kind: 'unknown' });
-    expect(typeof conflicts[0].message).toBe('string');
+    expect(conflicts).not.toHaveLength(0);
+    expect(conflicts[0]!).toMatchObject({ reference: 'cap-1', kind: 'unknown' });
+    expect(typeof conflicts[0]!.message).toBe('string');
   });
 
   it('rejects empty operation batches in mock mode', async () => {

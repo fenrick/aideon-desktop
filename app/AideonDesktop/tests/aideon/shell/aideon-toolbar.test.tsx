@@ -42,13 +42,13 @@ describe('AideonToolbar', () => {
       </AideonShellControlsProvider>,
     );
 
-    fireEvent.keyDown(globalThis, { key: 'b', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'b', ctrlKey: true });
     expect(toggleSidebar).toHaveBeenCalledTimes(1);
 
-    fireEvent.keyDown(globalThis, { key: 'i', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'i', ctrlKey: true });
     expect(toggleInspector).toHaveBeenCalledTimes(1);
 
-    fireEvent.keyDown(globalThis, { key: 'k', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
     expect(screen.getByPlaceholderText('Search commands…')).toBeInTheDocument();
     expect(screen.getByText('Toggle navigation')).toBeInTheDocument();
     expect(screen.getByText('Toggle inspector')).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe('AideonToolbar', () => {
       </AideonShellControlsProvider>,
     );
 
-    fireEvent.keyDown(globalThis, { key: 'k', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
     fireEvent.click(screen.getByText('Keyboard shortcuts…'));
 
     expect(screen.getByText('Keyboard shortcuts')).toBeInTheDocument();

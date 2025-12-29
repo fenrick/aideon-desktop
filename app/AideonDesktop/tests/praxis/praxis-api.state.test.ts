@@ -40,10 +40,10 @@ describe('praxis-api state/diff host calls', () => {
     });
     const { getTemporalDiff } = await import('praxis/praxis-api');
 
-    await getTemporalDiff({ from: 'a', to: 'b', scope: { nodeTypes: ['Capability'] } });
+    await getTemporalDiff({ from: 'a', to: 'b', scope: 'Capability' });
 
     expect(invoke).toHaveBeenCalledWith('temporal_diff', {
-      payload: { from: 'a', to: 'b', scope: { nodeTypes: ['Capability'] } },
+      payload: { from: 'a', to: 'b', scope: 'Capability' },
     });
   });
 });

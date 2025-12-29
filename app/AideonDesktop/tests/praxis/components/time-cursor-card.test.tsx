@@ -7,7 +7,7 @@ import type { TemporalPanelActions, TemporalPanelState } from 'praxis/time/use-t
 import { TimeCursorCard } from 'praxis/components/template-screen/time-cursor-card';
 
 const useTemporalPanelMock = vi.hoisted(() =>
-  vi.fn<[], [TemporalPanelState, TemporalPanelActions]>(),
+  vi.fn<() => [TemporalPanelState, TemporalPanelActions]>(),
 );
 vi.mock('praxis/time/use-temporal-panel', () => ({
   useTemporalPanel: () => useTemporalPanelMock(),
@@ -115,7 +115,13 @@ describe('TimeCursorCard', () => {
       },
     ],
     commitId: 'c1',
-    snapshot: { nodes: 42, edges: 10, confidence: 0.9, scenario: 'chronaplay' },
+    snapshot: {
+      asOf: 'c1',
+      nodes: 42,
+      edges: 10,
+      confidence: 0.9,
+      scenario: 'chronaplay',
+    },
     loading: false,
     snapshotLoading: false,
     error: undefined,
@@ -124,10 +130,10 @@ describe('TimeCursorCard', () => {
   } as TemporalPanelState;
 
   const actions: TemporalPanelActions = {
-    selectBranch: vi.fn().mockResolvedValue(),
-    selectCommit: vi.fn().mockResolvedValue(),
-    refreshBranches: vi.fn().mockResolvedValue(),
-    mergeIntoMain: vi.fn().mockResolvedValue(),
+    selectBranch: vi.fn().mockResolvedValue(undefined),
+    selectCommit: vi.fn(),
+    refreshBranches: vi.fn().mockResolvedValue(undefined),
+    mergeIntoMain: vi.fn().mockResolvedValue(undefined),
   };
 
   it('emits branch, commit, and slider changes', () => {
@@ -146,10 +152,10 @@ describe('TimeCursorCard', () => {
 
   it('uses hook defaults and handles empty commits + invalid slider inputs', () => {
     const hookActions: TemporalPanelActions = {
-      selectBranch: vi.fn().mockResolvedValue(),
-      selectCommit: vi.fn().mockResolvedValue(),
-      refreshBranches: vi.fn().mockResolvedValue(),
-      mergeIntoMain: vi.fn().mockResolvedValue(),
+      selectBranch: vi.fn().mockResolvedValue(undefined),
+      selectCommit: vi.fn(),
+      refreshBranches: vi.fn().mockResolvedValue(undefined),
+      mergeIntoMain: vi.fn().mockResolvedValue(undefined),
     };
     const hookState: TemporalPanelState = {
       branches: [{ name: 'main', head: 'c1' }],

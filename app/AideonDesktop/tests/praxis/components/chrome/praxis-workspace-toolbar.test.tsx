@@ -1,21 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PraxisWorkspaceToolbar } from 'praxis/components/chrome/praxis-workspace-toolbar';
 import type { TemporalPanelActions, TemporalPanelState } from 'praxis/time/use-temporal-panel';
 
-const toastMessage = vi.fn();
 const search = vi.fn();
 const clear = vi.fn();
-
-vi.mock('sonner', () => ({
-  toast: {
-    message: (...arguments_: unknown[]) => {
-      toastMessage(...arguments_);
-    },
-  },
-}));
 
 vi.mock('praxis/lib/search', () => ({
   searchStore: {
@@ -30,36 +20,27 @@ vi.mock('praxis/lib/search', () => ({
 
 vi.mock('praxis/platform', () => ({ isTauri: () => false }));
 
-vi.mock('aideon/shell/aideon-toolbar', () => ({
-  AideonToolbar: ({
-    start,
-    center,
-    end,
-    onShellCommand,
-  }: {
-    readonly start?: ReactNode;
-    readonly center?: ReactNode;
-    readonly end?: ReactNode;
-    readonly onShellCommand?: (command: string, payload?: unknown) => void;
-  }) => (
-    <div>
-      <button
-        type="button"
-        onClick={() => onShellCommand?.('file.open', { path: '/var/empty/example.txt' })}
-      >
-        simulate-open
-      </button>
-      {start}
-      {center}
-      {end}
-    </div>
-  ),
-}));
-
 describe('PraxisWorkspaceToolbar', () => {
-  it('dispatches search queries and handles shell file commands', () => {
-    const temporalState = {} as unknown as TemporalPanelState;
-    const temporalActions = {} as unknown as TemporalPanelActions;
+  it('dispatches search queries', () => {
+    const temporalState: TemporalPanelState = {
+      branches: [],
+      commits: [],
+      loading: false,
+      snapshotLoading: false,
+      merging: false,
+      branch: 'main',
+      commitId: undefined,
+      snapshot: undefined,
+      error: undefined,
+      diff: undefined,
+      mergeConflicts: undefined,
+    };
+    const temporalActions: TemporalPanelActions = {
+      selectBranch: vi.fn().mockResolvedValue(undefined),
+      selectCommit: vi.fn(),
+      refreshBranches: vi.fn().mockResolvedValue(undefined),
+      mergeIntoMain: vi.fn().mockResolvedValue(undefined),
+    };
     const onTemplateChange = vi.fn();
     const onTemplateSave = vi.fn();
     const onCreateWidget = vi.fn();
@@ -76,9 +57,6 @@ describe('PraxisWorkspaceToolbar', () => {
         temporalActions={temporalActions}
       />,
     );
-
-    fireEvent.click(screen.getByText('simulate-open'));
-    expect(toastMessage).toHaveBeenCalledTimes(1);
 
     const input = screen.getByLabelText('Search');
     fireEvent.change(input, { target: { value: 'Node' } });

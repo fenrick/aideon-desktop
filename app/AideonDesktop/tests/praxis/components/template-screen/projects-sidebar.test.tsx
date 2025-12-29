@@ -6,7 +6,7 @@ import { ProjectsSidebar } from 'praxis/components/template-screen/projects-side
 
 const scenarios = [
   { id: 's1', name: 'Default', branch: 'main', updatedAt: '2024-01-02', isDefault: true },
-  { id: 's2', name: 'Feature', branch: 'feat', updatedAt: undefined, isDefault: false },
+  { id: 's2', name: 'Feature', branch: 'feat', updatedAt: '2024-01-03', isDefault: false },
 ];
 
 describe('ProjectsSidebar', () => {

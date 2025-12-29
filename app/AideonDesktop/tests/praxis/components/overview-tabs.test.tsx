@@ -17,7 +17,7 @@ const temporalState: TemporalPanelState = {
     { id: 'c2', branch: 'main', parents: ['c1'], message: 'Add flow', tags: [], changeCount: 2 },
   ],
   commitId: 'c2',
-  snapshot: { nodes: 10, edges: 4, scenario: 'main' },
+  snapshot: { asOf: 'c2', nodes: 10, edges: 4, scenario: 'main' },
   loading: false,
   snapshotLoading: false,
   error: undefined,
@@ -26,10 +26,10 @@ const temporalState: TemporalPanelState = {
 } as TemporalPanelState;
 
 const temporalActions: TemporalPanelActions = {
-  selectBranch: vi.fn().mockResolvedValue(),
-  selectCommit: vi.fn().mockResolvedValue(),
-  refreshBranches: vi.fn().mockResolvedValue(),
-  mergeIntoMain: vi.fn().mockResolvedValue(),
+  selectBranch: vi.fn().mockResolvedValue(undefined),
+  selectCommit: vi.fn(),
+  refreshBranches: vi.fn().mockResolvedValue(undefined),
+  mergeIntoMain: vi.fn().mockResolvedValue(undefined),
 };
 
 describe('OverviewTabs', () => {

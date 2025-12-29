@@ -22,7 +22,8 @@ describe('domain-data branches', () => {
 
     const projects = await listProjectsWithScenarios();
     expect(invokeMock).not.toHaveBeenCalled();
-    expect(projects[0].id).toBe('default-project');
+    expect(projects).not.toHaveLength(0);
+    expect(projects[0]!.id).toBe('default-project');
 
     const templates = await listTemplatesFromHost();
     expect(templates.length).toBeGreaterThan(0);
@@ -40,6 +41,7 @@ describe('domain-data branches', () => {
 
     invokeMock.mockRejectedValueOnce(new Error('boom'));
     const projectsFallback = await listProjectsWithScenarios();
-    expect(projectsFallback[0].id).toBe('default-project');
+    expect(projectsFallback).not.toHaveLength(0);
+    expect(projectsFallback[0]!.id).toBe('default-project');
   });
 });

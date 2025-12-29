@@ -38,7 +38,7 @@ function assertWorkerHealth(value: unknown): asserts value is WorkerHealth {
 describe('contract DTOs', () => {
   test('temporal state payload matches contract', () => {
     const request: TemporalStateParameters = { asOf: 'commit-123', scenario: 'main' };
-    expectTypeOf(request).toMatchObjectType<TemporalStateParameters>();
+    expectTypeOf(request).toEqualTypeOf<TemporalStateParameters>();
 
     const json = JSON.stringify({
       asOf: 'commit-123',
@@ -54,7 +54,7 @@ describe('contract DTOs', () => {
 
   test('temporal diff payload mirrors schema', () => {
     const parameters: TemporalDiffParameters = { from: 'c1', to: 'c2', scope: 'capability' };
-    expectTypeOf(parameters).toMatchObjectType<TemporalDiffParameters>();
+    expectTypeOf(parameters).toEqualTypeOf<TemporalDiffParameters>();
 
     const summary: TemporalDiffSnapshot = {
       from: 'c1',

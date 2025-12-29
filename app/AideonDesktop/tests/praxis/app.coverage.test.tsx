@@ -155,7 +155,7 @@ vi.mock('praxis/praxis-api', () => {
     .mockResolvedValue([
       { id: 's1', name: 'Scenario 1', branch: 'main', updatedAt: '', isDefault: true },
     ]);
-  const applyOperations = vi.fn().mockResolvedValue();
+  const applyOperations = vi.fn().mockResolvedValue(undefined);
   return { listScenarios, applyOperations };
 });
 vi.mock('praxis/domain-data', () => ({
@@ -172,7 +172,7 @@ vi.mock('praxis/domain-data', () => ({
 }));
 vi.mock('praxis/platform', () => ({ isTauri: vi.fn(() => false) }));
 const useTemporalPanelMock = vi.hoisted(() =>
-  vi.fn<[], [TemporalPanelState, TemporalPanelActions]>(),
+  vi.fn<() => [TemporalPanelState, TemporalPanelActions]>(),
 );
 vi.mock('praxis/time/use-temporal-panel', () => ({
   useTemporalPanel: () => useTemporalPanelMock(),
@@ -191,23 +191,37 @@ import { listProjectsWithScenarios, listTemplatesFromHost } from 'praxis/domain-
 import { PraxisWorkspaceSurface } from 'praxis/workspace';
 
 describe('PraxisWorkspaceSurface (coverage)', () => {
+  const baseTemporalState: TemporalPanelState = {
+    branches: [],
+    commits: [],
+    loading: false,
+    snapshotLoading: false,
+    merging: false,
+  };
+
+  const baseTemporalActions: TemporalPanelActions = {
+    refreshBranches: vi.fn().mockResolvedValue(undefined),
+    selectCommit: vi.fn(),
+    selectBranch: vi.fn().mockResolvedValue(undefined),
+    mergeIntoMain: vi.fn().mockResolvedValue(undefined),
+  };
+
   afterEach(() => {
     cleanup();
   });
 
   it('loads projects/templates, wires selection and saves templates', async () => {
     useTemporalPanelMock.mockReturnValue([
-      { branch: 'main', commitId: undefined, loading: false, commits: [] },
       {
-        refreshBranches: vi.fn(),
-        selectCommit: vi.fn(),
-        selectBranch: vi.fn(),
-        mergeIntoMain: vi.fn(),
+        ...baseTemporalState,
+        branch: 'main',
+        commitId: undefined,
       },
+      baseTemporalActions,
     ]);
 
     const onSelectionChange = vi.fn();
-    render(<PraxisWorkspaceSurface onSelectionChange={onSelectionChange} debug />);
+    render(<PraxisWorkspaceSurface onSelectionChange={onSelectionChange} />);
 
     await waitFor(() => {
       expect(listTemplatesFromHost).toHaveBeenCalled();
@@ -229,68 +243,61 @@ describe('PraxisWorkspaceSurface (coverage)', () => {
 
   it('changes scenarios', async () => {
     useTemporalPanelMock.mockReturnValue([
-      { branch: 'main', commitId: undefined, loading: false, commits: [] },
       {
-        refreshBranches: vi.fn(),
-        selectCommit: vi.fn(),
-        selectBranch: vi.fn(),
-        mergeIntoMain: vi.fn(),
+        ...baseTemporalState,
+        branch: 'main',
+        commitId: undefined,
       },
+      baseTemporalActions,
     ]);
     render(<PraxisWorkspaceSurface />);
     await waitFor(() => {
       expect(listProjectsWithScenarios).toHaveBeenCalled();
     });
-    fireEvent.click(screen.getAllByTestId('scenario-change')[0]);
-    expect(screen.getAllByTestId('reload-signal')[0]).toHaveTextContent('0');
+    fireEvent.click(screen.getAllByTestId('scenario-change')[0]!);
+    expect(screen.getAllByTestId('reload-signal')[0]!).toHaveTextContent('0');
   });
 
   it('opens widget library and creates widgets; handles empty registry', async () => {
     useTemporalPanelMock.mockReturnValue([
-      { branch: 'main', commitId: undefined, loading: false, commits: [] },
       {
-        refreshBranches: vi.fn(),
-        selectCommit: vi.fn(),
-        selectBranch: vi.fn(),
-        mergeIntoMain: vi.fn(),
+        ...baseTemporalState,
+        branch: 'main',
+        commitId: undefined,
       },
+      baseTemporalActions,
     ]);
     render(<PraxisWorkspaceSurface />);
-    await waitFor(() => expect(screen.getAllByTestId('layout')[0]).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByTestId('layout')[0]!).toBeInTheDocument());
 
-    fireEvent.click(screen.getAllByTestId('open-library')[0]);
+    fireEvent.click(screen.getAllByTestId('open-library')[0]!);
     const widgetButton = await screen.findByText('Graph');
     fireEvent.click(widgetButton);
 
     registryMock.mockReturnValueOnce([]);
-    fireEvent.click(screen.getAllByTestId('open-library')[0]);
+    fireEvent.click(screen.getAllByTestId('open-library')[0]!);
     expect(await screen.findByText(/No widget types registered/)).toBeInTheDocument();
   });
 
   it('invokes inspector save and applies operations for node selection', async () => {
     useTemporalPanelMock.mockReturnValue([
       {
+        ...baseTemporalState,
         branch: 'main',
         commitId: 'c1',
-        loading: false,
         commits: [
           { id: 'c1', branch: 'main', parents: [], message: 'm', tags: [], changeCount: 0 },
         ],
       },
-      {
-        refreshBranches: vi.fn(),
-        selectCommit: vi.fn(),
-        selectBranch: vi.fn(),
-        mergeIntoMain: vi.fn(),
-      },
+      baseTemporalActions,
     ]);
     const { applyOperations } = await import('praxis/praxis-api');
     render(<PraxisWorkspaceSurface />);
     await waitFor(() => {
       expect(listProjectsWithScenarios).toHaveBeenCalled();
     });
-    fireEvent.click(screen.getAllByTestId('select-node')[0]);
-    const [inspectorSaveButton] = await screen.findAllByTestId('inspector-save');
+    fireEvent.click(screen.getAllByTestId('select-node')[0]!);
+    const inspectorSaveButton = (await screen.findAllByTestId('inspector-save'))[0]!;
     fireEvent.click(inspectorSaveButton);
     await waitFor(() => {
       expect(applyOperations).toHaveBeenCalled();
@@ -301,9 +308,9 @@ describe('PraxisWorkspaceSurface (coverage)', () => {
     const temporalSelectCommit = vi.fn();
     useTemporalPanelMock.mockReturnValue([
       {
+        ...baseTemporalState,
         branch: 'main',
         commitId: 'c1',
-        loading: false,
         commits: [
           { id: 'c0', branch: 'main', parents: [], message: 'c0', tags: [], changeCount: 0 },
           { id: 'c1', branch: 'main', parents: [], message: 'c1', tags: [], changeCount: 0 },
@@ -311,10 +318,8 @@ describe('PraxisWorkspaceSurface (coverage)', () => {
         ],
       },
       {
-        refreshBranches: vi.fn(),
+        ...baseTemporalActions,
         selectCommit: temporalSelectCommit,
-        selectBranch: vi.fn(),
-        mergeIntoMain: vi.fn(),
       },
     ]);
 
@@ -326,19 +331,19 @@ describe('PraxisWorkspaceSurface (coverage)', () => {
       expect(listTemplatesFromHost).toHaveBeenCalled();
     });
 
-    fireEvent.keyDown(globalThis, { key: 'z', ctrlKey: true });
-    fireEvent.keyDown(globalThis, { key: 'z', ctrlKey: true, shiftKey: true });
-    fireEvent.keyDown(globalThis, { key: 'y', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(window, { key: 'y', ctrlKey: true });
     expect(commandStackMock.undo).toHaveBeenCalled();
     expect(commandStackMock.redo).toHaveBeenCalled();
 
-    fireEvent.keyDown(globalThis, { key: 'ArrowRight' });
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
     expect(temporalSelectCommit).toHaveBeenCalledWith('c2');
 
-    fireEvent.keyDown(globalThis, { key: 'ArrowLeft' });
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
     expect(temporalSelectCommit).toHaveBeenCalledWith('c0');
 
-    fireEvent.keyDown(globalThis, { key: ' ', shiftKey: true });
+    fireEvent.keyDown(window, { key: ' ', shiftKey: true });
     expect(screen.getByTestId('branch-trigger')).toHaveFocus();
   });
 

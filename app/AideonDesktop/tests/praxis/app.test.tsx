@@ -140,7 +140,12 @@ describe('Praxis canvas app shell', () => {
             kind: 'graph',
             title: 'Graph',
             size: 'full',
-            view: { id: 'graph-default', name: 'Graph', kind: 'graph', filters: {} },
+            view: {
+              id: 'graph-default',
+              name: 'Graph',
+              kind: 'graph',
+              filters: {},
+            },
           },
         ],
       },
@@ -170,7 +175,7 @@ describe('Praxis canvas app shell', () => {
 
     render(<PraxisWorkspaceSurface onSelectionChange={onSelectionChange} />);
 
-    fireEvent.click(screen.getAllByText('simulate-selection')[0]);
+    fireEvent.click(screen.getByText('simulate-selection'));
 
     await waitFor(() => {
       expect(onSelectionChange.mock.calls.length).toBeGreaterThanOrEqual(1);
@@ -180,11 +185,11 @@ describe('Praxis canvas app shell', () => {
   it('saves a template via header action', async () => {
     render(<PraxisWorkspaceSurface />);
 
-    const initialCount = Number(screen.getAllByTestId('template-count')[0]?.textContent);
-    fireEvent.click(screen.getAllByText('Save template')[0]);
+    const initialCount = Number(screen.getByTestId('template-count').textContent);
+    fireEvent.click(screen.getByText('Save template'));
 
     await waitFor(() => {
-      const updated = Number(screen.getAllByTestId('template-count')[0]?.textContent);
+      const updated = Number(screen.getByTestId('template-count').textContent);
       expect(updated).toBeGreaterThan(initialCount);
     });
   });

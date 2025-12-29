@@ -12,6 +12,7 @@ const refreshBranchesSpy = vi.fn();
 const selectNodesSpy = vi.fn();
 const focusMetaModelSpy = vi.fn();
 const scrollIntoViewMock = vi.fn();
+const originalScrollIntoView = Element.prototype.scrollIntoView;
 
 class ResizeObserverMock {
   observe = vi.fn();
@@ -26,7 +27,7 @@ beforeAll(() => {
 
 afterAll(() => {
   vi.unstubAllGlobals();
-  delete Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = originalScrollIntoView;
 });
 
 afterEach(() => {
@@ -41,6 +42,7 @@ vi.mock('praxis/time/use-temporal-panel', () => ({
         selectCommit: selectCommitSpy,
         selectBranch: selectBranchSpy,
         refreshBranches: refreshBranchesSpy,
+        mergeIntoMain: vi.fn().mockResolvedValue(undefined),
       },
     ] as const,
 }));
@@ -144,12 +146,10 @@ describe('GlobalSearchCard', () => {
       <GlobalSearchCard onSelectNodes={selectNodesSpy} onFocusMetaModel={focusMetaModelSpy} />,
     );
 
-    const [switchBranchButton] = screen.getAllByText('Switch branch');
-    fireEvent.click(switchBranchButton);
+    fireEvent.click(screen.getByText('Switch branch'));
     expect(selectBranchSpy).toHaveBeenCalledWith('chronaplay');
 
-    const [jumpButton] = screen.getAllByText('Jump to commit');
-    fireEvent.click(jumpButton);
+    fireEvent.click(screen.getByText('Jump to commit'));
     expect(selectCommitSpy).toHaveBeenCalledWith('commit-2');
 
     await waitFor(() => {
@@ -162,7 +162,7 @@ describe('GlobalSearchCard', () => {
       <GlobalSearchCard onSelectNodes={selectNodesSpy} onFocusMetaModel={focusMetaModelSpy} />,
     );
 
-    const [openButton] = screen.getAllByRole('button', { name: /Open command palette/i });
+    const openButton = screen.getByRole('button', { name: /Open command palette/i });
     fireEvent.click(openButton);
     await waitFor(() => {
       expect(screen.getByText('chronaplay')).toBeInTheDocument();
@@ -174,7 +174,7 @@ describe('GlobalSearchCard', () => {
     const catalogueEntry = await screen.findByText('Customer Onboarding');
     fireEvent.click(catalogueEntry);
     const lastCommandBadges = screen.getAllByText((_, node) =>
-      (node.textContent || '').includes('Last command'),
+      (node?.textContent ?? '').includes('Last command'),
     );
     expect(
       lastCommandBadges.some((node) =>
@@ -217,7 +217,7 @@ describe('GlobalSearchCard', () => {
       expect(screen.getByText(/catalogue down/i)).toBeInTheDocument();
     });
 
-    fireEvent.keyDown(globalThis, { key: 'k', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
     await waitFor(() => {
       expect(screen.getAllByText('chronaplay').length).toBeGreaterThan(0);
     });

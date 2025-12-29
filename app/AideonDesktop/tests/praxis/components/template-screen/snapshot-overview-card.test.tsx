@@ -5,10 +5,15 @@ import { SnapshotOverviewCard } from 'praxis/components/template-screen/snapshot
 import type { TemporalPanelState } from 'praxis/time/use-temporal-panel';
 
 const baseState: TemporalPanelState = {
+  branches: [],
   branch: 'main',
+  commits: [],
   commitId: 'c1',
   loading: false,
+  snapshotLoading: false,
+  merging: false,
   snapshot: {
+    asOf: 'c1',
     nodes: 1200,
     edges: 3400,
     confidence: 0.42,
@@ -38,7 +43,7 @@ describe('SnapshotOverviewCard', () => {
     };
     render(<SnapshotOverviewCard state={errorState} />);
 
-    expect(screen.getAllByLabelText('Nodes metric')[0]).toHaveTextContent('—');
+    expect(screen.getByLabelText('Nodes metric')).toHaveTextContent('—');
     expect(screen.getByText('offline')).toBeInTheDocument();
   });
 });

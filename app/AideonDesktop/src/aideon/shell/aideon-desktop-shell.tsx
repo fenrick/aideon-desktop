@@ -67,9 +67,15 @@ function readStoredLayout(storage: Storage) {
     const parsed = JSON.parse(raw) as unknown;
     if (Array.isArray(parsed) && parsed.every((value) => typeof value === 'number')) {
       if (parsed.length >= 3) {
-        return normalizeLayout(parsed[1], parsed[2]);
+        return normalizeLayout(
+          parsed[1] ?? DEFAULT_LAYOUT.content,
+          parsed[2] ?? DEFAULT_LAYOUT.inspector,
+        );
       }
-      return normalizeLayout(parsed[0], parsed[1] ?? DEFAULT_LAYOUT.inspector);
+      return normalizeLayout(
+        parsed[0] ?? DEFAULT_LAYOUT.content,
+        parsed[1] ?? DEFAULT_LAYOUT.inspector,
+      );
     }
   } catch {
     return;

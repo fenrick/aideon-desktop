@@ -96,33 +96,57 @@ vi.mock('praxis/components/dashboard/canvas-runtime-card', () => ({
 }));
 
 import type { SelectionState } from 'aideon/canvas/types';
+import type { PraxisCanvasWidget } from 'praxis/types';
+import type { TemporalPanelActions, TemporalPanelState } from 'praxis/time/use-temporal-panel';
 import { WorkspaceTabs } from 'praxis/components/workspace-tabs';
 import { useTemporalPanel } from 'praxis/time/use-temporal-panel';
 
 const mockUseTemporalPanel = vi.mocked(useTemporalPanel);
 
-const baseSelection: SelectionState = { nodeIds: [], edgeIds: [] };
+const baseSelection: SelectionState = { nodeIds: [], edgeIds: [], sourceWidgetId: undefined };
+
+const baseTemporalState: TemporalPanelState = {
+  branches: [],
+  commits: [],
+  loading: false,
+  snapshotLoading: false,
+  merging: false,
+};
+
+const baseTemporalActions: TemporalPanelActions = {
+  selectBranch: vi.fn().mockResolvedValue(undefined),
+  selectCommit: vi.fn(),
+  refreshBranches: vi.fn().mockResolvedValue(undefined),
+  mergeIntoMain: vi.fn().mockResolvedValue(undefined),
+};
+
+const canvasWidget: PraxisCanvasWidget = {
+  id: 'w1',
+  kind: 'chart',
+  title: 'Widget',
+  size: 'full',
+  view: {
+    id: 'view-1',
+    name: 'Metric',
+    kind: 'chart',
+    asOf: 'c1',
+    chartType: 'line',
+    measure: 'm1',
+  },
+};
 
 describe('WorkspaceTabs', () => {
   it('shows loading state when snapshot is pending', () => {
     mockUseTemporalPanel.mockReturnValue([
       {
+        ...baseTemporalState,
         loading: true,
-        snapshot: undefined,
         branch: undefined,
+        snapshot: undefined,
         diff: undefined,
         mergeConflicts: undefined,
       },
-      {},
-    ] as unknown as [
-      {
-        loading: boolean;
-        snapshot?: unknown;
-        branch?: string;
-        diff?: unknown;
-        mergeConflicts?: unknown;
-      },
-      Record<string, unknown>,
+      baseTemporalActions,
     ]);
 
     render(
@@ -140,28 +164,22 @@ describe('WorkspaceTabs', () => {
   it('renders overview metrics and handles tab changes', async () => {
     mockUseTemporalPanel.mockReturnValue([
       {
+        ...baseTemporalState,
         loading: false,
-        snapshot: { nodes: 10, edges: 5, confidence: 0.42, scenario: 'Test' },
+        snapshot: { asOf: 'c1', nodes: 10, edges: 5, confidence: 0.42, scenario: 'Test' },
         branch: 'dev',
         diff: {
+          from: 'c0',
+          to: 'c1',
           metrics: { nodeAdds: 1, nodeMods: 2, nodeDels: 0, edgeAdds: 3, edgeMods: 0, edgeDels: 1 },
         },
         mergeConflicts: [{ kind: 'edge', reference: 'e1', message: 'conflict' }],
       },
-      { refresh: vi.fn() },
-    ] as unknown as [
-      {
-        loading: boolean;
-        snapshot?: { nodes: number; edges: number; confidence: number; scenario: string };
-        branch?: string;
-        diff?: { metrics: Record<string, number> };
-        mergeConflicts?: { kind: string; reference: string; message: string }[];
-      },
-      { refresh: () => void },
+      baseTemporalActions,
     ]);
     render(
       <WorkspaceTabs
-        widgets={[{ id: 'w1' }]}
+        widgets={[canvasWidget]}
         selection={baseSelection}
         onSelectionChange={vi.fn()}
         onRequestMetaModelFocus={vi.fn()}
@@ -173,8 +191,7 @@ describe('WorkspaceTabs', () => {
     expect(screen.getByText(/42%/)).toBeInTheDocument();
     expect(screen.getAllByText(/conflict/i).length).toBeGreaterThanOrEqual(1);
 
-    const canvasTab = screen.getAllByRole('tab', { name: 'Canvas' })[0];
-    fireEvent.click(canvasTab);
+    fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }));
 
     await waitFor(() => expect(screen.getByTestId('canvas-runtime')).toBeInTheDocument());
   });
@@ -183,8 +200,9 @@ describe('WorkspaceTabs', () => {
     const onValueChange = vi.fn();
     mockUseTemporalPanel.mockReturnValue([
       {
+        ...baseTemporalState,
         loading: true,
-        snapshot: { nodes: 0, edges: 0, scenario: undefined, confidence: undefined },
+        snapshot: { asOf: 'c1', nodes: 0, edges: 0, scenario: undefined, confidence: undefined },
         branch: undefined,
         commits: [],
         commitId: undefined,
@@ -192,8 +210,8 @@ describe('WorkspaceTabs', () => {
         mergeConflicts: undefined,
         error: 'Boom',
       },
-      { selectCommit: vi.fn() },
-    ] as unknown as [Record<string, unknown>, Record<string, unknown>]);
+      baseTemporalActions,
+    ]);
 
     render(
       <WorkspaceTabs
@@ -208,7 +226,7 @@ describe('WorkspaceTabs', () => {
 
     expect(screen.getByText(/Loading commits/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole('tab', { name: 'Canvas' })[0]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }));
     await waitFor(() => {
       expect(screen.getByTestId('canvas-runtime')).toBeInTheDocument();
     });
@@ -228,8 +246,9 @@ describe('WorkspaceTabs', () => {
 
     mockUseTemporalPanel.mockReturnValueOnce([
       {
+        ...baseTemporalState,
         loading: false,
-        snapshot: { nodes: 0, edges: 0, scenario: undefined, confidence: undefined },
+        snapshot: { asOf: 'c1', nodes: 0, edges: 0, scenario: undefined, confidence: undefined },
         branch: 'main',
         commits: [],
         commitId: undefined,
@@ -237,8 +256,8 @@ describe('WorkspaceTabs', () => {
         mergeConflicts: undefined,
         error: undefined,
       },
-      {},
-    ] as unknown as [Record<string, unknown>, Record<string, unknown>]);
+      baseTemporalActions,
+    ]);
 
     render(
       <WorkspaceTabs

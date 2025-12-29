@@ -2,10 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import type * as MetaModelModule from 'praxis/lib/meta-model';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const fetchMetaModelSpy = vi.fn<
-  Promise<MetaModelModule.MetaModelSchema>,
-  Parameters<typeof MetaModelModule.fetchMetaModel>
->();
+const fetchMetaModelSpy = vi.fn<typeof MetaModelModule.fetchMetaModel>();
 
 vi.mock('praxis/lib/meta-model', async () => {
   const actual = await vi.importActual<typeof MetaModelModule>('praxis/lib/meta-model');
@@ -58,8 +55,7 @@ describe('MetaModelPanel', () => {
     render(<MetaModelPanel />);
 
     expect(await screen.findByText('Failed to load meta-model')).toBeInTheDocument();
-    const [reloadButton] = screen.getAllByText('Reload schema');
-    fireEvent.click(reloadButton);
+    fireEvent.click(screen.getByText('Reload schema'));
     expect(await screen.findByText('Capability')).toBeInTheDocument();
   });
 });

@@ -2,6 +2,9 @@ import type { WorkspaceModule } from 'workspaces/types';
 
 import { Card, CardContent, CardHeader, CardTitle } from 'design-system/components/ui/card';
 
+/**
+ *
+ */
 function ComingSoon() {
   return (
     <div className="p-6">

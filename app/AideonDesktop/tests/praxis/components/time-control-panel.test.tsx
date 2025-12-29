@@ -94,7 +94,7 @@ describe('TimeControlPanel', () => {
       },
     ],
     commitId: 'c1',
-    snapshot: { nodes: 42, edges: 10 },
+    snapshot: { asOf: 'c1', nodes: 42, edges: 10 },
     loading: false,
     snapshotLoading: false,
     error: undefined,
@@ -103,10 +103,10 @@ describe('TimeControlPanel', () => {
   } as TemporalPanelState;
 
   const actions: TemporalPanelActions = {
-    selectBranch: vi.fn().mockResolvedValue(),
-    selectCommit: vi.fn().mockResolvedValue(),
-    refreshBranches: vi.fn().mockResolvedValue(),
-    mergeIntoMain: vi.fn().mockResolvedValue(),
+    selectBranch: vi.fn().mockResolvedValue(undefined),
+    selectCommit: vi.fn(),
+    refreshBranches: vi.fn().mockResolvedValue(undefined),
+    mergeIntoMain: vi.fn().mockResolvedValue(undefined),
   };
 
   it('invokes actions from buttons and slider', () => {
@@ -127,10 +127,10 @@ describe('TimeControlPanel', () => {
 
   it('handles empty commit lists, main branch, and invalid slider events', () => {
     const localActions: TemporalPanelActions = {
-      selectBranch: vi.fn().mockResolvedValue(),
-      selectCommit: vi.fn().mockResolvedValue(),
-      refreshBranches: vi.fn().mockResolvedValue(),
-      mergeIntoMain: vi.fn().mockResolvedValue(),
+      selectBranch: vi.fn().mockResolvedValue(undefined),
+      selectCommit: vi.fn(),
+      refreshBranches: vi.fn().mockResolvedValue(undefined),
+      mergeIntoMain: vi.fn().mockResolvedValue(undefined),
     };
     const localState: TemporalPanelState = {
       branches: [],

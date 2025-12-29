@@ -51,6 +51,13 @@ import type {
   TraverseAtTimeInput,
   TraverseEdgeItem,
   UnsubscribePartitionInput,
+  IntegrityHead,
+  SchemaHead,
+  SchemaManifest,
+  ExplainResolutionInput,
+  ExplainResolutionResult,
+  ExplainTraversalInput,
+  ExplainTraversalResult,
   TypeDefinition,
   TypeFieldDefinition,
   ValidTime,
@@ -93,6 +100,12 @@ const COMMANDS = {
   getChangesSince: 'mneme_get_changes_since',
   subscribePartition: 'mneme_subscribe_partition',
   unsubscribePartition: 'mneme_unsubscribe_partition',
+  getIntegrityHead: 'mneme_get_integrity_head',
+  getLastSchemaCompile: 'mneme_get_last_schema_compile',
+  listFailedJobs: 'mneme_list_failed_jobs',
+  getSchemaManifest: 'mneme_get_schema_manifest',
+  explainResolution: 'mneme_explain_resolution',
+  explainTraversal: 'mneme_explain_traversal',
 } as const;
 
 /**
@@ -719,6 +732,117 @@ export async function onChangeEvents(
   return unlisten;
 }
 
+export async function getIntegrityHead(
+  partitionId: string,
+  scenarioId?: string,
+): Promise<IntegrityHead | undefined> {
+  if (!isTauri()) {
+    return undefined;
+  }
+  try {
+    const raw = await invoke<RustIntegrityHead | null>(COMMANDS.getIntegrityHead, {
+      partitionId,
+      scenarioId,
+    });
+    return raw ? fromRustIntegrityHead(raw) : undefined;
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.getIntegrityHead}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function getLastSchemaCompile(
+  partitionId: string,
+  typeId: string,
+): Promise<SchemaHead | undefined> {
+  if (!isTauri()) {
+    return undefined;
+  }
+  try {
+    const raw = await invoke<RustSchemaHead | null>(COMMANDS.getLastSchemaCompile, {
+      partitionId,
+      typeId,
+    });
+    return raw ? fromRustSchemaHead(raw) : undefined;
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.getLastSchemaCompile}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function listFailedJobs(
+  partitionId: string,
+  limit: number,
+): Promise<JobSummary[]> {
+  if (!isTauri()) {
+    return [];
+  }
+  try {
+    const raw = await invoke<RustJobSummary[]>(COMMANDS.listFailedJobs, { partitionId, limit });
+    return raw.map(fromRustJobSummary);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.listFailedJobs}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function getSchemaManifest(): Promise<SchemaManifest> {
+  if (!isTauri()) {
+    return { manifestVersion: '0', migrations: [], tables: [] };
+  }
+  try {
+    const raw = await invoke<RustSchemaManifest>(COMMANDS.getSchemaManifest);
+    return fromRustSchemaManifest(raw);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.getSchemaManifest}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function explainResolution(
+  input: ExplainResolutionInput,
+): Promise<ExplainResolutionResult> {
+  if (!isTauri()) {
+    return {
+      entityId: input.entityId,
+      fieldId: input.fieldId,
+      candidates: [],
+    };
+  }
+  try {
+    const raw = await invoke<RustExplainResolutionResult>(COMMANDS.explainResolution, input);
+    return fromRustExplainResolution(raw);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.explainResolution}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function explainTraversal(
+  input: ExplainTraversalInput,
+): Promise<ExplainTraversalResult> {
+  if (!isTauri()) {
+    return {
+      edgeId: input.edgeId,
+      active: false,
+      candidates: [],
+    };
+  }
+  try {
+    const raw = await invoke<RustExplainTraversalResult>(COMMANDS.explainTraversal, input);
+    return fromRustExplainTraversal(raw);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.explainTraversal}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
 /**
  * Fetch the effective schema for a type.
  * @param partitionId - Target partition id.
@@ -919,6 +1043,91 @@ interface RustChangeEvent {
   entity_id?: string | null;
   change_kind: number;
   payload?: unknown;
+}
+
+interface RustIntegrityHead {
+  partition: string;
+  scenario_id?: string | null;
+  run_id: string;
+  updated_asserted_at: number;
+}
+
+interface RustSchemaHead {
+  partition: string;
+  type_id: string;
+  schema_version_hash: string;
+  updated_asserted_at: number;
+}
+
+interface RustSchemaManifest {
+  manifest_version: string;
+  migrations: string[];
+  tables: RustTableManifest[];
+}
+
+interface RustTableManifest {
+  name: string;
+  columns: RustColumnManifest[];
+  indexes: RustIndexManifest[];
+}
+
+interface RustColumnManifest {
+  name: string;
+  logical_type: string;
+  nullable: boolean;
+}
+
+interface RustIndexManifest {
+  name: string;
+  columns: string[];
+  unique: boolean;
+}
+
+interface RustExplainPrecedence {
+  layer: number;
+  interval_width: number;
+  asserted_at: number;
+  op_id: string;
+}
+
+interface RustExplainPropertyFact {
+  value: RustValue;
+  valid_from: number;
+  valid_to?: number | null;
+  layer: number;
+  asserted_at: number;
+  op_id: string;
+  is_tombstone: boolean;
+  precedence: RustExplainPrecedence;
+}
+
+interface RustExplainEdgeFact {
+  edge_id: string;
+  src_id: string;
+  dst_id: string;
+  edge_type_id?: string | null;
+  valid_from: number;
+  valid_to?: number | null;
+  layer: number;
+  asserted_at: number;
+  op_id: string;
+  is_tombstone: boolean;
+  precedence: RustExplainPrecedence;
+}
+
+interface RustExplainResolutionResult {
+  entity_id: string;
+  field_id: string;
+  resolved?: RustReadValue | null;
+  winner?: RustExplainPropertyFact | null;
+  candidates: RustExplainPropertyFact[];
+}
+
+interface RustExplainTraversalResult {
+  edge_id: string;
+  active: boolean;
+  winner?: RustExplainEdgeFact | null;
+  candidates: RustExplainEdgeFact[];
 }
 
 type RustValue =
@@ -1196,6 +1405,105 @@ function fromRustChangeEvent(event: RustChangeEvent): ChangeEvent {
     entityId: event.entity_id ?? undefined,
     changeKind: event.change_kind,
     payload: event.payload,
+  };
+}
+
+function fromRustIntegrityHead(head: RustIntegrityHead): IntegrityHead {
+  return {
+    partitionId: head.partition,
+    scenarioId: head.scenario_id ?? undefined,
+    runId: head.run_id,
+    updatedAssertedAt: hlcToString(head.updated_asserted_at),
+  };
+}
+
+function fromRustSchemaHead(head: RustSchemaHead): SchemaHead {
+  return {
+    partitionId: head.partition,
+    typeId: head.type_id,
+    schemaVersionHash: head.schema_version_hash,
+    updatedAssertedAt: hlcToString(head.updated_asserted_at),
+  };
+}
+
+function fromRustSchemaManifest(manifest: RustSchemaManifest): SchemaManifest {
+  return {
+    manifestVersion: manifest.manifest_version,
+    migrations: manifest.migrations,
+    tables: manifest.tables.map((table) => ({
+      name: table.name,
+      columns: table.columns.map((column) => ({
+        name: column.name,
+        logicalType: column.logical_type,
+        nullable: column.nullable,
+      })),
+      indexes: table.indexes.map((index) => ({
+        name: index.name,
+        columns: index.columns,
+        unique: index.unique,
+      })),
+    })),
+  };
+}
+
+function fromRustExplainPrecedence(precedence: RustExplainPrecedence) {
+  return {
+    layer: precedence.layer,
+    intervalWidth: precedence.interval_width,
+    assertedAt: hlcToString(precedence.asserted_at),
+    opId: precedence.op_id,
+  };
+}
+
+function fromRustExplainPropertyFact(fact: RustExplainPropertyFact) {
+  return {
+    value: fromRustValue(fact.value),
+    validFrom: fromValidTimeMicros(fact.valid_from) ?? '',
+    validTo: fromValidTimeMicros(fact.valid_to),
+    layer: fact.layer,
+    assertedAt: hlcToString(fact.asserted_at),
+    opId: fact.op_id,
+    isTombstone: fact.is_tombstone,
+    precedence: fromRustExplainPrecedence(fact.precedence),
+  };
+}
+
+function fromRustExplainEdgeFact(fact: RustExplainEdgeFact) {
+  return {
+    edgeId: fact.edge_id,
+    srcId: fact.src_id,
+    dstId: fact.dst_id,
+    edgeTypeId: fact.edge_type_id ?? undefined,
+    validFrom: fromValidTimeMicros(fact.valid_from) ?? '',
+    validTo: fromValidTimeMicros(fact.valid_to),
+    layer: fact.layer,
+    assertedAt: hlcToString(fact.asserted_at),
+    opId: fact.op_id,
+    isTombstone: fact.is_tombstone,
+    precedence: fromRustExplainPrecedence(fact.precedence),
+  };
+}
+
+function fromRustExplainResolution(
+  result: RustExplainResolutionResult,
+): ExplainResolutionResult {
+  return {
+    entityId: result.entity_id,
+    fieldId: result.field_id,
+    resolved: result.resolved ? toReadValue(result.resolved) : undefined,
+    winner: result.winner ? fromRustExplainPropertyFact(result.winner) : undefined,
+    candidates: result.candidates.map(fromRustExplainPropertyFact),
+  };
+}
+
+function fromRustExplainTraversal(
+  result: RustExplainTraversalResult,
+): ExplainTraversalResult {
+  return {
+    edgeId: result.edge_id,
+    active: result.active,
+    winner: result.winner ? fromRustExplainEdgeFact(result.winner) : undefined,
+    candidates: result.candidates.map(fromRustExplainEdgeFact),
   };
 }
 

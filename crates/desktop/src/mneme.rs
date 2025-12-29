@@ -10,7 +10,9 @@ use aideon_praxis_facade::mneme::{
     ReadEntityAtTimeResult, SchemaVersion, SetEdgeExistenceIntervalInput, SetOp,
     SetPropIntervalInput, SyncApi, TraverseAtTimeInput, TraverseEdgeItem, ValidTime, Value,
     ProjectionEdge, MnemeProcessingApi, TriggerProcessingInput, TriggerRetentionInput,
-    TriggerCompactionInput, RetentionPolicy, RunWorkerInput, JobSummary,
+    TriggerCompactionInput, RetentionPolicy, RunWorkerInput, JobSummary, DiagnosticsApi,
+    IntegrityHead, SchemaHead, SchemaManifest, ExplainResolutionInput, ExplainResolutionResult,
+    ExplainTraversalInput, ExplainTraversalResult,
 };
 use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
 use log::{debug, error, info};
@@ -775,6 +777,99 @@ pub async fn mneme_list_jobs(
 }
 
 #[tauri::command]
+pub async fn mneme_get_integrity_head(
+    state: State<'_, WorkerState>,
+    payload: IntegrityHeadPayload,
+) -> Result<Option<IntegrityHead>, HostError> {
+    let store = state.mneme();
+    store
+        .get_integrity_head(payload.partition_id, payload.scenario_id)
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_get_last_schema_compile(
+    state: State<'_, WorkerState>,
+    payload: SchemaHeadPayload,
+) -> Result<Option<SchemaHead>, HostError> {
+    let store = state.mneme();
+    store
+        .get_last_schema_compile(payload.partition_id, payload.type_id)
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_list_failed_jobs(
+    state: State<'_, WorkerState>,
+    payload: ListFailedJobsPayload,
+) -> Result<Vec<JobSummary>, HostError> {
+    let store = state.mneme();
+    store
+        .list_failed_jobs(payload.partition_id, payload.limit)
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_get_schema_manifest(
+    state: State<'_, WorkerState>,
+) -> Result<SchemaManifest, HostError> {
+    let store = state.mneme();
+    store.get_schema_manifest().await.map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_explain_resolution(
+    state: State<'_, WorkerState>,
+    payload: ExplainResolutionPayload,
+) -> Result<ExplainResolutionResult, HostError> {
+    let store = state.mneme();
+    let as_of = payload
+        .as_of_asserted_at
+        .as_deref()
+        .map(parse_hlc)
+        .transpose()?;
+    store
+        .explain_resolution(ExplainResolutionInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            security_context: None,
+            entity_id: payload.entity_id,
+            field_id: payload.field_id,
+            at_valid_time: parse_valid_time(&payload.at)?,
+            as_of_asserted_at: as_of,
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_explain_traversal(
+    state: State<'_, WorkerState>,
+    payload: ExplainTraversalPayload,
+) -> Result<ExplainTraversalResult, HostError> {
+    let store = state.mneme();
+    let as_of = payload
+        .as_of_asserted_at
+        .as_deref()
+        .map(parse_hlc)
+        .transpose()?;
+    store
+        .explain_traversal(ExplainTraversalInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            security_context: None,
+            edge_id: payload.edge_id,
+            at_valid_time: parse_valid_time(&payload.at)?,
+            as_of_asserted_at: as_of,
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
 pub async fn mneme_get_effective_schema(
     state: State<'_, WorkerState>,
     partition_id: PartitionId,
@@ -1221,6 +1316,48 @@ pub struct ListJobsPayload {
     pub partition_id: PartitionId,
     pub status: Option<u8>,
     pub limit: u32,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntegrityHeadPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaHeadPayload {
+    pub partition_id: PartitionId,
+    pub type_id: aideon_praxis_facade::mneme::Id,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListFailedJobsPayload {
+    pub partition_id: PartitionId,
+    pub limit: u32,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExplainResolutionPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub entity_id: aideon_praxis_facade::mneme::Id,
+    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub at: String,
+    pub as_of_asserted_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExplainTraversalPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub edge_id: aideon_praxis_facade::mneme::Id,
+    pub at: String,
+    pub as_of_asserted_at: Option<String>,
 }
 
 #[cfg(test)]

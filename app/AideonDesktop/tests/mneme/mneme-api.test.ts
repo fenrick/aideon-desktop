@@ -39,6 +39,12 @@ import {
   subscribePartition,
   unsubscribePartition,
   onChangeEvents,
+  getIntegrityHead,
+  getLastSchemaCompile,
+  listFailedJobs,
+  getSchemaManifest,
+  explainResolution,
+  explainTraversal,
   readEntityAtTime,
   traverseAtTime,
   tombstoneEntity,
@@ -787,5 +793,232 @@ describe('mneme-api metamodel bindings', () => {
 
     expect(listenMock).toHaveBeenCalledWith('mneme_change_event', expect.any(Function));
     expect(typeof unlisten).toBe('function');
+  });
+
+  it('maps integrity heads from rust', async () => {
+    invokeMock.mockResolvedValue({
+      partition: 'p-1',
+      scenario_id: null,
+      run_id: 'run-1',
+      updated_asserted_at: 90210,
+    });
+
+    const result = await getIntegrityHead('p-1');
+
+    expect(result).toEqual({
+      partitionId: 'p-1',
+      scenarioId: undefined,
+      runId: 'run-1',
+      updatedAssertedAt: '90210',
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_get_integrity_head', {
+      partitionId: 'p-1',
+      scenarioId: undefined,
+    });
+  });
+
+  it('maps schema compile heads from rust', async () => {
+    invokeMock.mockResolvedValue({
+      partition: 'p-1',
+      type_id: 't-1',
+      schema_version_hash: 'hash-1',
+      updated_asserted_at: 12,
+    });
+
+    const result = await getLastSchemaCompile('p-1', 't-1');
+
+    expect(result).toEqual({
+      partitionId: 'p-1',
+      typeId: 't-1',
+      schemaVersionHash: 'hash-1',
+      updatedAssertedAt: '12',
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_get_last_schema_compile', {
+      partitionId: 'p-1',
+      typeId: 't-1',
+    });
+  });
+
+  it('lists failed jobs', async () => {
+    invokeMock.mockResolvedValue([
+      {
+        partition: 'p-1',
+        job_id: 'j-1',
+        job_type: 'schema',
+        status: 3,
+        priority: 1,
+        attempts: 2,
+        max_attempts: 3,
+        lease_expires_at: null,
+        next_run_after: null,
+        created_asserted_at: 11,
+        updated_asserted_at: 22,
+        dedupe_key: 'key',
+        last_error: 'oops',
+      },
+    ]);
+
+    const result = await listFailedJobs('p-1', 5);
+
+    expect(result[0]).toMatchObject({
+      partitionId: 'p-1',
+      jobId: 'j-1',
+      jobType: 'schema',
+      status: 3,
+      priority: 1,
+      attempts: 2,
+      maxAttempts: 3,
+      createdAssertedAt: '11',
+      updatedAssertedAt: '22',
+      dedupeKey: 'key',
+      lastError: 'oops',
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_list_failed_jobs', {
+      partitionId: 'p-1',
+      limit: 5,
+    });
+  });
+
+  it('maps schema manifest rows', async () => {
+    invokeMock.mockResolvedValue({
+      manifest_version: 'v2',
+      migrations: ['001_init', '002_next'],
+      tables: [
+        {
+          name: 'nodes',
+          columns: [
+            { name: 'id', logical_type: 'uuid', nullable: false },
+            { name: 'name', logical_type: 'text', nullable: true },
+          ],
+          indexes: [{ name: 'idx_nodes_id', columns: ['id'], unique: true }],
+        },
+      ],
+    });
+
+    const result = await getSchemaManifest();
+
+    expect(result).toEqual({
+      manifestVersion: 'v2',
+      migrations: ['001_init', '002_next'],
+      tables: [
+        {
+          name: 'nodes',
+          columns: [
+            { name: 'id', logicalType: 'uuid', nullable: false },
+            { name: 'name', logicalType: 'text', nullable: true },
+          ],
+          indexes: [{ name: 'idx_nodes_id', columns: ['id'], unique: true }],
+        },
+      ],
+    });
+  });
+
+  it('maps explain resolution results', async () => {
+    invokeMock.mockResolvedValue({
+      entity_id: 'n-1',
+      field_id: 'f-1',
+      resolved: { t: 1, v: { Str: 'ok' } },
+      winner: {
+        value: { Str: 'ok' },
+        valid_from: 1_000_000,
+        valid_to: null,
+        layer: 2,
+        asserted_at: 100,
+        op_id: 'op-1',
+        is_tombstone: false,
+        precedence: {
+          layer: 2,
+          interval_width: 1,
+          asserted_at: 100,
+          op_id: 'op-1',
+        },
+      },
+      candidates: [],
+    });
+
+    const result = await explainResolution({
+      partitionId: 'p-1',
+      entityId: 'n-1',
+      fieldId: 'f-1',
+      at: '2024-01-01T00:00:00.000Z',
+    });
+
+    expect(result).toMatchObject({
+      entityId: 'n-1',
+      fieldId: 'f-1',
+      resolved: { t: 'str', v: 'ok' },
+      winner: {
+        value: { t: 'str', v: 'ok' },
+        validFrom: '1970-01-01T00:00:01.000Z',
+        layer: 2,
+        assertedAt: '100',
+        opId: 'op-1',
+        isTombstone: false,
+      },
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_explain_resolution', {
+      partitionId: 'p-1',
+      entityId: 'n-1',
+      fieldId: 'f-1',
+      at: '2024-01-01T00:00:00.000Z',
+      asOfAssertedAt: undefined,
+      scenarioId: undefined,
+    });
+  });
+
+  it('maps explain traversal results', async () => {
+    invokeMock.mockResolvedValue({
+      edge_id: 'e-1',
+      active: true,
+      winner: {
+        edge_id: 'e-1',
+        src_id: 'n-1',
+        dst_id: 'n-2',
+        edge_type_id: 'rel',
+        valid_from: 2_000_000,
+        valid_to: 3_000_000,
+        layer: 1,
+        asserted_at: 200,
+        op_id: 'op-2',
+        is_tombstone: false,
+        precedence: {
+          layer: 1,
+          interval_width: 1,
+          asserted_at: 200,
+          op_id: 'op-2',
+        },
+      },
+      candidates: [],
+    });
+
+    const result = await explainTraversal({
+      partitionId: 'p-1',
+      edgeId: 'e-1',
+      at: '2024-01-02T00:00:00.000Z',
+    });
+
+    expect(result).toMatchObject({
+      edgeId: 'e-1',
+      active: true,
+      winner: {
+        edgeId: 'e-1',
+        srcId: 'n-1',
+        dstId: 'n-2',
+        edgeTypeId: 'rel',
+        validFrom: '1970-01-01T00:00:02.000Z',
+        validTo: '1970-01-01T00:00:03.000Z',
+        layer: 1,
+        assertedAt: '200',
+        opId: 'op-2',
+        isTombstone: false,
+      },
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_explain_traversal', {
+      partitionId: 'p-1',
+      edgeId: 'e-1',
+      at: '2024-01-02T00:00:00.000Z',
+      asOfAssertedAt: undefined,
+      scenarioId: undefined,
+    });
   });
 });

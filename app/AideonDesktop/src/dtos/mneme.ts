@@ -429,3 +429,105 @@ export interface SubscriptionResult {
 export interface UnsubscribePartitionInput {
   subscriptionId: string;
 }
+
+export interface IntegrityHead {
+  partitionId: string;
+  scenarioId?: string;
+  runId: string;
+  updatedAssertedAt: AssertedTime;
+}
+
+export interface SchemaHead {
+  partitionId: string;
+  typeId: string;
+  schemaVersionHash: string;
+  updatedAssertedAt: AssertedTime;
+}
+
+export interface SchemaManifest {
+  manifestVersion: string;
+  migrations: string[];
+  tables: TableManifest[];
+}
+
+export interface TableManifest {
+  name: string;
+  columns: ColumnManifest[];
+  indexes: IndexManifest[];
+}
+
+export interface ColumnManifest {
+  name: string;
+  logicalType: string;
+  nullable: boolean;
+}
+
+export interface IndexManifest {
+  name: string;
+  columns: string[];
+  unique: boolean;
+}
+
+export interface ExplainPrecedence {
+  layer: number;
+  intervalWidth: number;
+  assertedAt: AssertedTime;
+  opId: string;
+}
+
+export interface ExplainPropertyFact {
+  value: Value;
+  validFrom: ValidTime;
+  validTo?: ValidTime;
+  layer: number;
+  assertedAt: AssertedTime;
+  opId: string;
+  isTombstone: boolean;
+  precedence: ExplainPrecedence;
+}
+
+export interface ExplainEdgeFact {
+  edgeId: string;
+  srcId: string;
+  dstId: string;
+  edgeTypeId?: string;
+  validFrom: ValidTime;
+  validTo?: ValidTime;
+  layer: number;
+  assertedAt: AssertedTime;
+  opId: string;
+  isTombstone: boolean;
+  precedence: ExplainPrecedence;
+}
+
+export interface ExplainResolutionInput {
+  partitionId: string;
+  entityId: string;
+  fieldId: string;
+  at: ValidTime;
+  asOfAssertedAt?: AssertedTime;
+  scenarioId?: string;
+}
+
+export interface ExplainResolutionResult {
+  entityId: string;
+  fieldId: string;
+  resolved?: ReadValue;
+  winner?: ExplainPropertyFact;
+  candidates: ExplainPropertyFact[];
+}
+
+export interface ExplainTraversalInput {
+  partitionId: string;
+  edgeId: string;
+  at: ValidTime;
+  asOfAssertedAt?: AssertedTime;
+  scenarioId?: string;
+}
+
+export interface ExplainTraversalResult {
+  edgeId: string;
+  active: boolean;
+  winner?: ExplainEdgeFact;
+  candidates: ExplainEdgeFact[];
+}

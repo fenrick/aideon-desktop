@@ -12,6 +12,10 @@ import type {
   FieldFilter,
   ExportOpsInput,
   ExportOpsResult,
+  ExportOptions,
+  ExportRecord,
+  ImportOptions,
+  ImportReport,
   GetChangesSinceInput,
   GetGraphDegreeStatsInput,
   GetGraphEdgeTypeCountsInput,
@@ -46,6 +50,7 @@ import type {
   SubscribePartitionInput,
   SubscriptionResult,
   StorePageRankRunInput,
+  SnapshotOptions,
   TombstoneEntityInput,
   TriggerCompactionInput,
   TriggerProcessingInput,
@@ -94,6 +99,10 @@ const COMMANDS = {
   getPartitionHead: 'mneme_get_partition_head',
   createScenario: 'mneme_create_scenario',
   deleteScenario: 'mneme_delete_scenario',
+  exportOpsStream: 'mneme_export_ops_stream',
+  importOpsStream: 'mneme_import_ops_stream',
+  exportSnapshotStream: 'mneme_export_snapshot_stream',
+  importSnapshotStream: 'mneme_import_snapshot_stream',
   triggerRebuildEffectiveSchema: 'mneme_trigger_rebuild_effective_schema',
   triggerRefreshIntegrity: 'mneme_trigger_refresh_integrity',
   triggerRefreshAnalyticsProjections: 'mneme_trigger_refresh_analytics_projections',
@@ -609,6 +618,89 @@ export async function deleteScenario(input: DeleteScenarioInput): Promise<void> 
   }
 }
 
+/**
+ * Export a streaming op log payload.
+ */
+export async function exportOpsStream(options: ExportOptions): Promise<AsyncIterable<ExportRecord>> {
+  if (!isTauri()) {
+    return toAsyncIterable([]);
+  }
+  try {
+    const raw = await invoke<RustExportRecord[]>(COMMANDS.exportOpsStream, options);
+    return toAsyncIterable(raw.map(fromRustExportRecord));
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.exportOpsStream}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Import a streaming op log payload.
+ */
+export async function importOpsStream(
+  options: ImportOptions,
+  records: AsyncIterable<ExportRecord>,
+): Promise<ImportReport> {
+  if (!isTauri()) {
+    return { opsImported: 0, opsSkipped: 0, errors: 0 };
+  }
+  try {
+    const collected = await collectAsyncIterable(records);
+    const raw = await invoke<RustImportReport>(COMMANDS.importOpsStream, {
+      ...options,
+      records: collected.map(toRustExportRecord),
+    });
+    return fromRustImportReport(raw);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.importOpsStream}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Export a snapshot stream.
+ */
+export async function exportSnapshotStream(
+  options: SnapshotOptions,
+): Promise<AsyncIterable<ExportRecord>> {
+  if (!isTauri()) {
+    return toAsyncIterable([]);
+  }
+  try {
+    const raw = await invoke<RustExportRecord[]>(COMMANDS.exportSnapshotStream, options);
+    return toAsyncIterable(raw.map(fromRustExportRecord));
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.exportSnapshotStream}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Import a snapshot stream.
+ */
+export async function importSnapshotStream(
+  options: ImportOptions,
+  records: AsyncIterable<ExportRecord>,
+): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+  try {
+    const collected = await collectAsyncIterable(records);
+    await invoke<void>(COMMANDS.importSnapshotStream, {
+      ...options,
+      records: collected.map(toRustExportRecord),
+    });
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.importSnapshotStream}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
 export async function triggerRebuildEffectiveSchema(
   input: TriggerProcessingInput,
 ): Promise<void> {
@@ -1055,6 +1147,17 @@ interface RustOpEnvelope {
   deps: string[];
 }
 
+interface RustExportRecord {
+  record_type: string;
+  data: unknown;
+}
+
+interface RustImportReport {
+  ops_imported: number;
+  ops_skipped: number;
+  errors: number;
+}
+
 interface RustJobSummary {
   partition: string;
   job_id: string;
@@ -1412,6 +1515,42 @@ function toRustOpEnvelope(op: OpEnvelope) {
     payload: Array.from(op.payload),
     deps: op.deps,
   };
+}
+
+function fromRustExportRecord(record: RustExportRecord): ExportRecord {
+  return {
+    recordType: record.record_type,
+    data: record.data,
+  };
+}
+
+function toRustExportRecord(record: ExportRecord): RustExportRecord {
+  return {
+    record_type: record.recordType,
+    data: record.data,
+  };
+}
+
+function fromRustImportReport(report: RustImportReport): ImportReport {
+  return {
+    opsImported: report.ops_imported,
+    opsSkipped: report.ops_skipped,
+    errors: report.errors,
+  };
+}
+
+async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
+  for (const item of items) {
+    yield item;
+  }
+}
+
+async function collectAsyncIterable<T>(items: AsyncIterable<T>): Promise<T[]> {
+  const collected: T[] = [];
+  for await (const item of items) {
+    collected.push(item);
+  }
+  return collected;
 }
 
 function fromRustJobSummary(job: RustJobSummary): JobSummary {

@@ -334,10 +334,47 @@ export interface ExportOpsResult {
   ops: OpEnvelope[];
 }
 
+export interface ExportOptions {
+  partitionId: string;
+  scenarioId?: string;
+  sinceAssertedAt?: AssertedTime;
+  untilAssertedAt?: AssertedTime;
+  includeSchema?: boolean;
+  includeDataOps?: boolean;
+  includeScenarios?: boolean;
+}
+
+export interface ExportRecord {
+  recordType: string;
+  data: unknown;
+}
+
+export interface ImportOptions {
+  targetPartition: string;
+  scenarioId?: string;
+  allowPartitionCreate?: boolean;
+  remapActorIds?: Record<string, string>;
+  strictSchema?: boolean;
+}
+
+export interface ImportReport {
+  opsImported: number;
+  opsSkipped: number;
+  errors: number;
+}
+
 export interface IngestOpsInput {
   partitionId: string;
   ops: OpEnvelope[];
   scenarioId?: string;
+}
+
+export interface SnapshotOptions {
+  partitionId: string;
+  scenarioId?: string;
+  asOfAssertedAt: AssertedTime;
+  includeFacts?: boolean;
+  includeEntities?: boolean;
 }
 
 export interface PartitionHeadResult {

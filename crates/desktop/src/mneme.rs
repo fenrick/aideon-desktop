@@ -13,10 +13,13 @@ use aideon_praxis_facade::mneme::{
     TriggerProcessingInput, TriggerRetentionInput, TriggerCompactionInput, RetentionPolicy,
     RunWorkerInput, JobSummary, DiagnosticsApi, IntegrityHead, SchemaHead, SchemaManifest,
     ExplainResolutionInput, ExplainResolutionResult, ExplainTraversalInput, ExplainTraversalResult,
+    ExportOptions, ExportRecord, ImportOptions, ImportReport, MnemeExportApi, MnemeImportApi,
+    MnemeSnapshotApi, SnapshotOptions,
 };
 use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::State;
 use tauri::Window;
@@ -697,6 +700,96 @@ pub async fn mneme_delete_scenario(
 }
 
 #[tauri::command]
+pub async fn mneme_export_ops_stream(
+    state: State<'_, WorkerState>,
+    payload: ExportOpsStreamPayload,
+) -> Result<Vec<ExportRecord>, HostError> {
+    let store = state.mneme();
+    let since_asserted_at = payload
+        .since_asserted_at
+        .as_deref()
+        .map(parse_hlc)
+        .transpose()?;
+    let until_asserted_at = payload
+        .until_asserted_at
+        .as_deref()
+        .map(parse_hlc)
+        .transpose()?;
+    let options = ExportOptions {
+        partition: payload.partition_id,
+        scenario_id: payload.scenario_id,
+        since_asserted_at,
+        until_asserted_at,
+        include_schema: payload.include_schema.unwrap_or(true),
+        include_data_ops: payload.include_data_ops.unwrap_or(true),
+        include_scenarios: payload.include_scenarios.unwrap_or(true),
+    };
+    let records = store
+        .export_ops_stream(options)
+        .await
+        .map_err(host_error)?;
+    Ok(records.collect())
+}
+
+#[tauri::command]
+pub async fn mneme_import_ops_stream(
+    state: State<'_, WorkerState>,
+    payload: ImportOpsStreamPayload,
+) -> Result<ImportReport, HostError> {
+    let store = state.mneme();
+    let options = ImportOptions {
+        target_partition: payload.target_partition,
+        scenario_id: payload.scenario_id,
+        allow_partition_create: payload.allow_partition_create.unwrap_or(false),
+        remap_actor_ids: payload.remap_actor_ids.unwrap_or_default(),
+        strict_schema: payload.strict_schema.unwrap_or(false),
+    };
+    store
+        .import_ops_stream(options, payload.records.into_iter())
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_export_snapshot_stream(
+    state: State<'_, WorkerState>,
+    payload: ExportSnapshotPayload,
+) -> Result<Vec<ExportRecord>, HostError> {
+    let store = state.mneme();
+    let options = SnapshotOptions {
+        partition_id: payload.partition_id,
+        scenario_id: payload.scenario_id,
+        as_of_asserted_at: parse_hlc(&payload.as_of_asserted_at)?,
+        include_facts: payload.include_facts.unwrap_or(true),
+        include_entities: payload.include_entities.unwrap_or(true),
+    };
+    let records = store
+        .export_snapshot_stream(options)
+        .await
+        .map_err(host_error)?;
+    Ok(records.collect())
+}
+
+#[tauri::command]
+pub async fn mneme_import_snapshot_stream(
+    state: State<'_, WorkerState>,
+    payload: ImportSnapshotPayload,
+) -> Result<(), HostError> {
+    let store = state.mneme();
+    let options = ImportOptions {
+        target_partition: payload.target_partition,
+        scenario_id: payload.scenario_id,
+        allow_partition_create: payload.allow_partition_create.unwrap_or(false),
+        remap_actor_ids: payload.remap_actor_ids.unwrap_or_default(),
+        strict_schema: payload.strict_schema.unwrap_or(false),
+    };
+    store
+        .import_snapshot_stream(options, payload.records.into_iter())
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
 pub async fn mneme_trigger_rebuild_effective_schema(
     state: State<'_, WorkerState>,
     payload: TriggerProcessingPayload,
@@ -1315,6 +1408,50 @@ pub struct DeleteScenarioPayload {
     pub actor_id: ActorId,
     pub asserted_at: String,
     pub scenario_id: ScenarioId,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportOpsStreamPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub since_asserted_at: Option<String>,
+    pub until_asserted_at: Option<String>,
+    pub include_schema: Option<bool>,
+    pub include_data_ops: Option<bool>,
+    pub include_scenarios: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportOpsStreamPayload {
+    pub target_partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub allow_partition_create: Option<bool>,
+    pub remap_actor_ids: Option<HashMap<ActorId, ActorId>>,
+    pub strict_schema: Option<bool>,
+    pub records: Vec<ExportRecord>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportSnapshotPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub as_of_asserted_at: String,
+    pub include_facts: Option<bool>,
+    pub include_entities: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportSnapshotPayload {
+    pub target_partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub allow_partition_create: Option<bool>,
+    pub remap_actor_ids: Option<HashMap<ActorId, ActorId>>,
+    pub strict_schema: Option<bool>,
+    pub records: Vec<ExportRecord>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -26,10 +26,14 @@ import {
   storePageRankRun,
   getPageRankScores,
   exportOps,
+  exportOpsStream,
   ingestOps,
+  importOpsStream,
   getPartitionHead,
   createScenario,
   deleteScenario,
+  exportSnapshotStream,
+  importSnapshotStream,
   listJobs,
   runProcessingWorker,
   triggerCompaction,
@@ -629,6 +633,27 @@ describe('mneme-api metamodel bindings', () => {
     expect(Array.from(result.ops[0]?.payload ?? [])).toEqual([1, 2, 3]);
   });
 
+  it('exports op streams and yields records', async () => {
+    invokeMock.mockResolvedValue([
+      { record_type: 'header', data: { version: 1 } },
+      { record_type: 'op', data: { opId: 'o-1' } },
+    ]);
+
+    const iterable = await exportOpsStream({ partitionId: 'p-1' });
+    const records: Array<{ recordType: string; data: unknown }> = [];
+    for await (const record of iterable) {
+      records.push(record);
+    }
+
+    expect(records).toEqual([
+      { recordType: 'header', data: { version: 1 } },
+      { recordType: 'op', data: { opId: 'o-1' } },
+    ]);
+    expect(invokeMock).toHaveBeenCalledWith('mneme_export_ops_stream', {
+      partitionId: 'p-1',
+    });
+  });
+
   it('ingests ops with byte payload conversion', async () => {
     invokeMock.mockResolvedValue(undefined);
 
@@ -658,6 +683,72 @@ describe('mneme-api metamodel bindings', () => {
           deps: [],
         },
       ],
+    });
+  });
+
+  it('imports op streams and maps reports', async () => {
+    invokeMock.mockResolvedValue({ ops_imported: 2, ops_skipped: 1, errors: 0 });
+
+    async function* records() {
+      yield { recordType: 'op', data: { opId: 'o-1' } };
+    }
+
+    const report = await importOpsStream(
+      {
+        targetPartition: 'p-1',
+        allowPartitionCreate: true,
+        strictSchema: true,
+      },
+      records(),
+    );
+
+    expect(report).toEqual({ opsImported: 2, opsSkipped: 1, errors: 0 });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_import_ops_stream', {
+      targetPartition: 'p-1',
+      allowPartitionCreate: true,
+      strictSchema: true,
+      records: [{ record_type: 'op', data: { opId: 'o-1' } }],
+    });
+  });
+
+  it('exports snapshot streams', async () => {
+    invokeMock.mockResolvedValue([{ record_type: 'header', data: { snap: true } }]);
+
+    const iterable = await exportSnapshotStream({
+      partitionId: 'p-1',
+      asOfAssertedAt: '123',
+    });
+    const records: Array<{ recordType: string; data: unknown }> = [];
+    for await (const record of iterable) {
+      records.push(record);
+    }
+
+    expect(records).toEqual([{ recordType: 'header', data: { snap: true } }]);
+    expect(invokeMock).toHaveBeenCalledWith('mneme_export_snapshot_stream', {
+      partitionId: 'p-1',
+      asOfAssertedAt: '123',
+    });
+  });
+
+  it('imports snapshot streams', async () => {
+    invokeMock.mockResolvedValue(undefined);
+
+    async function* records() {
+      yield { recordType: 'header', data: { snap: true } };
+    }
+
+    await importSnapshotStream(
+      {
+        targetPartition: 'p-1',
+        allowPartitionCreate: false,
+      },
+      records(),
+    );
+
+    expect(invokeMock).toHaveBeenCalledWith('mneme_import_snapshot_stream', {
+      targetPartition: 'p-1',
+      allowPartitionCreate: false,
+      records: [{ record_type: 'header', data: { snap: true } }],
     });
   });
 

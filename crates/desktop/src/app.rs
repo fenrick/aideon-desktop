@@ -83,6 +83,8 @@ pub fn run() {
             crate::mneme::mneme_export_ops,
             crate::mneme::mneme_ingest_ops,
             crate::mneme::mneme_get_partition_head,
+            crate::mneme::mneme_create_scenario,
+            crate::mneme::mneme_delete_scenario,
             crate::mneme::mneme_trigger_rebuild_effective_schema,
             crate::mneme::mneme_trigger_refresh_integrity,
             crate::mneme::mneme_trigger_refresh_analytics_projections,

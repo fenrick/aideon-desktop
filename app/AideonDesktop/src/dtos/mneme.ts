@@ -6,6 +6,7 @@
 export type ValidTime = string;
 // HLC encoded as string
 export type AssertedTime = string;
+export type ScenarioId = string;
 
 export type Layer = 'Plan' | 'Actual';
 
@@ -341,6 +342,20 @@ export interface IngestOpsInput {
 
 export interface PartitionHeadResult {
   head: AssertedTime;
+}
+
+export interface CreateScenarioInput {
+  partitionId: string;
+  actorId: string;
+  assertedAt: AssertedTime;
+  name: string;
+}
+
+export interface DeleteScenarioInput {
+  partitionId: string;
+  actorId: string;
+  assertedAt: AssertedTime;
+  scenarioId: ScenarioId;
 }
 
 export interface TriggerProcessingInput {

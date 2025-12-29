@@ -2,17 +2,17 @@
 
 use aideon_praxis_facade::mneme::{
     AnalyticsApi, AnalyticsResultsApi, ChangeEvent, ChangeFeedApi, ClearPropIntervalInput,
-    CompareOp, CounterUpdateInput, CreateEdgeInput, CreateNodeInput, Direction, EdgeTypeRule,
-    EntityKind, FieldFilter, ExportOpsInput, GetGraphDegreeStatsInput, GetGraphEdgeTypeCountsInput,
-    GetProjectionEdgesInput, GraphDegreeStat, GraphEdgeTypeCount, GraphReadApi, GraphWriteApi,
-    ListEntitiesInput, ListEntitiesResultItem, MetamodelApi, MetamodelBatch, MnemeError, OpEnvelope,
-    OpId, OrSetUpdateInput, PageRankRunSpec, PartitionId, PropertyWriteApi, ReadEntityAtTimeInput,
-    ReadEntityAtTimeResult, SchemaVersion, SetEdgeExistenceIntervalInput, SetOp,
-    SetPropIntervalInput, SyncApi, TraverseAtTimeInput, TraverseEdgeItem, ValidTime, Value,
-    ProjectionEdge, MnemeProcessingApi, TriggerProcessingInput, TriggerRetentionInput,
-    TriggerCompactionInput, RetentionPolicy, RunWorkerInput, JobSummary, DiagnosticsApi,
-    IntegrityHead, SchemaHead, SchemaManifest, ExplainResolutionInput, ExplainResolutionResult,
-    ExplainTraversalInput, ExplainTraversalResult,
+    CompareOp, CounterUpdateInput, CreateEdgeInput, CreateNodeInput, CreateScenarioInput, Direction,
+    EdgeTypeRule, EntityKind, FieldFilter, ExportOpsInput, GetGraphDegreeStatsInput,
+    GetGraphEdgeTypeCountsInput, GetProjectionEdgesInput, GraphDegreeStat, GraphEdgeTypeCount,
+    GraphReadApi, GraphWriteApi, ListEntitiesInput, ListEntitiesResultItem, MetamodelApi,
+    MetamodelBatch, MnemeError, OpEnvelope, OpId, OrSetUpdateInput, PageRankRunSpec, PartitionId,
+    PropertyWriteApi, ReadEntityAtTimeInput, ReadEntityAtTimeResult, SchemaVersion,
+    SetEdgeExistenceIntervalInput, SetOp, SetPropIntervalInput, SyncApi, ScenarioApi,
+    TraverseAtTimeInput, TraverseEdgeItem, ValidTime, Value, ProjectionEdge, MnemeProcessingApi,
+    TriggerProcessingInput, TriggerRetentionInput, TriggerCompactionInput, RetentionPolicy,
+    RunWorkerInput, JobSummary, DiagnosticsApi, IntegrityHead, SchemaHead, SchemaManifest,
+    ExplainResolutionInput, ExplainResolutionResult, ExplainTraversalInput, ExplainTraversalResult,
 };
 use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
 use log::{debug, error, info};
@@ -661,6 +661,42 @@ pub async fn mneme_get_partition_head(
 }
 
 #[tauri::command]
+pub async fn mneme_create_scenario(
+    state: State<'_, WorkerState>,
+    payload: CreateScenarioPayload,
+) -> Result<ScenarioId, HostError> {
+    let store = state.mneme();
+    let asserted_at = parse_hlc(&payload.asserted_at)?;
+    store
+        .create_scenario(CreateScenarioInput {
+            partition: payload.partition_id,
+            actor: payload.actor_id,
+            asserted_at,
+            name: payload.name,
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_delete_scenario(
+    state: State<'_, WorkerState>,
+    payload: DeleteScenarioPayload,
+) -> Result<(), HostError> {
+    let store = state.mneme();
+    let asserted_at = parse_hlc(&payload.asserted_at)?;
+    store
+        .delete_scenario(
+            payload.partition_id,
+            payload.actor_id,
+            asserted_at,
+            payload.scenario_id,
+        )
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
 pub async fn mneme_trigger_rebuild_effective_schema(
     state: State<'_, WorkerState>,
     payload: TriggerProcessingPayload,
@@ -1261,6 +1297,24 @@ pub struct PartitionHeadResult {
 #[serde(rename_all = "camelCase")]
 pub struct PartitionHeadPayload {
     pub partition_id: PartitionId,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateScenarioPayload {
+    pub partition_id: PartitionId,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteScenarioPayload {
+    pub partition_id: PartitionId,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub scenario_id: ScenarioId,
 }
 
 #[derive(Debug, Deserialize)]

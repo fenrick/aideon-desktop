@@ -15,6 +15,8 @@ import type {
   GetChangesSinceInput,
   GetGraphDegreeStatsInput,
   GetGraphEdgeTypeCountsInput,
+  CreateScenarioInput,
+  DeleteScenarioInput,
   GetPageRankScoresInput,
   GetProjectionEdgesInput,
   GraphDegreeStat,
@@ -90,6 +92,8 @@ const COMMANDS = {
   exportOps: 'mneme_export_ops',
   ingestOps: 'mneme_ingest_ops',
   getPartitionHead: 'mneme_get_partition_head',
+  createScenario: 'mneme_create_scenario',
+  deleteScenario: 'mneme_delete_scenario',
   triggerRebuildEffectiveSchema: 'mneme_trigger_rebuild_effective_schema',
   triggerRefreshIntegrity: 'mneme_trigger_refresh_integrity',
   triggerRefreshAnalyticsProjections: 'mneme_trigger_refresh_analytics_projections',
@@ -568,6 +572,38 @@ export async function getPartitionHead(partitionId: string): Promise<PartitionHe
     return await invoke<PartitionHeadResult>(COMMANDS.getPartitionHead, { partitionId });
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.getPartitionHead}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Create a scenario overlay.
+ */
+export async function createScenario(input: CreateScenarioInput): Promise<string> {
+  if (!isTauri()) {
+    return 'mock-scenario';
+  }
+  try {
+    return await invoke<string>(COMMANDS.createScenario, toInvokeArguments(input));
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.createScenario}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Delete a scenario overlay.
+ */
+export async function deleteScenario(input: DeleteScenarioInput): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+  try {
+    await invoke<void>(COMMANDS.deleteScenario, toInvokeArguments(input));
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.deleteScenario}' failed: ${String(error)}`, {
       cause: error,
     });
   }

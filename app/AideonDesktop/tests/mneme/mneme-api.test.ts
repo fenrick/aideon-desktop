@@ -28,6 +28,8 @@ import {
   exportOps,
   ingestOps,
   getPartitionHead,
+  createScenario,
+  deleteScenario,
   listJobs,
   runProcessingWorker,
   triggerCompaction,
@@ -666,6 +668,37 @@ describe('mneme-api metamodel bindings', () => {
 
     expect(result.head).toBe('999');
     expect(invokeMock).toHaveBeenCalledWith('mneme_get_partition_head', { partitionId: 'p-1' });
+  });
+
+  it('creates and deletes scenarios', async () => {
+    invokeMock.mockResolvedValueOnce('s-1').mockResolvedValueOnce(undefined);
+
+    const scenarioId = await createScenario({
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      name: 'Plan A',
+    });
+    await deleteScenario({
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '124',
+      scenarioId: 's-1',
+    });
+
+    expect(scenarioId).toBe('s-1');
+    expect(invokeMock).toHaveBeenCalledWith('mneme_create_scenario', {
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      name: 'Plan A',
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_delete_scenario', {
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '124',
+      scenarioId: 's-1',
+    });
   });
 
   it('triggers processing jobs', async () => {

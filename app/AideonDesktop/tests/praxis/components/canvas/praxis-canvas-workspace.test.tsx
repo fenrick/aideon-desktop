@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -84,7 +84,7 @@ vi.mock('praxis/widgets/matrix-widget', () => ({
 }));
 
 describe('PraxisCanvasWorkspace', () => {
-  it('renders widgets, toggles page breaks, and shows view/error state', () => {
+  it('renders widgets, reflects page breaks, and forwards view/error state', async () => {
     const selection: SelectionState = { nodeIds: [], edgeIds: [] };
     const widgets: PraxisCanvasWidget[] = [
       { id: 'g1', kind: 'graph', title: 'Graph', view: {} } as unknown as PraxisCanvasWidget,
@@ -98,26 +98,41 @@ describe('PraxisCanvasWorkspace', () => {
       { id: 'm1', kind: 'matrix', title: 'Matrix', view: {} } as unknown as PraxisCanvasWidget,
     ];
 
-    render(<PraxisCanvasWorkspace widgets={widgets} selection={selection} />);
+    const onGraphStatsChange = vi.fn();
+    const onGraphMetadataChange = vi.fn();
+    const onGraphErrorMessage = vi.fn();
+
+    const { rerender } = render(
+      <PraxisCanvasWorkspace
+        widgets={widgets}
+        selection={selection}
+        showPageBreaks
+        reloadSignal={0}
+        onGraphStatsChange={onGraphStatsChange}
+        onGraphMetadataChange={onGraphMetadataChange}
+        onGraphErrorMessage={onGraphErrorMessage}
+      />,
+    );
 
     expect(screen.getByText('graph reload:0')).toBeInTheDocument();
     expect(screen.getByText('catalogue')).toBeInTheDocument();
     expect(screen.getByText('chart')).toBeInTheDocument();
     expect(screen.getByText('matrix')).toBeInTheDocument();
 
-    expect(screen.getByTestId('canvas-runtime')).toHaveAttribute('data-pages', 'false');
-    fireEvent.click(screen.getByRole('button', { name: 'Show Pages' }));
     expect(screen.getByTestId('canvas-runtime')).toHaveAttribute('data-pages', 'true');
 
     fireEvent.click(screen.getByText('emit-view'));
-    expect(screen.getByText(/As of/i)).toBeInTheDocument();
-    expect(screen.getByText(/Nodes 1/i)).toBeInTheDocument();
-    expect(screen.getByText(/Edges 2/i)).toBeInTheDocument();
+    expect(onGraphMetadataChange).toHaveBeenCalled();
+    expect(onGraphStatsChange).toHaveBeenCalled();
+    expect(onGraphErrorMessage).toHaveBeenCalledWith();
 
     fireEvent.click(screen.getByText('emit-error'));
     expect(screen.getByText('boom')).toBeInTheDocument();
+    expect(onGraphErrorMessage).toHaveBeenCalledWith('boom');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
-    expect(screen.getByText('graph reload:1')).toBeInTheDocument();
+    rerender(<PraxisCanvasWorkspace widgets={widgets} selection={selection} reloadSignal={1} />);
+    await waitFor(() => {
+      expect(screen.getByText('graph reload:1')).toBeInTheDocument();
+    });
   });
 });

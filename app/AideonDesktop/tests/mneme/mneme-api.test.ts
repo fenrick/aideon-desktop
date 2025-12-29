@@ -1,70 +1,70 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('workspaces/mneme/platform', () => ({ isTauri: vi.fn() }));
+vi.mock('@/workspaces/mneme/platform', () => ({ isTauri: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn() }));
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { isTauri } from 'workspaces/mneme/platform';
+import { isTauri } from '@/workspaces/mneme/platform';
 
 import {
+  clearPropertyInterval,
+  compileEffectiveSchema,
+  counterUpdate,
   createEdge,
   createNode,
-  compileEffectiveSchema,
-  getEffectiveSchema,
-  listEdgeTypeRules,
-  counterUpdate,
-  orSetUpdate,
-  setPropertyInterval,
-  clearPropertyInterval,
-  setEdgeExistenceInterval,
-  listEntities,
-  getProjectionEdges,
-  getGraphDegreeStats,
-  getGraphEdgeTypeCounts,
-  storePageRankRun,
-  getPageRankScores,
+  createScenario,
+  deleteScenario,
+  explainResolution,
+  explainTraversal,
   exportOps,
   exportOpsStream,
-  ingestOps,
+  exportSnapshotStream,
+  getChangesSince,
+  getEffectiveSchema,
+  getGraphDegreeStats,
+  getGraphEdgeTypeCounts,
+  getIntegrityHead,
+  getLastSchemaCompile,
+  getPageRankScores,
+  getPartitionHead,
+  getProjectionEdges,
+  getSchemaManifest,
   importOpsStream,
+  importSnapshotStream,
+  ingestOps,
+  listComputedCache,
+  listComputedRules,
+  listEdgeTypeRules,
+  listEntities,
+  listFailedJobs,
+  listJobs,
+  listValidationRules,
   mnemeExportApi,
   mnemeImportApi,
   mnemeSnapshotApi,
-  getPartitionHead,
-  createScenario,
-  deleteScenario,
-  exportSnapshotStream,
-  importSnapshotStream,
-  upsertValidationRules,
-  listValidationRules,
-  upsertComputedRules,
-  listComputedRules,
-  upsertComputedCache,
-  listComputedCache,
-  listJobs,
+  onChangeEvents,
+  orSetUpdate,
+  readEntityAtTime,
   runProcessingWorker,
+  setEdgeExistenceInterval,
+  setPropertyInterval,
+  storePageRankRun,
+  subscribePartition,
+  tombstoneEntity,
+  traverseAtTime,
   triggerCompaction,
   triggerRebuildEffectiveSchema,
   triggerRefreshAnalyticsProjections,
   triggerRefreshIntegrity,
   triggerRetention,
-  getChangesSince,
-  subscribePartition,
   unsubscribePartition,
-  onChangeEvents,
-  getIntegrityHead,
-  getLastSchemaCompile,
-  listFailedJobs,
-  getSchemaManifest,
-  explainResolution,
-  explainTraversal,
-  readEntityAtTime,
-  traverseAtTime,
-  tombstoneEntity,
+  upsertComputedCache,
+  upsertComputedRules,
   upsertMetamodelBatch,
-} from 'workspaces/mneme/mneme-api';
+  upsertValidationRules,
+} from '@/workspaces/mneme/mneme-api';
 
 const isTauriMock = vi.mocked(isTauri);
 const invokeMock = vi.mocked(invoke);
@@ -503,9 +503,7 @@ describe('mneme-api metamodel bindings', () => {
       at: '2025-01-01T00:00:00Z',
     });
 
-    expect(edges).toEqual([
-      { edgeId: 'e-1', srcId: 'n-1', dstId: 'n-2', edgeTypeId: 'et-1' },
-    ]);
+    expect(edges).toEqual([{ edgeId: 'e-1', srcId: 'n-1', dstId: 'n-2', edgeTypeId: 'et-1' }]);
   });
 
   it('maps list entity inputs and results', async () => {
@@ -568,15 +566,11 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps edge type counts from rust to ts', async () => {
-    invokeMock.mockResolvedValue([
-      { edge_type_id: 't-1', count: 4, computed_asserted_at: 777 },
-    ]);
+    invokeMock.mockResolvedValue([{ edge_type_id: 't-1', count: 4, computed_asserted_at: 777 }]);
 
     const counts = await getGraphEdgeTypeCounts({ partitionId: 'p-1' });
 
-    expect(counts).toEqual([
-      { edgeTypeId: 't-1', count: 4, computedAssertedAt: '777' },
-    ]);
+    expect(counts).toEqual([{ edgeTypeId: 't-1', count: 4, computedAssertedAt: '777' }]);
   });
 
   it('stores pagerank runs with seed conversion', async () => {
@@ -680,10 +674,7 @@ describe('mneme-api metamodel bindings', () => {
       yield { recordType: 'op', data: { opId: 'o-1' } };
     }
 
-    const report = await mnemeImportApi.importOps(
-      { targetPartition: 'p-1' },
-      importRecords(),
-    );
+    const report = await mnemeImportApi.importOps({ targetPartition: 'p-1' }, importRecords());
     expect(report).toEqual({ opsImported: 0, opsSkipped: 0, errors: 0 });
 
     const snapshotRecords = await mnemeSnapshotApi.exportSnapshotStream({
@@ -796,18 +787,16 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('upserts and lists validation rules', async () => {
-    invokeMock
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce([
-        {
-          rule_id: 'r-1',
-          scope_kind: 2,
-          scope_id: 't-1',
-          severity: 1,
-          template_kind: 'required',
-          params: { field: 'name' },
-        },
-      ]);
+    invokeMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce([
+      {
+        rule_id: 'r-1',
+        scope_kind: 2,
+        scope_id: 't-1',
+        severity: 1,
+        template_kind: 'required',
+        params: { field: 'name' },
+      },
+    ]);
 
     await upsertValidationRules({
       partitionId: 'p-1',
@@ -858,17 +847,15 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('upserts and lists computed rules', async () => {
-    invokeMock
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce([
-        {
-          rule_id: 'c-1',
-          target_type_id: 't-1',
-          output_field_id: 'f-1',
-          template_kind: 'sum',
-          params: { fields: ['f-2'] },
-        },
-      ]);
+    invokeMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce([
+      {
+        rule_id: 'c-1',
+        target_type_id: 't-1',
+        output_field_id: 'f-1',
+        template_kind: 'sum',
+        params: { fields: ['f-2'] },
+      },
+    ]);
 
     await upsertComputedRules({
       partitionId: 'p-1',
@@ -916,19 +903,17 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('upserts and lists computed cache entries', async () => {
-    invokeMock
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce([
-        {
-          entity_id: 'n-1',
-          field_id: 'f-1',
-          valid_from: 1_000_000,
-          valid_to: null,
-          value: { Str: 'value' },
-          rule_version_hash: 'hash-1',
-          computed_asserted_at: 321,
-        },
-      ]);
+    invokeMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce([
+      {
+        entity_id: 'n-1',
+        field_id: 'f-1',
+        valid_from: 1_000_000,
+        valid_to: null,
+        value: { Str: 'value' },
+        rule_version_hash: 'hash-1',
+        computed_asserted_at: 321,
+      },
+    ]);
 
     await upsertComputedCache({
       partitionId: 'p-1',
@@ -1059,25 +1044,23 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('runs processing workers and maps job summaries', async () => {
-    invokeMock
-      .mockResolvedValueOnce({ jobsProcessed: 2 })
-      .mockResolvedValueOnce([
-        {
-          partition: 'p-1',
-          job_id: 'j-1',
-          job_type: 'schema',
-          status: 1,
-          priority: 5,
-          attempts: 0,
-          max_attempts: 3,
-          lease_expires_at: null,
-          next_run_after: null,
-          created_asserted_at: 11,
-          updated_asserted_at: 22,
-          dedupe_key: null,
-          last_error: null,
-        },
-      ]);
+    invokeMock.mockResolvedValueOnce({ jobsProcessed: 2 }).mockResolvedValueOnce([
+      {
+        partition: 'p-1',
+        job_id: 'j-1',
+        job_type: 'schema',
+        status: 1,
+        priority: 5,
+        attempts: 0,
+        max_attempts: 3,
+        lease_expires_at: null,
+        next_run_after: null,
+        created_asserted_at: 11,
+        updated_asserted_at: 22,
+        dedupe_key: null,
+        last_error: null,
+      },
+    ]);
 
     const workerResult = await runProcessingWorker({ maxJobs: 5, leaseMillis: 1000 });
     const jobs = await listJobs({ partitionId: 'p-1', limit: 10 });
@@ -1271,7 +1254,7 @@ describe('mneme-api metamodel bindings', () => {
     invokeMock.mockResolvedValue({
       entity_id: 'n-1',
       field_id: 'f-1',
-      resolved: { t: 1, v: { Str: 'ok' } },
+      resolved: { Single: { Str: 'ok' } },
       winner: {
         value: { Str: 'ok' },
         valid_from: 1_000_000,
@@ -1300,7 +1283,7 @@ describe('mneme-api metamodel bindings', () => {
     expect(result).toMatchObject({
       entityId: 'n-1',
       fieldId: 'f-1',
-      resolved: { t: 'str', v: 'ok' },
+      resolved: { k: 'single', v: { t: 'str', v: 'ok' } },
       winner: {
         value: { t: 'str', v: 'ok' },
         validFrom: '1970-01-01T00:00:01.000Z',

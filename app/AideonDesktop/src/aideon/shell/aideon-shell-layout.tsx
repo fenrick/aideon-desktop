@@ -156,7 +156,7 @@ export function AideonShellLayout({
             {toolbar ? (
               <header
                 data-tauri-drag-region
-                className="bg-background sticky top-0 flex shrink-0 items-center gap-2 border-b border-border p-4"
+                className="bg-background/95 sticky top-0 z-20 flex shrink-0 items-center gap-2 border-b border-border px-4 py-3 backdrop-blur"
               >
                 {toolbar}
               </header>

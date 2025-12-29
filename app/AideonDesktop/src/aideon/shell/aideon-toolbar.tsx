@@ -441,7 +441,11 @@ export function AideonToolbar({
   }, [isTauri, onShellCommand, shell, sidebar]);
 
   return (
-    <div className={cn('flex flex-col gap-2', className)} {...properties}>
+    <div
+      data-tauri-drag-region="false"
+      className={cn('flex flex-col gap-2', className)}
+      {...properties}
+    >
       <Toolbar className="h-12 w-full rounded-2xl px-3 py-2">
         <ToolbarSection className="min-w-0 gap-2">
           {sidebar ? <SidebarTrigger className="size-7" /> : undefined}
@@ -463,19 +467,21 @@ export function AideonToolbar({
               )}
             </Button>
           ) : undefined}
-          <AppMenu
-            onOpenCommandPalette={() => {
-              setCommandPaletteOpen(true);
-            }}
-            onOpenShortcuts={() => {
-              setShortcutsOpen(true);
-            }}
-            onOpenStyleguide={() => {
-              openStyleguide();
-            }}
-            shortcutLabelFor={shortcutLabelFor}
-            showDebugItems={isDevelopment}
-          />
+          {!isTauri ? (
+            <AppMenu
+              onOpenCommandPalette={() => {
+                setCommandPaletteOpen(true);
+              }}
+              onOpenShortcuts={() => {
+                setShortcutsOpen(true);
+              }}
+              onOpenStyleguide={() => {
+                openStyleguide();
+              }}
+              shortcutLabelFor={shortcutLabelFor}
+              showDebugItems={isDevelopment}
+            />
+          ) : undefined}
           {start}
           <Button
             type="button"

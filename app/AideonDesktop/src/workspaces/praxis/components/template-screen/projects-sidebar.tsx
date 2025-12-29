@@ -1,11 +1,21 @@
 import { useMemo, useState } from 'react';
 
+import { Avatar, AvatarFallback } from 'design-system/components/ui/avatar';
 import { Badge } from 'design-system/components/ui/badge';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from 'design-system/components/ui/collapsible';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from 'design-system/components/ui/dropdown-menu';
 import { Skeleton } from 'design-system/components/ui/skeleton';
 import {
   Sidebar,
@@ -17,6 +27,7 @@ import {
   SidebarHeader,
   SidebarInput,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -26,21 +37,31 @@ import {
 
 import { Button } from 'design-system/components/ui/button';
 import {
+  AudioWaveform,
   ChevronRight,
   File,
   Folder,
-  LayersIcon,
-  LayoutPanelTop,
+  Frame,
+  LifeBuoy,
+  MoreHorizontal,
   Network,
+  Send,
   Settings2,
+  Star,
+  Users,
 } from 'lucide-react';
 import type { ProjectSummary } from 'praxis/domain-data';
 import type { ScenarioSummary } from 'praxis/praxis-api';
 
+const TEAMS = [
+  { name: 'Aideon Core', plan: 'Enterprise', logo: Frame },
+  { name: 'Praxis Lab', plan: 'Studio', logo: AudioWaveform },
+] as const;
+
 const NAV_SECTIONS = [
-  { id: 'overview', label: 'Overview', icon: LayoutPanelTop },
-  { id: 'scenarios', label: 'Scenarios', icon: LayersIcon },
-  { id: 'canvas', label: 'Canvases', icon: Network },
+  { id: 'overview', label: 'Overview', icon: Frame },
+  { id: 'scenarios', label: 'Scenarios', icon: Network },
+  { id: 'teams', label: 'Teams', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings2 },
 ] as const;
 
@@ -217,6 +238,170 @@ function renderProjectsSidebarMenu(parameters: {
   );
 }
 
+/**
+ * Team/workspace switcher aligned to shadcn sidebar blocks.
+ */
+function TeamSwitcher() {
+  const [activeTeam, setActiveTeam] = useState<(typeof TEAMS)[number]>(TEAMS[0]);
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton className="w-fit px-1.5">
+              <div className="flex aspect-square size-5 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+                <activeTeam.logo className="size-3" />
+              </div>
+              <span className="truncate font-medium">{activeTeam.name}</span>
+              <ChevronRight className="ml-auto size-4 rotate-90 opacity-50" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="w-64 rounded-lg"
+            align="start"
+            side="bottom"
+            sideOffset={4}
+          >
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Workspaces
+            </DropdownMenuLabel>
+            {TEAMS.map((team, index) => (
+              <DropdownMenuItem
+                key={team.name}
+                onClick={() => {
+                  setActiveTeam(team);
+                }}
+                className="gap-2 p-2"
+              >
+                <div className="flex size-6 items-center justify-center rounded-xs border">
+                  <team.logo className="size-4 shrink-0" />
+                </div>
+                <span>{team.name}</span>
+                <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="gap-2 p-2">
+              <div className="flex size-6 items-center justify-center rounded-md border bg-background">
+                <Users className="size-4" />
+              </div>
+              <span className="font-medium text-muted-foreground">Add workspace</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
+/**
+ * Favorites group for quick links.
+ * @param root0
+ * @param root0.items
+ */
+function FavoritesList({ items }: { readonly items: readonly { name: string; emoji: string }[] }) {
+  return (
+    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+      <SidebarGroupLabel>Favorites</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => (
+            <SidebarMenuItem key={item.name}>
+              <SidebarMenuButton>
+                <span>{item.emoji}</span>
+                <span>{item.name}</span>
+              </SidebarMenuButton>
+              <SidebarMenuAction showOnHover>
+                <MoreHorizontal />
+                <span className="sr-only">More</span>
+              </SidebarMenuAction>
+            </SidebarMenuItem>
+          ))}
+          <SidebarMenuItem>
+            <SidebarMenuButton className="text-sidebar-foreground/70">
+              <Star />
+              <span>More</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
+/**
+ * Footer actions aligned to sidebar-08 (settings, feedback, account).
+ */
+function SidebarFooterMenu() {
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton size="sm">
+          <LifeBuoy />
+          <span>Feedback</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
+        <SidebarMenuButton size="sm">
+          <Settings2 />
+          <span>Settings</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              size="lg"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
+              <Avatar className="h-7 w-7 rounded-lg">
+                <AvatarFallback className="rounded-lg">AX</AvatarFallback>
+              </Avatar>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">Alex Rivera</span>
+                <span className="truncate text-xs">alex@aideon.ai</span>
+              </div>
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="min-w-56 rounded-lg"
+            side="right"
+            align="end"
+            sideOffset={4}
+          >
+            <DropdownMenuLabel className="p-0 font-normal">
+              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                <Avatar className="h-8 w-8 rounded-lg">
+                  <AvatarFallback className="rounded-lg">AX</AvatarFallback>
+                </Avatar>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-medium">Alex Rivera</span>
+                  <span className="truncate text-xs">alex@aideon.ai</span>
+                </div>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <Send />
+              <span>Account</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <LifeBuoy />
+              <span>Support</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <Settings2 />
+              <span>Switch workspace</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
 interface ProjectsSidebarProperties {
   readonly projects?: ProjectSummary[];
   readonly scenarios: ScenarioSummary[];
@@ -272,6 +457,14 @@ export function ProjectsSidebar({
 
   const scenarioCount = projectList.reduce((sum, project) => sum + project.scenarios.length, 0);
   const treeItems = useMemo(() => buildScenarioTree(projectList), [projectList]);
+  const favoriteItems = useMemo(() => {
+    return projectList.flatMap((project) =>
+      project.scenarios.slice(0, 2).map((scenario) => ({
+        name: `${project.name} · ${scenario.name}`,
+        emoji: scenario.isDefault ? '⭐️' : '📌',
+      })),
+    );
+  }, [projectList]);
   const [activeSection, setActiveSection] = useState<NavigationSectionId>('scenarios');
   const activeSectionLabel =
     NAV_SECTIONS.find((section) => section.id === activeSection)?.label ?? 'Scenarios';
@@ -284,19 +477,7 @@ export function ProjectsSidebar({
     >
       <Sidebar collapsible="none" className="w-[calc(var(--sidebar-width-icon)+1px)]! border-r">
         <SidebarHeader>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="lg" className="md:h-8 md:p-0">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <LayersIcon className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">Praxis</span>
-                  <span className="truncate text-xs">Workspace</span>
-                </div>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          <TeamSwitcher />
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
@@ -323,14 +504,7 @@ export function ProjectsSidebar({
           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton>
-                <Settings2 />
-                <span>Workspace settings</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          <SidebarFooterMenu />
         </SidebarFooter>
       </Sidebar>
 
@@ -353,6 +527,7 @@ export function ProjectsSidebar({
           />
         </SidebarHeader>
         <SidebarContent>
+          {favoriteItems.length > 0 ? <FavoritesList items={favoriteItems} /> : undefined}
           <SidebarGroup>
             <SidebarGroupLabel className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
               Projects

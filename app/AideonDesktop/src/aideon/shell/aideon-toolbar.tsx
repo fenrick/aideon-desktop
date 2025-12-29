@@ -19,6 +19,7 @@ import {
 } from 'design-system/components/ui/dropdown-menu';
 import { Kbd } from 'design-system/components/ui/kbd';
 import { cn } from 'design-system/lib/utilities';
+import { isDevelopmentBuild, isTauriRuntime } from 'lib/runtime';
 import {
   CommandIcon,
   LaptopIcon,
@@ -55,21 +56,6 @@ function useOptionalSidebar() {
   } catch {
     return;
   }
-}
-
-/**
- * Detect whether we are running inside a Tauri runtime.
- */
-function isTauriRuntime(): boolean {
-  const metaEnvironment = (import.meta as { env?: { TAURI_PLATFORM?: string } }).env;
-  return Boolean(metaEnvironment?.TAURI_PLATFORM);
-}
-
-/**
- *
- */
-function isDevelopmentBuild(): boolean {
-  return Boolean((import.meta as { env?: { DEV?: boolean } }).env?.DEV);
 }
 
 /**
@@ -280,11 +266,11 @@ export function AideonToolbar({
       import('@tauri-apps/api/core')
         .then(({ invoke }) => invoke('open_styleguide'))
         .catch(() => {
-          globalThis.location.hash = '#/styleguide';
+          globalThis.location.assign('/styleguide');
         });
       return;
     }
-    globalThis.location.hash = '#/styleguide';
+    globalThis.location.assign('/styleguide');
   }, [isTauri]);
 
   const commands = useMemo(() => {

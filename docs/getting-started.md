@@ -84,11 +84,13 @@ workspace.
 
 What to expect:
 
-- In dev, Tauri typically loads the UI from a loopback Vite dev server (e.g. `http://127.0.0.1:1420`).
+- In dev, Tauri typically loads the UI from a loopback Next.js dev server (e.g. `http://127.0.0.1:1420`).
   Packaged desktop builds should load UI assets without requiring any network ports.
 - Packaged desktop mode opens no TCP ports by default; all work happens via typed IPC in-process.
 - DevTools Console will show renderer logs (console) and host logs (tauri-plugin-log).
 - If you see a port conflict on 1420, stop any previous dev server and retry.
+- The renderer is exported statically (`output: "export"`): avoid server-only features like `getServerSideProps`.
+  Route Handlers are limited to static `GET` output, and browser-only APIs must be accessed from client effects.
 
 ## 3) Working with issues (optional)
 

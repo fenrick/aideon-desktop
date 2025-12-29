@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from 'design-system/components/ui/dialog';
+import { isDevelopmentBuild } from 'lib/runtime';
 import { PraxisWorkspaceToolbar } from 'praxis/components/chrome/praxis-workspace-toolbar';
 import { DebugOverlay } from 'praxis/components/debug-overlay';
 import { OverviewTabs } from 'praxis/components/template-screen/overview-tabs';
@@ -51,8 +52,7 @@ import {
 } from './stores/selection-store';
 import { useTemporalPanel } from './time/use-temporal-panel';
 
-const debugEnabled =
-  ((import.meta as unknown as { env?: { MODE?: string } }).env?.MODE ?? '') === 'development';
+const debugEnabled = isDevelopmentBuild();
 
 /**
  *

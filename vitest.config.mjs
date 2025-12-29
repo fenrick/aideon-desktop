@@ -20,6 +20,7 @@ export default defineConfig({
       { find: 'design-system', replacement: path.join(srcRoot, 'design-system') },
       { find: 'adapters', replacement: path.join(srcRoot, 'adapters') },
       { find: 'dtos', replacement: path.join(srcRoot, 'dtos') },
+      { find: 'lib', replacement: path.join(srcRoot, 'lib') },
       {
         find: '@tauri-apps/api/core',
         replacement: path.join(testsRoot, 'adapters/stubs/tauri-core.ts'),
@@ -48,7 +49,6 @@ export default defineConfig({
         'scripts/**',
         'app/AideonDesktop/src/design-system/components/**',
         'app/AideonDesktop/src/types/**',
-        'app/AideonDesktop/src/main.tsx',
       ],
     },
   },

@@ -17,9 +17,10 @@ Aideon Desktop shell (toolbar/navigation/inspector live in the Aideon layer).
 - Integration points to Aideon Design System blocks and React Flow-based canvas primitives.
 - Surface component (`PraxisWorkspaceSurface`) renders only the workspace content; host shells provide
   outer chrome (toolbar/sidebar/properties).
-- Praxis navigation uses the shadcn sidebar block patterns: inset sidebar with an icon rail, nested
-  groups, a scenario/file tree, and a right-side action popover to keep chrome aligned with the
-  reference layouts.
+- Praxis navigation follows shadcn sidebar-08 as the base layout (inset sidebar + header layout),
+  with nested rail behavior (sidebar-09), a team/workspace switcher, favorites, a collapsible file
+  tree for scenarios (sidebar-11), and a right-side action popover (sidebar-10). The footer mirrors
+  sidebar-08 with settings/feedback and an account switcher.
 
 ## Selection contract
 

@@ -8,8 +8,9 @@ tests, and CI pipelines.
 
 ## JS/TS (app + adapters)
 
-- `pnpm tauri dev` — Run Tauri app in dev mode (no renderer HTTP server).
-- `pnpm run node:build` — Build renderer bundles.
+- `pnpm run node:dev` — Start the Next.js dev server for the renderer.
+- `pnpm tauri dev` — Run the Tauri host in dev mode (expects the Next dev server to be running).
+- `pnpm run node:build` — Build the static Next.js export (`app/AideonDesktop/out`).
 - `pnpm run node:lint` — ESLint on TS/JS sources.
 - `pnpm run node:lint:fix` — ESLint with `--fix`.
 - `pnpm run node:typecheck` — TypeScript project references build.

@@ -1,167 +1,52 @@
-import { Fragment, StrictMode, useEffect, useMemo, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
+'use client';
+
+import { useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ThemeProvider } from 'next-themes';
-import { SplashScreen as PraxisSplashScreen } from './components/splash/splash-screen';
-import { Badge } from './design-system/components/ui/badge';
+import { SplashScreen as PraxisSplashScreen } from '../components/splash/splash-screen';
+import { Badge } from '../design-system/components/ui/badge';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from './design-system/components/ui/card';
-import { RadioGroup, RadioGroupItem } from './design-system/components/ui/radio-group';
-import { Toaster } from './design-system/components/ui/sonner';
-import { ColorThemeProvider, useColorTheme } from './design-system/theme/color-theme';
-import { ErrorBoundary } from './error-boundary';
-import { AideonDesktopRoot } from './root';
-import './styles.css';
+} from '../design-system/components/ui/card';
+import { RadioGroup, RadioGroupItem } from '../design-system/components/ui/radio-group';
+import { useColorTheme } from '../design-system/theme/color-theme';
+import { isTauriRuntime } from '../lib/runtime';
+import { AideonDesktopRoot } from '../root';
 
-const isVitest = Boolean((import.meta as { env?: { VITEST?: boolean } }).env?.VITEST);
-if (!isVitest) {
-  const container = document.querySelector('#root');
-  if (!container) {
-    throw new Error('Unable to locate root element');
-  }
+/**
+ * Root screen for the main desktop window.
+ */
+export function MainScreen() {
+  const isTauri = isTauriRuntime();
+  const windowLabel = useMemo(() => {
+    if (!isTauri) {
+      return;
+    }
+    try {
+      return getCurrentWindow().label;
+    } catch {
+      return;
+    }
+  }, [isTauri]);
 
-  const useStrictMode = !isTauriRuntime();
-  const RootWrapper = useStrictMode ? StrictMode : Fragment;
+  const shouldSignalFrontendReady = isTauri && windowLabel === 'main';
 
-  createRoot(container).render(
-    <RootWrapper>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-        <ColorThemeProvider>
-          <ErrorBoundary>
-            <>
-              <AppEntry />
-              <Toaster />
-            </>
-          </ErrorBoundary>
-        </ColorThemeProvider>
-      </ThemeProvider>
-    </RootWrapper>,
+  return (
+    <FrontendReady enabled={shouldSignalFrontendReady}>
+      <AideonDesktopRoot />
+    </FrontendReady>
   );
 }
 
 /**
- *
+ * Splash screen displayed while the host initializes.
  */
-export function AppEntry() {
-  const [windowLabel, setWindowLabel] = useState<string | undefined>();
-  const isTauri = isTauriRuntime();
-
-  useEffect(() => {
-    queueMicrotask(() => {
-      if (!isTauri) {
-        setWindowLabel(undefined);
-        return;
-      }
-      try {
-        const currentWindow = getCurrentWindow();
-        setWindowLabel(currentWindow.label);
-      } catch {
-        setWindowLabel(undefined);
-      }
-    });
-  }, [isTauri]);
-
-  const hashPath = globalThis.location.hash.replace(/^#/, '').replace(/\/$/, '') || '/';
-  const route = isTauri ? (windowLabel ?? 'splash') : hashPath;
-  const wantsSplash = route === 'splash' || route === '/splash';
-  // Only bypass splash automatically in browser mode when it wasn't explicitly requested in hash.
-  const normalizedRoute = !isTauri && wantsSplash && hashPath === '/splash' ? '/' : route;
-
-  let view: React.ReactNode = <AideonDesktopRoot />;
-  switch (normalizedRoute) {
-    case 'splash':
-    case '/splash': {
-      view = <SplashRoute />;
-
-      break;
-    }
-    case 'status':
-    case '/status': {
-      view = <StatusScreen />;
-
-      break;
-    }
-    case 'about':
-    case '/about': {
-      view = <AboutScreen />;
-
-      break;
-    }
-    case 'settings':
-    case '/settings': {
-      view = <SettingsScreen />;
-
-      break;
-    }
-    case 'styleguide':
-    case '/styleguide': {
-      view = <StyleguideScreen />;
-
-      break;
-    }
-    // No default
-  }
-
-  const shouldSignalFrontendReady = isTauri && windowLabel === 'main';
-  return <FrontendReady enabled={shouldSignalFrontendReady}>{view}</FrontendReady>;
-}
-
-/**
- *
- * @param root0
- * @param root0.children
- * @param root0.enabled
- */
-export function FrontendReady({
-  children,
-  enabled = true,
-}: {
-  readonly children: React.ReactNode;
-  readonly enabled?: boolean;
-}): React.ReactElement | null {
-  const didSignal = useRef(false);
-  useEffect(() => {
-    if (!enabled || didSignal.current) {
-      return;
-    }
-    if (!isTauriRuntime()) {
-      return;
-    }
-    didSignal.current = true;
-
-    invoke('set_complete', { task: 'frontend' })
-      .then(() => true)
-      .catch(() => false);
-  }, [enabled]);
-  return children as React.ReactElement | null;
-}
-
-/**
- * Detect whether the code is executing inside a Tauri runtime.
- * Uses both the optional globals and the compile-time env flags so it works
- * when `withGlobalTauri` is disabled (default in this repo).
- */
-export function isTauriRuntime(): boolean {
-  const metaEnvironment = (import.meta as { env?: { TAURI_PLATFORM?: string } }).env;
-  if (metaEnvironment?.TAURI_PLATFORM) {
-    return true;
-  }
-
-  const global = globalThis as { __TAURI__?: unknown; __TAURI_INTERNALS__?: unknown };
-  return Boolean(global.__TAURI__ ?? global.__TAURI_INTERNALS__);
-}
-
-/**
- *
- */
-function SplashRoute() {
+export function SplashScreenRoute() {
   const loadLines = useMemo(
     () => [
       'Reticulating splines…',
@@ -182,7 +67,6 @@ function SplashRoute() {
 
   const [currentLine, setCurrentLine] = useState<string>(loadLines[0] ?? '');
 
-  // Rotate status lines
   useEffect(() => {
     let ix = 0;
     const interval = setInterval(() => {
@@ -198,9 +82,9 @@ function SplashRoute() {
 }
 
 /**
- *
+ * Minimal host status window.
  */
-function StatusScreen() {
+export function StatusScreen() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
       <div className="rounded-lg border border-border/70 bg-card/90 px-6 py-4 shadow-md">
@@ -212,9 +96,9 @@ function StatusScreen() {
 }
 
 /**
- *
+ * About dialog content for the desktop shell.
  */
-function AboutScreen() {
+export function AboutScreen() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
       <div className="space-y-2 rounded-lg border border-border/60 bg-card/90 px-6 py-5 shadow">
@@ -228,9 +112,9 @@ function AboutScreen() {
 }
 
 /**
- *
+ * Settings window for theme selection and preferences.
  */
-function SettingsScreen() {
+export function SettingsScreen() {
   const { colorTheme, options, preloadThemes, setColorTheme } = useColorTheme();
 
   useEffect(() => {
@@ -288,9 +172,9 @@ function SettingsScreen() {
 }
 
 /**
- *
+ * Placeholder UI styleguide window.
  */
-function StyleguideScreen() {
+export function StyleguideScreen() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
       <div className="space-y-3 rounded-lg border border-border/60 bg-card/90 px-6 py-5 shadow">
@@ -302,9 +186,39 @@ function StyleguideScreen() {
 }
 
 /**
+ * Signals the host once the main window has rendered.
+ * @param root0 - Component props.
+ * @param root0.children - Content to render.
+ * @param root0.enabled - Whether the signal should be emitted.
+ */
+export function FrontendReady({
+  children,
+  enabled = true,
+}: {
+  readonly children: ReactNode;
+  readonly enabled?: boolean;
+}): ReactElement | null {
+  const didSignal = useRef(false);
+  useEffect(() => {
+    if (!enabled || didSignal.current) {
+      return;
+    }
+    if (!isTauriRuntime()) {
+      return;
+    }
+    didSignal.current = true;
+
+    invoke('set_complete', { task: 'frontend' })
+      .then(() => true)
+      .catch(() => false);
+  }, [enabled]);
+  return children as React.ReactElement | null;
+}
+
+/**
  * Render a compact preview of theme tokens.
  * @param root0 - Preview props.
- * @param root0.themeId - Theme identifier to preview.
+ * @param root0.themeId - Theme identifier.
  */
 function ThemePreview({ themeId }: { readonly themeId: string }) {
   const dataTheme = themeId === 'corp-blue' ? undefined : themeId;

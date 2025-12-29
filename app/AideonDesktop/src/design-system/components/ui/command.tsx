@@ -56,7 +56,7 @@ function CommandDialog({
         className={cn("rounded-xl! p-0 overflow-hidden p-0", className)}
         showCloseButton={showCloseButton}
       >
-        {children}
+        <Command>{children}</Command>
       </DialogContent>
     </Dialog>
   )

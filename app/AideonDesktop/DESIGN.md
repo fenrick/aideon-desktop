@@ -45,9 +45,21 @@ The implementation uses the design-system proxies for Sidebar, Resizable, and Me
 ## Entry point
 
 - `AideonDesktopRoot` is the React entry that composes `DesktopShell` with toolbar/tree/main/properties slots.
-- Tauri loads the `app/AideonDesktop` bundle (`index.html` → `src/main.tsx` → `AideonDesktopRoot`); Praxis workspace surfaces mount inside the centre slot rather than owning the window.
+- Tauri loads the static Next.js export (`app/AideonDesktop/out`) with window routes mapped to `app/*/page.tsx` and the shared screen logic in `src/app/app-screens.tsx`; Praxis workspace surfaces mount inside the centre slot rather than owning the window.
+
+## Next.js static export constraints
+
+- The renderer is built with `output: "export"`; all screens must be renderable at build time (no request-time SSR).
+- Do not use `getServerSideProps` or `next start`-only features in this app. Use static data or IPC-driven client effects instead.
+- Route Handlers are allowed only for static `GET` responses that are emitted during `next build`.
+- Client Components are pre-rendered during `next build`; browser-only APIs (`window`, `localStorage`, etc.) must be accessed inside client effects.
+
+## App Router stability
+
+- The App Router (`app/`) is the stable default as of Next.js 13.4; no `appDir` flag is required.
+- Treat App Router as the canonical model for layouts, routing, and data boundaries in the renderer.
 
 ## Style guide (dev)
 
-- A small UI Style Guide exists at `#/styleguide` to showcase shell/design-system primitives during UX iteration (including Replit browser preview).
+- A small UI Style Guide exists at `/styleguide` to showcase shell/design-system primitives during UX iteration (including Replit browser preview).
 - Desktop builds can open it from the native menu (Debug → UI Style Guide) or from the command palette when running a development build.

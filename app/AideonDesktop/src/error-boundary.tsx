@@ -12,13 +12,14 @@ import {
   CardTitle,
 } from 'design-system/components/ui/card';
 import { ScrollArea } from 'design-system/components/ui/scroll-area';
+import { isDevelopmentBuild } from './lib/runtime';
 
 /**
  * Determines whether internal error details should be rendered.
  * Only enabled in development builds.
  */
 function shouldShowErrorDetails(): boolean {
-  return Boolean((import.meta as { env?: { DEV?: boolean } }).env?.DEV);
+  return isDevelopmentBuild();
 }
 
 /**

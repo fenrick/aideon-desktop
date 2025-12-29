@@ -4,6 +4,7 @@
 
 import comments from '@eslint-community/eslint-plugin-eslint-comments/configs';
 import js from '@eslint/js';
+import nextPlugin from '@next/eslint-plugin-next';
 import stylistic from '@stylistic/eslint-plugin';
 import importPlugin from 'eslint-plugin-import';
 import jsdoc from 'eslint-plugin-jsdoc';
@@ -50,6 +51,16 @@ export default defineConfig([
   // Core JS recommendations (base for "clean code" checks)
   js.configs.recommended,
 
+  // Next.js (core-web-vitals) recommended flat config
+  {
+    plugins: {
+      '@next/next': nextPlugin,
+    },
+    rules: {
+      ...nextPlugin.configs['core-web-vitals'].rules,
+    },
+  },
+
   // Base language options
   {
     languageOptions: {
@@ -60,7 +71,7 @@ export default defineConfig([
       // Allow import/no-unresolved to pick up TS path aliases in package tsconfigs.
       'import/resolver': {
         typescript: {
-          project: ['./tsconfig.eslint.json', './app/AideonDesktop/tsconfig.json'],
+          project: ['./app/AideonDesktop/tsconfig.json'],
           alwaysTryTypes: true,
         },
         node: true,
@@ -119,7 +130,7 @@ export default defineConfig([
       parser: tseslint.parser,
       parserOptions: {
         projectService: false,
-        project: ['./tsconfig.eslint.json'],
+        project: ['./app/AideonDesktop/tsconfig.json'],
         tsconfigRootDir: import.meta.dirname,
       },
     },

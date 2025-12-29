@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { fetchMetaModel } from 'praxis/lib/meta-model';
 import type * as PraxisApi from 'praxis/praxis-api';
@@ -27,6 +27,10 @@ beforeAll(() => {
 afterAll(() => {
   vi.unstubAllGlobals();
   delete Element.prototype.scrollIntoView;
+});
+
+afterEach(() => {
+  cleanup();
 });
 
 vi.mock('praxis/time/use-temporal-panel', () => ({

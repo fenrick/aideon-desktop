@@ -74,3 +74,47 @@ export interface MetamodelBatch {
 export interface SchemaCompileResult {
   schemaVersionHash: string;
 }
+
+export interface CreateNodeInput {
+  partitionId: PartitionId;
+  actorId: ActorId;
+  assertedAt: AssertedTime;
+  nodeId: EntityId;
+  typeId?: TypeId;
+  scenarioId?: ScenarioId;
+}
+
+export interface CreateEdgeInput {
+  partitionId: PartitionId;
+  actorId: ActorId;
+  assertedAt: AssertedTime;
+  edgeId: EntityId;
+  typeId?: TypeId;
+  srcId: EntityId;
+  dstId: EntityId;
+  existsValidFrom: ValidTime;
+  existsValidTo?: ValidTime;
+  layer?: Layer;
+  weight?: number;
+  scenarioId?: ScenarioId;
+}
+
+export interface SetEdgeExistenceIntervalInput {
+  partitionId: PartitionId;
+  actorId: ActorId;
+  assertedAt: AssertedTime;
+  edgeId: EntityId;
+  validFrom: ValidTime;
+  validTo?: ValidTime;
+  layer?: Layer;
+  isTombstone?: boolean;
+  scenarioId?: ScenarioId;
+}
+
+export interface TombstoneEntityInput {
+  partitionId: PartitionId;
+  actorId: ActorId;
+  assertedAt: AssertedTime;
+  entityId: EntityId;
+  scenarioId?: ScenarioId;
+}

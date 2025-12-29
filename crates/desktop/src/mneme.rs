@@ -1,13 +1,15 @@
 //! Host-side Mneme commands bridging renderer IPC calls to the Mneme store.
 
 use aideon_praxis_facade::mneme::{
-    EdgeTypeRule, MetamodelApi, MetamodelBatch, MnemeError, MnemeResult, OpId, PartitionId,
-    SchemaVersion,
+    CreateEdgeInput, CreateNodeInput, EdgeTypeRule, GraphWriteApi, MetamodelApi, MetamodelBatch,
+    MnemeError, OpId, PartitionId, SchemaVersion, SetEdgeExistenceIntervalInput, ValidTime,
 };
-use aideon_praxis_facade::mneme::{ActorId, Hlc, ScenarioId};
+use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use time::OffsetDateTime;
+use time::format_description::well_known::Rfc3339;
 
 use crate::worker::WorkerState;
 
@@ -16,7 +18,7 @@ use crate::worker::WorkerState;
 pub struct UpsertMetamodelBatchInput {
     pub partition_id: PartitionId,
     pub actor_id: ActorId,
-    pub asserted_at: Hlc,
+    pub asserted_at: String,
     pub batch: MetamodelBatch,
     #[serde(default)]
     pub scenario_id: Option<ScenarioId>,
@@ -27,7 +29,7 @@ pub struct UpsertMetamodelBatchInput {
 pub struct CompileEffectiveSchemaInput {
     pub partition_id: PartitionId,
     pub actor_id: ActorId,
-    pub asserted_at: Hlc,
+    pub asserted_at: String,
     pub type_id: aideon_praxis_facade::mneme::Id,
     #[serde(default)]
     pub scenario_id: Option<ScenarioId>,
@@ -54,7 +56,7 @@ pub async fn mneme_upsert_metamodel_batch(
         .upsert_metamodel_batch(
             payload.partition_id,
             payload.actor_id,
-            payload.asserted_at,
+            parse_hlc(&payload.asserted_at)?,
             payload.batch,
         )
         .await
@@ -77,12 +79,115 @@ pub async fn mneme_compile_effective_schema(
         .compile_effective_schema(
             payload.partition_id,
             payload.actor_id,
-            payload.asserted_at,
+            parse_hlc(&payload.asserted_at)?,
             payload.type_id,
         )
         .await
         .map_err(host_error)?;
     Ok(result)
+}
+
+#[tauri::command]
+pub async fn mneme_create_node(
+    state: State<'_, WorkerState>,
+    payload: CreateNodePayload,
+) -> Result<OpResult, HostError> {
+    let store = state.mneme();
+    let op_id = store
+        .create_node(CreateNodeInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            actor: payload.actor_id,
+            asserted_at: parse_hlc(&payload.asserted_at)?,
+            node_id: payload.node_id,
+            type_id: payload.type_id,
+            acl_group_id: payload.acl_group_id,
+            owner_actor_id: payload.owner_actor_id,
+            visibility: payload.visibility,
+            write_options: None,
+        })
+        .await
+        .map_err(host_error)?;
+    Ok(OpResult { op_id })
+}
+
+#[tauri::command]
+pub async fn mneme_create_edge(
+    state: State<'_, WorkerState>,
+    payload: CreateEdgePayload,
+) -> Result<OpResult, HostError> {
+    let store = state.mneme();
+    let op_id = store
+        .create_edge(CreateEdgeInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            actor: payload.actor_id,
+            asserted_at: parse_hlc(&payload.asserted_at)?,
+            edge_id: payload.edge_id,
+            type_id: payload.type_id,
+            src_id: payload.src_id,
+            dst_id: payload.dst_id,
+            exists_valid_from: parse_valid_time(&payload.exists_valid_from)?,
+            exists_valid_to: match payload.exists_valid_to {
+                Some(value) => Some(parse_valid_time(&value)?),
+                None => None,
+            },
+            layer: payload.layer.unwrap_or_else(Layer::default_actual),
+            weight: payload.weight,
+            acl_group_id: payload.acl_group_id,
+            owner_actor_id: payload.owner_actor_id,
+            visibility: payload.visibility,
+            write_options: None,
+        })
+        .await
+        .map_err(host_error)?;
+    Ok(OpResult { op_id })
+}
+
+#[tauri::command]
+pub async fn mneme_set_edge_existence_interval(
+    state: State<'_, WorkerState>,
+    payload: SetEdgeExistencePayload,
+) -> Result<OpResult, HostError> {
+    let store = state.mneme();
+    let op_id = store
+        .set_edge_existence_interval(SetEdgeExistenceIntervalInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            actor: payload.actor_id,
+            asserted_at: parse_hlc(&payload.asserted_at)?,
+            edge_id: payload.edge_id,
+            valid_from: parse_valid_time(&payload.valid_from)?,
+            valid_to: match payload.valid_to {
+                Some(value) => Some(parse_valid_time(&value)?),
+                None => None,
+            },
+            layer: payload.layer.unwrap_or_else(Layer::default_actual),
+            is_tombstone: payload.is_tombstone.unwrap_or(false),
+            write_options: None,
+        })
+        .await
+        .map_err(host_error)?;
+    Ok(OpResult { op_id })
+}
+
+#[tauri::command]
+pub async fn mneme_tombstone_entity(
+    state: State<'_, WorkerState>,
+    payload: TombstoneEntityPayload,
+) -> Result<OpResult, HostError> {
+    let store = state.mneme();
+    let op_id = store
+        .tombstone_entity(
+            payload.partition_id,
+            payload.scenario_id,
+            payload.actor_id,
+            parse_hlc(&payload.asserted_at)?,
+            payload.entity_id,
+        )
+        .await
+        .map_err(host_error)?;
+    Ok(OpResult { op_id })
 }
 
 #[tauri::command]
@@ -131,6 +236,85 @@ fn host_error(err: MnemeError) -> HostError {
         code,
         message: err.to_string(),
     }
+}
+
+fn parse_hlc(value: &str) -> Result<Hlc, HostError> {
+    let parsed = value
+        .parse::<i64>()
+        .map_err(|_| HostError {
+            code: "invalid_time",
+            message: format!("invalid assertedAt HLC value: {value}"),
+        })?;
+    Ok(Hlc::from_i64(parsed))
+}
+
+fn parse_valid_time(value: &str) -> Result<ValidTime, HostError> {
+    if let Ok(raw) = value.parse::<i64>() {
+        return Ok(ValidTime(raw));
+    }
+    let parsed = OffsetDateTime::parse(value, &Rfc3339).map_err(|_| HostError {
+        code: "invalid_time",
+        message: format!("invalid valid time value: {value}"),
+    })?;
+    Ok(ValidTime(parsed.unix_timestamp_nanos() / 1_000))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateNodePayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub node_id: aideon_praxis_facade::mneme::Id,
+    pub type_id: Option<aideon_praxis_facade::mneme::Id>,
+    pub acl_group_id: Option<String>,
+    pub owner_actor_id: Option<ActorId>,
+    pub visibility: Option<u8>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateEdgePayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub edge_id: aideon_praxis_facade::mneme::Id,
+    pub type_id: Option<aideon_praxis_facade::mneme::Id>,
+    pub src_id: aideon_praxis_facade::mneme::Id,
+    pub dst_id: aideon_praxis_facade::mneme::Id,
+    pub exists_valid_from: String,
+    pub exists_valid_to: Option<String>,
+    pub layer: Option<Layer>,
+    pub weight: Option<f64>,
+    pub acl_group_id: Option<String>,
+    pub owner_actor_id: Option<ActorId>,
+    pub visibility: Option<u8>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetEdgeExistencePayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub edge_id: aideon_praxis_facade::mneme::Id,
+    pub valid_from: String,
+    pub valid_to: Option<String>,
+    pub layer: Option<Layer>,
+    pub is_tombstone: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TombstoneEntityPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub entity_id: aideon_praxis_facade::mneme::Id,
 }
 
 #[cfg(test)]

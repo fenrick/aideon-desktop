@@ -2,6 +2,8 @@ import { invoke } from '@tauri-apps/api/core';
 import type {
   ActorId,
   AssertedTime,
+  CreateEdgeInput,
+  CreateNodeInput,
   EdgeTypeRuleDef,
   FieldId,
   FieldDef,
@@ -9,6 +11,8 @@ import type {
   OpId,
   PartitionId,
   SchemaCompileResult,
+  SetEdgeExistenceIntervalInput,
+  TombstoneEntityInput,
   TypeDef,
   TypeFieldDef,
   TypeId,
@@ -21,6 +25,10 @@ const COMMANDS = {
   compileEffectiveSchema: 'mneme_compile_effective_schema',
   getEffectiveSchema: 'mneme_get_effective_schema',
   listEdgeTypeRules: 'mneme_list_edge_type_rules',
+  createNode: 'mneme_create_node',
+  createEdge: 'mneme_create_edge',
+  setEdgeExistenceInterval: 'mneme_set_edge_existence_interval',
+  tombstoneEntity: 'mneme_tombstone_entity',
 } as const;
 
 export interface UpsertMetamodelBatchInput {
@@ -87,6 +95,60 @@ export async function compileEffectiveSchema(
     return await invoke<SchemaCompileResult>(COMMANDS.compileEffectiveSchema, input);
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.compileEffectiveSchema}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function createNode(input: CreateNodeInput): Promise<MnemeOpResult> {
+  if (!isTauri()) {
+    return { opId: 'mock-op' };
+  }
+  try {
+    return await invoke<MnemeOpResult>(COMMANDS.createNode, input);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.createNode}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function createEdge(input: CreateEdgeInput): Promise<MnemeOpResult> {
+  if (!isTauri()) {
+    return { opId: 'mock-op' };
+  }
+  try {
+    return await invoke<MnemeOpResult>(COMMANDS.createEdge, input);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.createEdge}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function setEdgeExistenceInterval(
+  input: SetEdgeExistenceIntervalInput,
+): Promise<MnemeOpResult> {
+  if (!isTauri()) {
+    return { opId: 'mock-op' };
+  }
+  try {
+    return await invoke<MnemeOpResult>(COMMANDS.setEdgeExistenceInterval, input);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.setEdgeExistenceInterval}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function tombstoneEntity(input: TombstoneEntityInput): Promise<MnemeOpResult> {
+  if (!isTauri()) {
+    return { opId: 'mock-op' };
+  }
+  try {
+    return await invoke<MnemeOpResult>(COMMANDS.tombstoneEntity, input);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.tombstoneEntity}' failed: ${String(error)}`, {
       cause: error,
     });
   }

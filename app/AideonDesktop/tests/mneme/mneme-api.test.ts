@@ -7,9 +7,13 @@ import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from 'workspaces/mneme/platform';
 
 import {
+  createEdge,
+  createNode,
   compileEffectiveSchema,
   getEffectiveSchema,
   listEdgeTypeRules,
+  setEdgeExistenceInterval,
+  tombstoneEntity,
   upsertMetamodelBatch,
 } from 'workspaces/mneme/mneme-api';
 
@@ -183,5 +187,103 @@ describe('mneme-api metamodel bindings', () => {
         allowedDstTypeIds: ['t-2'],
       },
     ]);
+  });
+
+  it('passes create node inputs through to the host', async () => {
+    invokeMock.mockResolvedValue({ opId: 'op-node' });
+
+    await createNode({
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      nodeId: 'n-1',
+      typeId: 't-1',
+      scenarioId: 's-1',
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('mneme_create_node', {
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      nodeId: 'n-1',
+      typeId: 't-1',
+      scenarioId: 's-1',
+    });
+  });
+
+  it('passes create edge inputs through to the host', async () => {
+    invokeMock.mockResolvedValue({ opId: 'op-edge' });
+
+    await createEdge({
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      edgeId: 'e-1',
+      typeId: 'et-1',
+      srcId: 'n-1',
+      dstId: 'n-2',
+      existsValidFrom: '2025-01-01T00:00:00Z',
+      existsValidTo: '2025-12-31T00:00:00Z',
+      layer: 'Plan',
+      weight: 0.5,
+      scenarioId: 's-1',
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('mneme_create_edge', {
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      edgeId: 'e-1',
+      typeId: 'et-1',
+      srcId: 'n-1',
+      dstId: 'n-2',
+      existsValidFrom: '2025-01-01T00:00:00Z',
+      existsValidTo: '2025-12-31T00:00:00Z',
+      layer: 'Plan',
+      weight: 0.5,
+      scenarioId: 's-1',
+    });
+  });
+
+  it('passes edge existence interval updates through to the host', async () => {
+    invokeMock.mockResolvedValue({ opId: 'op-exists' });
+
+    await setEdgeExistenceInterval({
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      edgeId: 'e-1',
+      validFrom: '2025-02-01T00:00:00Z',
+      validTo: '2025-03-01T00:00:00Z',
+      isTombstone: true,
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('mneme_set_edge_existence_interval', {
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      edgeId: 'e-1',
+      validFrom: '2025-02-01T00:00:00Z',
+      validTo: '2025-03-01T00:00:00Z',
+      isTombstone: true,
+    });
+  });
+
+  it('passes tombstone entity inputs through to the host', async () => {
+    invokeMock.mockResolvedValue({ opId: 'op-tomb' });
+
+    await tombstoneEntity({
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      entityId: 'n-1',
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('mneme_tombstone_entity', {
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      entityId: 'n-1',
+    });
   });
 });

@@ -3,12 +3,13 @@
 use aideon_praxis_facade::mneme::{
     AnalyticsApi, AnalyticsResultsApi, ClearPropIntervalInput, CompareOp, CounterUpdateInput,
     CreateEdgeInput, CreateNodeInput, Direction, EdgeTypeRule, EntityKind, FieldFilter,
-    GetGraphDegreeStatsInput, GetGraphEdgeTypeCountsInput, GetProjectionEdgesInput, GraphDegreeStat,
-    GraphEdgeTypeCount, GraphReadApi, GraphWriteApi, ListEntitiesInput, ListEntitiesResultItem,
-    MetamodelApi, MetamodelBatch, MnemeError, OpId, OrSetUpdateInput, PageRankRunSpec, PartitionId,
-    PropertyWriteApi, ReadEntityAtTimeInput, ReadEntityAtTimeResult, SchemaVersion,
-    SetEdgeExistenceIntervalInput, SetOp, SetPropIntervalInput, TraverseAtTimeInput,
-    TraverseEdgeItem, ValidTime, Value, ProjectionEdge,
+    ExportOpsInput, GetGraphDegreeStatsInput, GetGraphEdgeTypeCountsInput, GetProjectionEdgesInput,
+    GraphDegreeStat, GraphEdgeTypeCount, GraphReadApi, GraphWriteApi, ListEntitiesInput,
+    ListEntitiesResultItem, MetamodelApi, MetamodelBatch, MnemeError, OpEnvelope, OpId,
+    OrSetUpdateInput, PageRankRunSpec, PartitionId, PropertyWriteApi, ReadEntityAtTimeInput,
+    ReadEntityAtTimeResult, SchemaVersion, SetEdgeExistenceIntervalInput, SetOp,
+    SetPropIntervalInput, SyncApi, TraverseAtTimeInput, TraverseEdgeItem, ValidTime, Value,
+    ProjectionEdge,
 };
 use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
 use log::{debug, error, info};
@@ -526,6 +527,69 @@ pub async fn mneme_get_pagerank_scores(
 }
 
 #[tauri::command]
+pub async fn mneme_export_ops(
+    state: State<'_, WorkerState>,
+    payload: ExportOpsPayload,
+) -> Result<Vec<OpEnvelope>, HostError> {
+    let store = state.mneme();
+    let since = payload
+        .since_asserted_at
+        .as_deref()
+        .map(parse_hlc)
+        .transpose()?;
+    store
+        .export_ops(ExportOpsInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            since_asserted_at: since,
+            limit: payload.limit.unwrap_or(500),
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_ingest_ops(
+    state: State<'_, WorkerState>,
+    payload: IngestOpsPayload,
+) -> Result<(), HostError> {
+    let store = state.mneme();
+    let ops: Vec<OpEnvelope> = payload
+        .ops
+        .into_iter()
+        .map(|op| {
+            Ok(OpEnvelope {
+                op_id: op.op_id,
+                actor_id: op.actor_id,
+                asserted_at: parse_hlc(&op.asserted_at)?,
+                op_type: op.op_type,
+                payload: op.payload,
+                deps: op.deps,
+            })
+        })
+        .collect::<Result<Vec<_>, HostError>>()?;
+    store
+        .ingest_ops(payload.partition_id, ops)
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_get_partition_head(
+    state: State<'_, WorkerState>,
+    payload: PartitionHeadPayload,
+) -> Result<PartitionHeadResult, HostError> {
+    let store = state.mneme();
+    let head = store
+        .get_partition_head(payload.partition_id)
+        .await
+        .map_err(host_error)?;
+    Ok(PartitionHeadResult {
+        head: head.as_i64().to_string(),
+    })
+}
+
+#[tauri::command]
 pub async fn mneme_get_effective_schema(
     state: State<'_, WorkerState>,
     partition_id: PartitionId,
@@ -844,6 +908,46 @@ pub struct PageRankRunResult {
 pub struct PageRankScoreItem {
     pub id: aideon_praxis_facade::mneme::Id,
     pub score: f64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportOpsPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub since_asserted_at: Option<String>,
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IngestOpsPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub ops: Vec<OpEnvelopePayload>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpEnvelopePayload {
+    pub op_id: OpId,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub op_type: u16,
+    pub payload: Vec<u8>,
+    pub deps: Vec<OpId>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PartitionHeadResult {
+    pub head: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PartitionHeadPayload {
+    pub partition_id: PartitionId,
 }
 
 #[cfg(test)]

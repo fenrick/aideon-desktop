@@ -312,3 +312,33 @@ export interface GetPageRankScoresInput {
   topN: number;
   scenarioId?: string;
 }
+
+export interface OpEnvelope {
+  opId: string;
+  actorId: string;
+  assertedAt: AssertedTime;
+  opType: number;
+  payload: Uint8Array;
+  deps: string[];
+}
+
+export interface ExportOpsInput {
+  partitionId: string;
+  sinceAssertedAt?: AssertedTime;
+  limit?: number;
+  scenarioId?: string;
+}
+
+export interface ExportOpsResult {
+  ops: OpEnvelope[];
+}
+
+export interface IngestOpsInput {
+  partitionId: string;
+  ops: OpEnvelope[];
+  scenarioId?: string;
+}
+
+export interface PartitionHeadResult {
+  head: AssertedTime;
+}

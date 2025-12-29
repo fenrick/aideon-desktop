@@ -23,6 +23,9 @@ import {
   getGraphEdgeTypeCounts,
   storePageRankRun,
   getPageRankScores,
+  exportOps,
+  ingestOps,
+  getPartitionHead,
   readEntityAtTime,
   traverseAtTime,
   tombstoneEntity,
@@ -577,5 +580,70 @@ describe('mneme-api metamodel bindings', () => {
     const scores = await getPageRankScores({ partitionId: 'p-1', runId: 'r-1', topN: 3 });
 
     expect(scores).toEqual([{ id: 'n-1', score: 0.9 }]);
+  });
+
+  it('exports ops and normalizes payloads', async () => {
+    invokeMock.mockResolvedValue([
+      {
+        op_id: 'op-1',
+        actor_id: 'a-1',
+        asserted_at: 123,
+        op_type: 7,
+        payload: [1, 2, 3],
+        deps: ['op-0'],
+      },
+    ]);
+
+    const result = await exportOps({ partitionId: 'p-1' });
+
+    expect(result.ops[0]).toMatchObject({
+      opId: 'op-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      opType: 7,
+      deps: ['op-0'],
+    });
+    expect(Array.from(result.ops[0]?.payload ?? [])).toEqual([1, 2, 3]);
+  });
+
+  it('ingests ops with byte payload conversion', async () => {
+    invokeMock.mockResolvedValue(undefined);
+
+    await ingestOps({
+      partitionId: 'p-1',
+      ops: [
+        {
+          opId: 'op-1',
+          actorId: 'a-1',
+          assertedAt: '123',
+          opType: 7,
+          payload: new Uint8Array([9, 8]),
+          deps: [],
+        },
+      ],
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('mneme_ingest_ops', {
+      partitionId: 'p-1',
+      ops: [
+        {
+          opId: 'op-1',
+          actorId: 'a-1',
+          assertedAt: '123',
+          opType: 7,
+          payload: [9, 8],
+          deps: [],
+        },
+      ],
+    });
+  });
+
+  it('fetches partition head', async () => {
+    invokeMock.mockResolvedValue({ head: '999' });
+
+    const result = await getPartitionHead('p-1');
+
+    expect(result.head).toBe('999');
+    expect(invokeMock).toHaveBeenCalledWith('mneme_get_partition_head', { partitionId: 'p-1' });
   });
 });

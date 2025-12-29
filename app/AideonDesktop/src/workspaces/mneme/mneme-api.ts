@@ -8,20 +8,25 @@ import type {
   EdgeTypeRuleDefinition,
   FieldDefinition,
   FieldFilter,
+  ExportOpsInput,
+  ExportOpsResult,
   GetGraphDegreeStatsInput,
   GetGraphEdgeTypeCountsInput,
   GetPageRankScoresInput,
   GetProjectionEdgesInput,
   GraphDegreeStat,
   GraphEdgeTypeCount,
+  IngestOpsInput,
   ListEntitiesInput,
   ListEntitiesResultItem,
   MetamodelBatch,
+  OpEnvelope,
   OrSetUpdateInput,
   PageRankRunParams,
   PageRankRunResult,
   PageRankScore,
   PageRankSeed,
+  PartitionHeadResult,
   ProjectionEdge,
   ReadEntityAtTimeInput,
   ReadEntityAtTimeResult,
@@ -62,6 +67,9 @@ const COMMANDS = {
   getGraphEdgeTypeCounts: 'mneme_get_graph_edge_type_counts',
   storePageRankRun: 'mneme_store_pagerank_scores',
   getPageRankScores: 'mneme_get_pagerank_scores',
+  exportOps: 'mneme_export_ops',
+  ingestOps: 'mneme_ingest_ops',
+  getPartitionHead: 'mneme_get_partition_head',
 } as const;
 
 /**
@@ -478,6 +486,58 @@ export async function getPageRankScores(
 }
 
 /**
+ * Export op log entries.
+ */
+export async function exportOps(input: ExportOpsInput): Promise<ExportOpsResult> {
+  if (!isTauri()) {
+    return { ops: [] };
+  }
+  try {
+    const raw = await invoke<RustOpEnvelope[]>(COMMANDS.exportOps, input);
+    return { ops: raw.map(fromRustOpEnvelope) };
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.exportOps}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Ingest op log entries.
+ */
+export async function ingestOps(input: IngestOpsInput): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+  try {
+    await invoke<void>(COMMANDS.ingestOps, {
+      ...input,
+      ops: input.ops.map(toRustOpEnvelope),
+    });
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.ingestOps}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Fetch the partition head.
+ */
+export async function getPartitionHead(partitionId: string): Promise<PartitionHeadResult> {
+  if (!isTauri()) {
+    return { head: '0' };
+  }
+  try {
+    return await invoke<PartitionHeadResult>(COMMANDS.getPartitionHead, { partitionId });
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.getPartitionHead}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
  * Fetch the effective schema for a type.
  * @param partitionId - Target partition id.
  * @param typeId - Type identifier to resolve.
@@ -642,6 +702,15 @@ interface RustPageRankParams {
   maxIters: number;
   tol: number;
   personalisedSeed?: RustPageRankSeed[];
+}
+
+interface RustOpEnvelope {
+  op_id: string;
+  actor_id: string;
+  asserted_at: number;
+  op_type: number;
+  payload: number[];
+  deps: string[];
 }
 
 type RustValue =
@@ -860,6 +929,35 @@ function toRustPageRankParams(params: PageRankRunParams): RustPageRankParams {
       id: seed.id,
       weight: seed.w,
     })),
+  };
+}
+
+function normalizeBytes(payload: Uint8Array | number[]): Uint8Array {
+  if (payload instanceof Uint8Array) {
+    return payload;
+  }
+  return Uint8Array.from(payload);
+}
+
+function fromRustOpEnvelope(op: RustOpEnvelope): OpEnvelope {
+  return {
+    opId: op.op_id,
+    actorId: op.actor_id,
+    assertedAt: hlcToString(op.asserted_at),
+    opType: op.op_type,
+    payload: normalizeBytes(op.payload),
+    deps: op.deps,
+  };
+}
+
+function toRustOpEnvelope(op: OpEnvelope) {
+  return {
+    opId: op.opId,
+    actorId: op.actorId,
+    assertedAt: op.assertedAt,
+    opType: op.opType,
+    payload: Array.from(op.payload),
+    deps: op.deps,
   };
 }
 

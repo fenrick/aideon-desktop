@@ -218,6 +218,114 @@ function buildShellCommands({
   return [...viewCommands, ...themeCommands, ...workspaceCommands];
 }
 
+function useBrowserShortcutHandler({
+  isTauri,
+  sidebar,
+  shell,
+  openCommandPalette,
+}: {
+  readonly isTauri: boolean;
+  readonly sidebar: ReturnType<typeof useOptionalSidebar>;
+  readonly shell: ReturnType<typeof useAideonShellControls>;
+  readonly openCommandPalette: () => void;
+}) {
+  useEffect(() => {
+    if (isTauri) {
+      return;
+    }
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) {
+        return;
+      }
+      if (isEditableTarget(event.target)) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      const didHandle = handleBrowserShortcut({
+        key,
+        sidebar,
+        shell,
+        openCommandPalette,
+      });
+      if (didHandle) {
+        event.preventDefault();
+      }
+    };
+    globalThis.addEventListener('keydown', handleKeydown);
+    return () => {
+      globalThis.removeEventListener('keydown', handleKeydown);
+    };
+  }, [isTauri, openCommandPalette, shell, sidebar]);
+}
+
+function useTauriShellCommandListener({
+  isTauri,
+  sidebar,
+  shell,
+  onShellCommand,
+  openCommandPalette,
+}: {
+  readonly isTauri: boolean;
+  readonly sidebar: ReturnType<typeof useOptionalSidebar>;
+  readonly shell: ReturnType<typeof useAideonShellControls>;
+  readonly onShellCommand?: (command: string, payload?: unknown) => void;
+  readonly openCommandPalette: () => void;
+}) {
+  useEffect(() => {
+    if (!isTauri) {
+      return;
+    }
+    let cancelled = false;
+    let unlisten: undefined | (() => void);
+
+    const subscribe = async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        if (cancelled) {
+          return;
+        }
+        unlisten = await listen<{ command?: string; payload?: unknown }>(
+          'aideon.shell.command',
+          (event) => {
+            const command = event.payload.command;
+            const payload = event.payload.payload;
+
+            if (command === 'toggle-navigation') {
+              sidebar?.toggleSidebar();
+            }
+            if (command === 'toggle-inspector') {
+              shell?.toggleInspector();
+            }
+            if (command === 'open-command-palette') {
+              openCommandPalette();
+            }
+            if (command === 'file.print') {
+              globalThis.print();
+            }
+
+            if (command) {
+              onShellCommand?.(command, payload);
+            }
+          },
+        );
+      } catch {
+        // ignore missing tauri event module (browser preview)
+      }
+    };
+
+    subscribe().catch((_ignoredError: unknown) => {
+      // ignore missing tauri event module (browser preview)
+    });
+
+    return () => {
+      cancelled = true;
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [isTauri, onShellCommand, openCommandPalette, shell, sidebar]);
+}
+
 /**
  * Handle Cmd/Ctrl key combos in browser preview mode.
  * @param root0 - Shortcut context.
@@ -349,99 +457,26 @@ export function AideonToolbar({
           ] satisfies AideonCommandItem[])
         : []),
     ] satisfies AideonCommandItem[];
-  }, [
-    isDevelopment,
-    openStyleguide,
-    shell,
+  }, [isDevelopment, openStyleguide, shell, sidebar, theme, workspaceCommands, shortcutLabelFor]);
+
+  useBrowserShortcutHandler({
+    isTauri,
     sidebar,
-    theme,
-    workspaceCommands,
-    shortcutLabelFor,
-  ]);
+    shell,
+    openCommandPalette: () => {
+      setCommandPaletteOpen(true);
+    },
+  });
 
-  useEffect(() => {
-    if (isTauri) {
-      return;
-    }
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey)) {
-        return;
-      }
-      if (isEditableTarget(event.target)) {
-        return;
-      }
-      const key = event.key.toLowerCase();
-      const didHandle = handleBrowserShortcut({
-        key,
-        sidebar,
-        shell,
-        openCommandPalette: () => {
-          setCommandPaletteOpen(true);
-        },
-      });
-      if (didHandle) {
-        event.preventDefault();
-      }
-    };
-    globalThis.addEventListener('keydown', handleKeydown);
-    return () => {
-      globalThis.removeEventListener('keydown', handleKeydown);
-    };
-  }, [isTauri, shell, sidebar]);
-
-  useEffect(() => {
-    if (!isTauri) {
-      return;
-    }
-    let cancelled = false;
-    let unlisten: undefined | (() => void);
-
-    const subscribe = async () => {
-      try {
-        const { listen } = await import('@tauri-apps/api/event');
-        if (cancelled) {
-          return;
-        }
-        unlisten = await listen<{ command?: string; payload?: unknown }>(
-          'aideon.shell.command',
-          (event) => {
-            const command = event.payload.command;
-            const payload = event.payload.payload;
-
-            if (command === 'toggle-navigation') {
-              sidebar?.toggleSidebar();
-            }
-            if (command === 'toggle-inspector') {
-              shell?.toggleInspector();
-            }
-            if (command === 'open-command-palette') {
-              setCommandPaletteOpen(true);
-            }
-            if (command === 'file.print') {
-              globalThis.print();
-            }
-
-            if (command) {
-              onShellCommand?.(command, payload);
-            }
-          },
-        );
-      } catch {
-        // ignore missing tauri event module (browser preview)
-      }
-    };
-
-    subscribe().catch((_ignoredError: unknown) => {
-      // ignore missing tauri event module (browser preview)
-    });
-
-    return () => {
-      cancelled = true;
-      if (unlisten) {
-        unlisten();
-      }
-    };
-  }, [isTauri, onShellCommand, shell, sidebar]);
+  useTauriShellCommandListener({
+    isTauri,
+    sidebar,
+    shell,
+    onShellCommand,
+    openCommandPalette: () => {
+      setCommandPaletteOpen(true);
+    },
+  });
 
   return (
     <div
@@ -470,7 +505,7 @@ export function AideonToolbar({
               )}
             </Button>
           ) : undefined}
-          {!isTauri ? (
+          {isTauri ? undefined : (
             <AppMenu
               onOpenCommandPalette={() => {
                 setCommandPaletteOpen(true);
@@ -484,7 +519,7 @@ export function AideonToolbar({
               shortcutLabelFor={shortcutLabelFor}
               showDebugItems={isDevelopment}
             />
-          ) : undefined}
+          )}
           {start}
           <Button
             type="button"

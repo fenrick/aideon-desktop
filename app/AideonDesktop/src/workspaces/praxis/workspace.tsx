@@ -140,6 +140,9 @@ interface PraxisWorkspaceContextValue {
 
 const PraxisWorkspaceContext = createContext<PraxisWorkspaceContextValue | undefined>(undefined);
 
+/**
+ *
+ */
 function usePraxisWorkspaceContext(): PraxisWorkspaceContextValue {
   const context = useContext(PraxisWorkspaceContext);
   if (!context) {
@@ -181,15 +184,19 @@ interface PraxisWorkspaceProviderProperties {
   readonly children: ReactNode;
 }
 
+/**
+ *
+ * @param root0
+ * @param root0.onSelectionChange
+ * @param root0.children
+ */
 export function PraxisWorkspaceProvider({
   onSelectionChange,
   children,
 }: PraxisWorkspaceProviderProperties) {
   return (
     <SelectionProvider>
-      <PraxisWorkspaceStateProvider
-        onSelectionChange={onSelectionChange}
-      >
+      <PraxisWorkspaceStateProvider onSelectionChange={onSelectionChange}>
         {children}
       </PraxisWorkspaceStateProvider>
     </SelectionProvider>
@@ -200,6 +207,7 @@ export function PraxisWorkspaceProvider({
  *
  * @param root0
  * @param root0.onSelectionChange
+ * @param root0.children
  */
 function PraxisWorkspaceStateProvider({
   onSelectionChange,
@@ -612,6 +620,7 @@ function PraxisWorkspaceStateProvider({
     selectionKind,
     selectionState.selection,
     selectedProperties,
+    propertyState,
     templatesState,
     temporalActions,
     temporalState,
@@ -626,6 +635,9 @@ function PraxisWorkspaceStateProvider({
   );
 }
 
+/**
+ *
+ */
 export function PraxisWorkspaceNavigation() {
   const { projectState, scenarioState, activeScenarioId, onSelectScenario, onRetryProjects } =
     usePraxisWorkspaceContext();
@@ -643,6 +655,9 @@ export function PraxisWorkspaceNavigation() {
   );
 }
 
+/**
+ *
+ */
 export function PraxisWorkspaceToolbar() {
   const {
     scenarioName,
@@ -674,6 +689,9 @@ export function PraxisWorkspaceToolbar() {
   );
 }
 
+/**
+ *
+ */
 export function PraxisWorkspaceContent() {
   const {
     temporalState,
@@ -727,9 +745,18 @@ export function PraxisWorkspaceContent() {
   );
 }
 
+/**
+ *
+ */
 export function PraxisWorkspaceInspector() {
-  const { selectionKind, selectionId, selectedProperties, propertyState, onInspectorSave, onInspectorReset } =
-    usePraxisWorkspaceContext();
+  const {
+    selectionKind,
+    selectionId,
+    selectedProperties,
+    propertyState,
+    onInspectorSave,
+    onInspectorReset,
+  } = usePraxisWorkspaceContext();
 
   return (
     <PropertiesInspector

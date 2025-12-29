@@ -34,6 +34,11 @@ interface AideonDesktopShellProperties {
  */
 const DEFAULT_LAYOUT = { content: 70, inspector: 30 };
 
+/**
+ *
+ * @param contentSize
+ * @param inspectorSize
+ */
 function normalizeLayout(contentSize: number, inspectorSize: number) {
   const total = contentSize + inspectorSize;
   if (!Number.isFinite(total) || total <= 0) {
@@ -49,6 +54,10 @@ function normalizeLayout(contentSize: number, inspectorSize: number) {
   };
 }
 
+/**
+ *
+ * @param storage
+ */
 function readStoredLayout(storage: Storage) {
   try {
     const raw = storage.getItem('aideon-shell-panels');
@@ -67,6 +76,10 @@ function readStoredLayout(storage: Storage) {
   }
 }
 
+/**
+ *
+ * @param storage
+ */
 function readInspectorCollapsed(storage: Storage) {
   try {
     return storage.getItem('aideon-shell-inspector-collapsed') === '1';
@@ -75,6 +88,15 @@ function readInspectorCollapsed(storage: Storage) {
   }
 }
 
+/**
+ *
+ * @param root0
+ * @param root0.navigation
+ * @param root0.content
+ * @param root0.inspector
+ * @param root0.toolbar
+ * @param root0.className
+ */
 export function AideonDesktopShell({
   navigation,
   content,
@@ -86,7 +108,17 @@ export function AideonDesktopShell({
   const panelGroupReference = useRef<ImperativePanelGroupHandle>(null);
   const layoutInitialized = useRef(false);
 
-  const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(() => {
+    try {
+      const storage = (globalThis as unknown as { localStorage?: Storage }).localStorage;
+      if (storage && typeof storage.getItem === 'function') {
+        return readInspectorCollapsed(storage);
+      }
+    } catch {
+      /* ignore */
+    }
+    return false;
+  });
 
   const persistInspectorCollapsed = useCallback((next: boolean) => {
     try {
@@ -137,11 +169,6 @@ export function AideonDesktopShell({
       queueMicrotask(() => {
         panelGroupReference.current?.setLayout([storedLayout.content, storedLayout.inspector]);
       });
-    }
-
-    const storedCollapsed = readInspectorCollapsed(storage);
-    if (storedCollapsed) {
-      setInspectorCollapsed(true);
     }
 
     layoutInitialized.current = true;

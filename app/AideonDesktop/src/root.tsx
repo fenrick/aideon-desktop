@@ -1,8 +1,8 @@
 import type { ComponentType, ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 
-import { AideonToolbar } from 'aideon/shell/aideon-toolbar';
 import { AideonDesktopShell } from 'aideon/shell/aideon-desktop-shell';
+import { AideonToolbar } from 'aideon/shell/aideon-toolbar';
 import { WorkspaceSwitcher } from 'aideon/shell/workspace-switcher';
 import { isTauriRuntime } from 'lib/runtime';
 import { PraxisWorkspaceProvider } from './workspaces/praxis/workspace';
@@ -11,21 +11,29 @@ import type { WorkspaceId } from './workspaces/types';
 
 const ACTIVE_WORKSPACE_STORAGE_KEY = 'aideon.active-workspace';
 
-type WorkspaceProviderProps = {
-  children: ReactNode;
-};
-
-function WorkspaceProviderPassthrough({ children }: WorkspaceProviderProps) {
-  return <>{children}</>;
+interface WorkspaceProviderProperties {
+  readonly children: ReactNode;
 }
 
-function readStoredWorkspaceId(): WorkspaceId | null {
+/**
+ *
+ * @param root0
+ * @param root0.children
+ */
+function WorkspaceProviderPassthrough({ children }: WorkspaceProviderProperties) {
+  return children;
+}
+
+/**
+ *
+ */
+function readStoredWorkspaceId(): WorkspaceId | undefined {
   if (typeof globalThis === 'undefined') {
-    return null;
+    return undefined;
   }
   const storage = (globalThis as { localStorage?: Storage }).localStorage;
   if (!storage) {
-    return null;
+    return undefined;
   }
   try {
     const stored = storage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY);
@@ -33,11 +41,15 @@ function readStoredWorkspaceId(): WorkspaceId | null {
       return stored;
     }
   } catch {
-    return null;
+    return undefined;
   }
-  return null;
+  return undefined;
 }
 
+/**
+ *
+ * @param id
+ */
 function persistWorkspaceId(id: WorkspaceId) {
   if (typeof globalThis === 'undefined') {
     return;
@@ -53,6 +65,9 @@ function persistWorkspaceId(id: WorkspaceId) {
   }
 }
 
+/**
+ *
+ */
 function EmptyInspector() {
   return <div className="p-4 text-sm text-muted-foreground">No inspector available.</div>;
 }
@@ -75,7 +90,7 @@ export function AideonDesktopRoot() {
 
   const WorkspaceProvider =
     ws.id === 'praxis'
-      ? (PraxisWorkspaceProvider as ComponentType<WorkspaceProviderProps>)
+      ? (PraxisWorkspaceProvider as ComponentType<WorkspaceProviderProperties>)
       : WorkspaceProviderPassthrough;
 
   const modeLabel = isTauriRuntime() ? 'Desktop' : 'Browser preview';
@@ -100,7 +115,7 @@ export function AideonDesktopRoot() {
                 onSelect={handleWorkspaceSelect}
               />
             }
-            workspaceToolbar={WorkspaceToolbar ? <WorkspaceToolbar /> : null}
+            workspaceToolbar={WorkspaceToolbar ? <WorkspaceToolbar /> : undefined}
           />
         }
         content={<WorkspaceContent />}

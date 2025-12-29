@@ -24,7 +24,7 @@ vi.mock('aideon/shell/aideon-desktop-shell', () => ({
 }));
 
 vi.mock('./workspaces/praxis/workspace', () => ({
-  PraxisWorkspaceProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+  PraxisWorkspaceProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
 vi.mock('./workspaces/registry', () => {

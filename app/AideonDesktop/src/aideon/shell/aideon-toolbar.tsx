@@ -42,6 +42,7 @@ export interface AideonToolbarProperties extends Readonly<ComponentPropsWithoutR
   readonly modeLabel?: string;
   readonly start?: ReactNode;
   readonly center?: ReactNode;
+  readonly workspaceToolbar?: ReactNode;
   readonly end?: ReactNode;
   readonly statusMessage?: string;
   readonly commands?: readonly AideonCommandItem[];
@@ -271,6 +272,7 @@ function handleBrowserShortcut({
  * @param root0.modeLabel
  * @param root0.start
  * @param root0.center
+ * @param root0.workspaceToolbar
  * @param root0.end
  * @param root0.statusMessage
  * @param root0.commands
@@ -283,6 +285,7 @@ export function AideonToolbar({
   modeLabel,
   start,
   center,
+  workspaceToolbar,
   end,
   statusMessage,
   commands: workspaceCommands = [],
@@ -513,9 +516,15 @@ export function AideonToolbar({
           </div>
         </ToolbarSection>
 
-        <ToolbarSection justify="center" className="hidden min-w-0 max-w-[520px] px-2 md:flex">
-          {center}
-        </ToolbarSection>
+        {workspaceToolbar ? (
+          <ToolbarSection justify="center" className="min-w-0 flex-1 px-2">
+            {workspaceToolbar}
+          </ToolbarSection>
+        ) : (
+          <ToolbarSection justify="center" className="hidden min-w-0 max-w-[520px] px-2 md:flex">
+            {center}
+          </ToolbarSection>
+        )}
 
         <ToolbarSection justify="end" className="gap-2">
           {end}

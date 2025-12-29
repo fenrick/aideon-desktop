@@ -52,7 +52,6 @@ import type {
   PraxisWidgetKind as WidgetKind,
 } from 'praxis/types';
 import { listWidgetRegistry, type WidgetRegistryEntry } from 'praxis/widgets/registry';
-import type { WorkspaceSwitcherProperties } from 'aideon/shell/workspace-switcher';
 import {
   SelectionProvider,
   deriveSelectionKind,
@@ -96,11 +95,6 @@ interface ScenarioState {
   data: ScenarioSummary[];
 }
 
-type WorkspaceSwitcherConfig = Pick<
-  WorkspaceSwitcherProperties,
-  'currentId' | 'options' | 'onSelect'
->;
-
 interface PraxisWorkspaceContextValue {
   readonly projectState: {
     loading: boolean;
@@ -129,7 +123,6 @@ interface PraxisWorkspaceContextValue {
   };
   readonly temporalState: ReturnType<typeof useTemporalPanel>[0];
   readonly temporalActions: ReturnType<typeof useTemporalPanel>[1];
-  readonly workspaceSwitcher?: WorkspaceSwitcherConfig;
   readonly branchSelectReferenceCallback: RefCallback<HTMLButtonElement>;
   readonly onTemplateChange: (templateId: string) => void;
   readonly onTemplateSave: () => void;
@@ -185,20 +178,17 @@ export function PraxisWorkspaceSurface({
 
 interface PraxisWorkspaceProviderProperties {
   readonly onSelectionChange?: (selection: SelectionState) => void;
-  readonly workspaceSwitcher?: WorkspaceSwitcherConfig;
   readonly children: ReactNode;
 }
 
 export function PraxisWorkspaceProvider({
   onSelectionChange,
-  workspaceSwitcher,
   children,
 }: PraxisWorkspaceProviderProperties) {
   return (
     <SelectionProvider>
       <PraxisWorkspaceStateProvider
         onSelectionChange={onSelectionChange}
-        workspaceSwitcher={workspaceSwitcher}
       >
         {children}
       </PraxisWorkspaceStateProvider>
@@ -213,11 +203,9 @@ export function PraxisWorkspaceProvider({
  */
 function PraxisWorkspaceStateProvider({
   onSelectionChange,
-  workspaceSwitcher,
   children,
 }: {
   readonly onSelectionChange?: (selection: SelectionState) => void;
-  readonly workspaceSwitcher?: WorkspaceSwitcherConfig;
   readonly children: ReactNode;
 }) {
   const {
@@ -587,7 +575,6 @@ function PraxisWorkspaceStateProvider({
       propertyState,
       temporalState,
       temporalActions,
-      workspaceSwitcher,
       branchSelectReferenceCallback,
       onTemplateChange: handleTemplateChange,
       onTemplateSave: handleTemplateSave,
@@ -630,7 +617,6 @@ function PraxisWorkspaceStateProvider({
     temporalState,
     widgetLibraryOpen,
     widgets,
-    workspaceSwitcher,
   ]);
 
   return (
@@ -669,8 +655,6 @@ export function PraxisWorkspaceToolbar() {
     temporalState,
     temporalActions,
     branchSelectReferenceCallback,
-    scenarioState,
-    workspaceSwitcher,
   } = usePraxisWorkspaceContext();
 
   return (
@@ -686,8 +670,6 @@ export function PraxisWorkspaceToolbar() {
       temporalActions={temporalActions}
       timeTriggerRef={branchSelectReferenceCallback}
       loading={templatesState.loading}
-      error={scenarioState.error}
-      workspaceSwitcher={workspaceSwitcher}
     />
   );
 }

@@ -4,18 +4,12 @@ import { useMemo, useState } from 'react';
 import type { TemporalPanelActions, TemporalPanelState } from 'praxis/time/use-temporal-panel';
 
 import { searchStore } from 'praxis/lib/search';
-import { isTauri } from 'praxis/platform';
 import type { CanvasTemplate } from 'praxis/templates';
 
-import { AideonToolbar } from 'aideon/shell/aideon-toolbar';
-import {
-  WorkspaceSwitcher,
-  type WorkspaceSwitcherProperties,
-} from 'aideon/shell/workspace-switcher';
+import { cn } from 'design-system/lib/utilities';
 import { Button } from 'design-system/components/ui/button';
 import { Input } from 'design-system/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from 'design-system/components/ui/popover';
-import { toast } from 'sonner';
 import { TimeControlPanel } from '../blocks/time-control-panel';
 import { TemplateToolbar } from './template-toolbar';
 import { WorkspaceActions } from './workspace-actions';
@@ -32,11 +26,7 @@ export interface PraxisWorkspaceToolbarProperties {
   readonly temporalActions: TemporalPanelActions;
   readonly timeTriggerRef?: Ref<HTMLButtonElement>;
   readonly loading?: boolean;
-  readonly error?: string;
-  readonly workspaceSwitcher?: Pick<
-    WorkspaceSwitcherProperties,
-    'currentId' | 'options' | 'onSelect'
-  >;
+  readonly className?: string;
 }
 
 /**
@@ -53,7 +43,6 @@ export interface PraxisWorkspaceToolbarProperties {
  * @param root0.temporalActions
  * @param root0.timeTriggerRef
  * @param root0.loading
- * @param root0.error
  */
 export function PraxisWorkspaceToolbar({
   scenarioName,
@@ -67,51 +56,14 @@ export function PraxisWorkspaceToolbar({
   temporalActions,
   timeTriggerRef,
   loading = false,
-  error,
-  workspaceSwitcher,
+  className,
 }: PraxisWorkspaceToolbarProperties) {
-  const isDesktop = isTauri();
-  const modeLabel = isDesktop ? 'Desktop' : 'Browser preview';
-  const trimmedScenarioName = scenarioName?.trim();
-  const scenarioLabel =
-    trimmedScenarioName && trimmedScenarioName.length > 0 ? trimmedScenarioName : 'Scenario';
-
   const [query, setQuery] = useState('');
-  const placeholder = useMemo(() => {
-    return `Search ${scenarioLabel.toLowerCase()}…`;
-  }, [scenarioLabel]);
+  const placeholder = useMemo(() => 'Search scenario…', []);
 
   return (
-    <AideonToolbar
-      title="Aideon"
-      subtitle={scenarioName ? `Praxis · ${scenarioName}` : 'Praxis workspace'}
-      modeLabel={modeLabel}
-      statusMessage={error}
-      onShellCommand={(command, payload) => {
-        if (command === 'file.open' || command === 'file.save_as') {
-          const path = (payload as { path?: unknown } | undefined)?.path;
-          if (typeof path === 'string' && path.trim()) {
-            toast.message(command === 'file.open' ? 'Selected file' : 'Save location', {
-              description: path,
-            });
-          }
-        }
-      }}
-      start={
-        workspaceSwitcher ? (
-          <WorkspaceSwitcher {...workspaceSwitcher} />
-        ) : (
-          <WorkspaceSwitcher
-            currentId="praxis"
-            options={[
-              { id: 'praxis', label: 'Praxis', disabled: false },
-              { id: 'metis', label: 'Metis', disabled: true },
-              { id: 'mneme', label: 'Mneme', disabled: true },
-            ]}
-          />
-        )
-      }
-      center={
+    <div className={cn('flex w-full items-center gap-2', className)}>
+      <div className="hidden min-w-0 flex-1 md:block">
         <Input
           type="search"
           aria-label="Search"
@@ -128,34 +80,32 @@ export function PraxisWorkspaceToolbar({
           }}
           className="h-9 bg-background/80"
         />
-      }
-      end={
-        <>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button ref={timeTriggerRef} variant="outline" size="sm">
-                Time
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-[380px] p-0">
-              <TimeControlPanel state={temporalState} actions={temporalActions} />
-            </PopoverContent>
-          </Popover>
+      </div>
+      <div className="flex items-center gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button ref={timeTriggerRef} variant="outline" size="sm">
+              Time
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-[380px] p-0">
+            <TimeControlPanel state={temporalState} actions={temporalActions} />
+          </PopoverContent>
+        </Popover>
 
-          <WorkspaceActions />
+        <WorkspaceActions />
 
-          <TemplateToolbar
-            scenarioName={scenarioName}
-            templateName={templateName}
-            templates={templates}
-            activeTemplateId={activeTemplateId}
-            onTemplateChange={onTemplateChange}
-            onTemplateSave={onTemplateSave}
-            onCreateWidget={onCreateWidget}
-            loading={loading}
-          />
-        </>
-      }
-    />
+        <TemplateToolbar
+          scenarioName={scenarioName}
+          templateName={templateName}
+          templates={templates}
+          activeTemplateId={activeTemplateId}
+          onTemplateChange={onTemplateChange}
+          onTemplateSave={onTemplateSave}
+          onCreateWidget={onCreateWidget}
+          loading={loading}
+        />
+      </div>
+    </div>
   );
 }

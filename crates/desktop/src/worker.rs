@@ -7,21 +7,28 @@ use aideon_praxis_facade::chrona::TemporalEngine;
 use aideon_praxis_facade::mneme::{MnemeStore, WorkerHealth, open_store};
 use aideon_praxis_facade::praxis::PraxisEngine;
 use log::{debug, info};
+use std::collections::HashMap;
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::sync::{Mutex, oneshot};
 use tauri::{AppHandle, Manager, Wry};
 
 /// Shared application state giving command handlers access to the temporal engine.
 pub struct WorkerState {
     engine: TemporalEngine,
     mneme: MnemeStore,
+    subscriptions: Mutex<HashMap<String, oneshot::Sender<()>>>,
 }
 
 impl WorkerState {
     /// Create a new worker state wrapper around the provided engine instance.
     pub fn new(engine: TemporalEngine, mneme: MnemeStore) -> Self {
         debug!("host: WorkerState constructed");
-        Self { engine, mneme }
+        Self {
+            engine,
+            mneme,
+            subscriptions: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Borrow the underlying temporal engine for read-only operations.
@@ -31,6 +38,20 @@ impl WorkerState {
 
     pub fn mneme(&self) -> &MnemeStore {
         &self.mneme
+    }
+
+    pub async fn register_subscription(&self, id: String, cancel: oneshot::Sender<()>) {
+        let mut guard = self.subscriptions.lock().await;
+        guard.insert(id, cancel);
+    }
+
+    pub async fn cancel_subscription(&self, id: &str) -> bool {
+        let mut guard = self.subscriptions.lock().await;
+        if let Some(cancel) = guard.remove(id) {
+            let _ = cancel.send(());
+            return true;
+        }
+        false
     }
 
     /// Produce a lightweight health snapshot for IPC exposure.

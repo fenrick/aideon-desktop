@@ -399,3 +399,33 @@ export interface JobSummary {
   dedupeKey?: string;
   lastError?: string;
 }
+
+export interface ChangeEvent {
+  partitionId: string;
+  sequence: number;
+  opId: string;
+  assertedAt: AssertedTime;
+  entityId?: string;
+  changeKind: number;
+  payload?: unknown;
+}
+
+export interface GetChangesSinceInput {
+  partitionId: string;
+  fromSequence?: number;
+  limit?: number;
+}
+
+export interface SubscribePartitionInput {
+  partitionId: string;
+  fromSequence?: number;
+  eventName?: string;
+}
+
+export interface SubscriptionResult {
+  subscriptionId: string;
+}
+
+export interface UnsubscribePartitionInput {
+  subscriptionId: string;
+}

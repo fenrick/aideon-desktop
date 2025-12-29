@@ -1,15 +1,18 @@
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import type {
   AssertedTime,
   ClearPropertyIntervalInput,
   CounterUpdateInput,
   CreateEdgeInput,
   CreateNodeInput,
+  ChangeEvent,
   EdgeTypeRuleDefinition,
   FieldDefinition,
   FieldFilter,
   ExportOpsInput,
   ExportOpsResult,
+  GetChangesSinceInput,
   GetGraphDegreeStatsInput,
   GetGraphEdgeTypeCountsInput,
   GetPageRankScoresInput,
@@ -38,6 +41,8 @@ import type {
   SchemaCompileResult,
   SetEdgeExistenceIntervalInput,
   SetPropertyIntervalInput,
+  SubscribePartitionInput,
+  SubscriptionResult,
   StorePageRankRunInput,
   TombstoneEntityInput,
   TriggerCompactionInput,
@@ -45,6 +50,7 @@ import type {
   TriggerRetentionInput,
   TraverseAtTimeInput,
   TraverseEdgeItem,
+  UnsubscribePartitionInput,
   TypeDefinition,
   TypeFieldDefinition,
   ValidTime,
@@ -84,6 +90,9 @@ const COMMANDS = {
   triggerCompaction: 'mneme_trigger_compaction',
   runProcessingWorker: 'mneme_run_processing_worker',
   listJobs: 'mneme_list_jobs',
+  getChangesSince: 'mneme_get_changes_since',
+  subscribePartition: 'mneme_subscribe_partition',
+  unsubscribePartition: 'mneme_unsubscribe_partition',
 } as const;
 
 /**
@@ -652,6 +661,64 @@ export async function listJobs(input: ListJobsInput): Promise<JobSummary[]> {
   }
 }
 
+export async function getChangesSince(
+  input: GetChangesSinceInput,
+): Promise<ChangeEvent[]> {
+  if (!isTauri()) {
+    return [];
+  }
+  try {
+    const raw = await invoke<RustChangeEvent[]>(COMMANDS.getChangesSince, input);
+    return raw.map(fromRustChangeEvent);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.getChangesSince}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function subscribePartition(
+  input: SubscribePartitionInput,
+): Promise<SubscriptionResult> {
+  if (!isTauri()) {
+    return { subscriptionId: 'mock-sub' };
+  }
+  try {
+    return await invoke<SubscriptionResult>(COMMANDS.subscribePartition, input);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.subscribePartition}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function unsubscribePartition(
+  input: UnsubscribePartitionInput,
+): Promise<boolean> {
+  if (!isTauri()) {
+    return true;
+  }
+  try {
+    return await invoke<boolean>(COMMANDS.unsubscribePartition, input);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.unsubscribePartition}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function onChangeEvents(
+  handler: (event: ChangeEvent) => void,
+): Promise<() => void> {
+  if (!isTauri()) {
+    return async () => {};
+  }
+  const unlisten = await listen<RustChangeEvent>('mneme_change_event', (event) => {
+    handler(fromRustChangeEvent(event.payload));
+  });
+  return unlisten;
+}
+
 /**
  * Fetch the effective schema for a type.
  * @param partitionId - Target partition id.
@@ -842,6 +909,16 @@ interface RustJobSummary {
   updated_asserted_at: number;
   dedupe_key?: string | null;
   last_error?: string | null;
+}
+
+interface RustChangeEvent {
+  partition: string;
+  sequence: number;
+  op_id: string;
+  asserted_at: number;
+  entity_id?: string | null;
+  change_kind: number;
+  payload?: unknown;
 }
 
 type RustValue =
@@ -1107,6 +1184,18 @@ function fromRustJobSummary(job: RustJobSummary): JobSummary {
     updatedAssertedAt: hlcToString(job.updated_asserted_at),
     dedupeKey: job.dedupe_key ?? undefined,
     lastError: job.last_error ?? undefined,
+  };
+}
+
+function fromRustChangeEvent(event: RustChangeEvent): ChangeEvent {
+  return {
+    partitionId: event.partition,
+    sequence: event.sequence,
+    opId: event.op_id,
+    assertedAt: hlcToString(event.asserted_at),
+    entityId: event.entity_id ?? undefined,
+    changeKind: event.change_kind,
+    payload: event.payload,
   };
 }
 

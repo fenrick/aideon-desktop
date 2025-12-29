@@ -1,12 +1,12 @@
 //! Host-side Mneme commands bridging renderer IPC calls to the Mneme store.
 
 use aideon_praxis_facade::mneme::{
-    AnalyticsApi, AnalyticsResultsApi, ClearPropIntervalInput, CompareOp, CounterUpdateInput,
-    CreateEdgeInput, CreateNodeInput, Direction, EdgeTypeRule, EntityKind, FieldFilter,
-    ExportOpsInput, GetGraphDegreeStatsInput, GetGraphEdgeTypeCountsInput, GetProjectionEdgesInput,
-    GraphDegreeStat, GraphEdgeTypeCount, GraphReadApi, GraphWriteApi, ListEntitiesInput,
-    ListEntitiesResultItem, MetamodelApi, MetamodelBatch, MnemeError, OpEnvelope, OpId,
-    OrSetUpdateInput, PageRankRunSpec, PartitionId, PropertyWriteApi, ReadEntityAtTimeInput,
+    AnalyticsApi, AnalyticsResultsApi, ChangeEvent, ChangeFeedApi, ClearPropIntervalInput,
+    CompareOp, CounterUpdateInput, CreateEdgeInput, CreateNodeInput, Direction, EdgeTypeRule,
+    EntityKind, FieldFilter, ExportOpsInput, GetGraphDegreeStatsInput, GetGraphEdgeTypeCountsInput,
+    GetProjectionEdgesInput, GraphDegreeStat, GraphEdgeTypeCount, GraphReadApi, GraphWriteApi,
+    ListEntitiesInput, ListEntitiesResultItem, MetamodelApi, MetamodelBatch, MnemeError, OpEnvelope,
+    OpId, OrSetUpdateInput, PageRankRunSpec, PartitionId, PropertyWriteApi, ReadEntityAtTimeInput,
     ReadEntityAtTimeResult, SchemaVersion, SetEdgeExistenceIntervalInput, SetOp,
     SetPropIntervalInput, SyncApi, TraverseAtTimeInput, TraverseEdgeItem, ValidTime, Value,
     ProjectionEdge, MnemeProcessingApi, TriggerProcessingInput, TriggerRetentionInput,
@@ -15,11 +15,17 @@ use aideon_praxis_facade::mneme::{
 use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::State;
+use tauri::Window;
+use tauri::async_runtime::spawn;
 use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
+use tokio::sync::oneshot;
 
 use crate::worker::WorkerState;
+
+static SUBSCRIPTION_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -402,6 +408,68 @@ pub async fn mneme_list_entities(
 }
 
 #[tauri::command]
+pub async fn mneme_get_changes_since(
+    state: State<'_, WorkerState>,
+    payload: GetChangesSincePayload,
+) -> Result<Vec<ChangeEvent>, HostError> {
+    let store = state.mneme();
+    store
+        .get_changes_since(
+            payload.partition_id,
+            payload.from_sequence,
+            payload.limit.unwrap_or(500),
+        )
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_subscribe_partition(
+    state: State<'_, WorkerState>,
+    window: Window,
+    payload: SubscribePartitionPayload,
+) -> Result<SubscriptionResult, HostError> {
+    let store = state.mneme();
+    let mut receiver = store
+        .subscribe_partition(payload.partition_id, payload.from_sequence)
+        .await
+        .map_err(host_error)?;
+    let (cancel_tx, mut cancel_rx) = oneshot::channel();
+    let subscription_id = next_subscription_id();
+    state
+        .register_subscription(subscription_id.clone(), cancel_tx)
+        .await;
+    let event_name = payload
+        .event_name
+        .unwrap_or_else(|| "mneme_change_event".to_string());
+    let window = window.clone();
+    spawn(async move {
+        loop {
+            tokio::select! {
+                _ = &mut cancel_rx => break,
+                evt = receiver.recv() => {
+                    match evt {
+                        Some(change) => {
+                            let _ = window.emit(&event_name, change);
+                        }
+                        None => break,
+                    }
+                }
+            }
+        }
+    });
+    Ok(SubscriptionResult { subscription_id })
+}
+
+#[tauri::command]
+pub async fn mneme_unsubscribe_partition(
+    state: State<'_, WorkerState>,
+    payload: UnsubscribePartitionPayload,
+) -> Result<bool, HostError> {
+    Ok(state.cancel_subscription(&payload.subscription_id).await)
+}
+
+#[tauri::command]
 pub async fn mneme_get_projection_edges(
     state: State<'_, WorkerState>,
     payload: GetProjectionEdgesPayload,
@@ -775,6 +843,11 @@ fn parse_valid_time(value: &str) -> Result<ValidTime, HostError> {
     Ok(ValidTime(parsed.unix_timestamp_nanos() / 1_000))
 }
 
+fn next_subscription_id() -> String {
+    let next = SUBSCRIPTION_COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("mneme-sub-{next}")
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateNodePayload {
@@ -938,6 +1011,34 @@ pub struct ListEntitiesFilterPayload {
     pub field_id: aideon_praxis_facade::mneme::Id,
     pub op: CompareOp,
     pub value: Value,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetChangesSincePayload {
+    pub partition_id: PartitionId,
+    pub from_sequence: Option<i64>,
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscribePartitionPayload {
+    pub partition_id: PartitionId,
+    pub from_sequence: Option<i64>,
+    pub event_name: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscriptionResult {
+    pub subscription_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnsubscribePartitionPayload {
+    pub subscription_id: String,
 }
 
 #[derive(Debug, Deserialize)]

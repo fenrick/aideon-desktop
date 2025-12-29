@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('workspaces/mneme/platform', () => ({ isTauri: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
+vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn() }));
 
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { isTauri } from 'workspaces/mneme/platform';
 
 import {
@@ -33,6 +35,10 @@ import {
   triggerRefreshAnalyticsProjections,
   triggerRefreshIntegrity,
   triggerRetention,
+  getChangesSince,
+  subscribePartition,
+  unsubscribePartition,
+  onChangeEvents,
   readEntityAtTime,
   traverseAtTime,
   tombstoneEntity,
@@ -41,11 +47,13 @@ import {
 
 const isTauriMock = vi.mocked(isTauri);
 const invokeMock = vi.mocked(invoke);
+const listenMock = vi.mocked(listen);
 
 describe('mneme-api metamodel bindings', () => {
   beforeEach(() => {
     isTauriMock.mockReturnValue(true);
     invokeMock.mockReset();
+    listenMock.mockReset();
   });
 
   it('maps metamodel batch payloads to rust shapes', async () => {
@@ -726,5 +734,58 @@ describe('mneme-api metamodel bindings', () => {
       createdAssertedAt: '11',
       updatedAssertedAt: '22',
     });
+  });
+
+  it('maps change feed events from rust to ts', async () => {
+    invokeMock.mockResolvedValue([
+      {
+        partition: 'p-1',
+        sequence: 10,
+        op_id: 'op-1',
+        asserted_at: 101,
+        entity_id: 'n-1',
+        change_kind: 2,
+        payload: { note: 'changed' },
+      },
+    ]);
+
+    const events = await getChangesSince({ partitionId: 'p-1' });
+
+    expect(events).toEqual([
+      {
+        partitionId: 'p-1',
+        sequence: 10,
+        opId: 'op-1',
+        assertedAt: '101',
+        entityId: 'n-1',
+        changeKind: 2,
+        payload: { note: 'changed' },
+      },
+    ]);
+  });
+
+  it('subscribes and unsubscribes to change feeds', async () => {
+    invokeMock.mockResolvedValueOnce({ subscriptionId: 'sub-1' }).mockResolvedValueOnce(true);
+
+    const sub = await subscribePartition({ partitionId: 'p-1' });
+    const ok = await unsubscribePartition({ subscriptionId: 'sub-1' });
+
+    expect(sub.subscriptionId).toBe('sub-1');
+    expect(ok).toBe(true);
+    expect(invokeMock).toHaveBeenCalledWith('mneme_subscribe_partition', {
+      partitionId: 'p-1',
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_unsubscribe_partition', {
+      subscriptionId: 'sub-1',
+    });
+  });
+
+  it('registers change event listeners', async () => {
+    listenMock.mockResolvedValue(() => {});
+
+    const unlisten = await onChangeEvents(() => {});
+
+    expect(listenMock).toHaveBeenCalledWith('mneme_change_event', expect.any(Function));
+    expect(typeof unlisten).toBe('function');
   });
 });

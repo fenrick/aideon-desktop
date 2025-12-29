@@ -26,6 +26,13 @@ import {
   exportOps,
   ingestOps,
   getPartitionHead,
+  listJobs,
+  runProcessingWorker,
+  triggerCompaction,
+  triggerRebuildEffectiveSchema,
+  triggerRefreshAnalyticsProjections,
+  triggerRefreshIntegrity,
+  triggerRetention,
   readEntityAtTime,
   traverseAtTime,
   tombstoneEntity,
@@ -645,5 +652,79 @@ describe('mneme-api metamodel bindings', () => {
 
     expect(result.head).toBe('999');
     expect(invokeMock).toHaveBeenCalledWith('mneme_get_partition_head', { partitionId: 'p-1' });
+  });
+
+  it('triggers processing jobs', async () => {
+    invokeMock.mockResolvedValue(undefined);
+
+    await triggerRebuildEffectiveSchema({ partitionId: 'p-1', reason: 'rebuild' });
+    await triggerRefreshIntegrity({ partitionId: 'p-1', reason: 'integrity' });
+    await triggerRefreshAnalyticsProjections({ partitionId: 'p-1', reason: 'analytics' });
+    await triggerRetention({
+      partitionId: 'p-1',
+      reason: 'cleanup',
+      policy: { keepOpsDays: 30 },
+    });
+    await triggerCompaction({ partitionId: 'p-1', reason: 'compact' });
+
+    expect(invokeMock).toHaveBeenCalledWith('mneme_trigger_rebuild_effective_schema', {
+      partitionId: 'p-1',
+      reason: 'rebuild',
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_trigger_refresh_integrity', {
+      partitionId: 'p-1',
+      reason: 'integrity',
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_trigger_refresh_analytics_projections', {
+      partitionId: 'p-1',
+      reason: 'analytics',
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_trigger_retention', {
+      partitionId: 'p-1',
+      reason: 'cleanup',
+      policy: { keepOpsDays: 30 },
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_trigger_compaction', {
+      partitionId: 'p-1',
+      reason: 'compact',
+    });
+  });
+
+  it('runs processing workers and maps job summaries', async () => {
+    invokeMock
+      .mockResolvedValueOnce({ jobsProcessed: 2 })
+      .mockResolvedValueOnce([
+        {
+          partition: 'p-1',
+          job_id: 'j-1',
+          job_type: 'schema',
+          status: 1,
+          priority: 5,
+          attempts: 0,
+          max_attempts: 3,
+          lease_expires_at: null,
+          next_run_after: null,
+          created_asserted_at: 11,
+          updated_asserted_at: 22,
+          dedupe_key: null,
+          last_error: null,
+        },
+      ]);
+
+    const workerResult = await runProcessingWorker({ maxJobs: 5, leaseMillis: 1000 });
+    const jobs = await listJobs({ partitionId: 'p-1', limit: 10 });
+
+    expect(workerResult.jobsProcessed).toBe(2);
+    expect(jobs[0]).toMatchObject({
+      partitionId: 'p-1',
+      jobId: 'j-1',
+      jobType: 'schema',
+      status: 1,
+      priority: 5,
+      attempts: 0,
+      maxAttempts: 3,
+      createdAssertedAt: '11',
+      updatedAssertedAt: '22',
+    });
   });
 });

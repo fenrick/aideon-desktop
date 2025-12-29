@@ -17,6 +17,7 @@ import type {
   GraphDegreeStat,
   GraphEdgeTypeCount,
   IngestOpsInput,
+  JobSummary,
   ListEntitiesInput,
   ListEntitiesResultItem,
   MetamodelBatch,
@@ -31,11 +32,17 @@ import type {
   ReadEntityAtTimeInput,
   ReadEntityAtTimeResult,
   ReadValue,
+  RetentionPolicy,
+  RunProcessingWorkerInput,
+  RunProcessingWorkerResult,
   SchemaCompileResult,
   SetEdgeExistenceIntervalInput,
   SetPropertyIntervalInput,
   StorePageRankRunInput,
   TombstoneEntityInput,
+  TriggerCompactionInput,
+  TriggerProcessingInput,
+  TriggerRetentionInput,
   TraverseAtTimeInput,
   TraverseEdgeItem,
   TypeDefinition,
@@ -70,6 +77,13 @@ const COMMANDS = {
   exportOps: 'mneme_export_ops',
   ingestOps: 'mneme_ingest_ops',
   getPartitionHead: 'mneme_get_partition_head',
+  triggerRebuildEffectiveSchema: 'mneme_trigger_rebuild_effective_schema',
+  triggerRefreshIntegrity: 'mneme_trigger_refresh_integrity',
+  triggerRefreshAnalyticsProjections: 'mneme_trigger_refresh_analytics_projections',
+  triggerRetention: 'mneme_trigger_retention',
+  triggerCompaction: 'mneme_trigger_compaction',
+  runProcessingWorker: 'mneme_run_processing_worker',
+  listJobs: 'mneme_list_jobs',
 } as const;
 
 /**
@@ -537,6 +551,107 @@ export async function getPartitionHead(partitionId: string): Promise<PartitionHe
   }
 }
 
+export async function triggerRebuildEffectiveSchema(
+  input: TriggerProcessingInput,
+): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+  try {
+    await invoke<void>(COMMANDS.triggerRebuildEffectiveSchema, input);
+  } catch (error) {
+    throw new Error(
+      `Host command '${COMMANDS.triggerRebuildEffectiveSchema}' failed: ${String(error)}`,
+      { cause: error },
+    );
+  }
+}
+
+export async function triggerRefreshIntegrity(input: TriggerProcessingInput): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+  try {
+    await invoke<void>(COMMANDS.triggerRefreshIntegrity, input);
+  } catch (error) {
+    throw new Error(
+      `Host command '${COMMANDS.triggerRefreshIntegrity}' failed: ${String(error)}`,
+      { cause: error },
+    );
+  }
+}
+
+export async function triggerRefreshAnalyticsProjections(
+  input: TriggerProcessingInput,
+): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+  try {
+    await invoke<void>(COMMANDS.triggerRefreshAnalyticsProjections, input);
+  } catch (error) {
+    throw new Error(
+      `Host command '${COMMANDS.triggerRefreshAnalyticsProjections}' failed: ${String(error)}`,
+      { cause: error },
+    );
+  }
+}
+
+export async function triggerRetention(input: TriggerRetentionInput): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+  try {
+    await invoke<void>(COMMANDS.triggerRetention, input);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.triggerRetention}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function triggerCompaction(input: TriggerCompactionInput): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+  try {
+    await invoke<void>(COMMANDS.triggerCompaction, input);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.triggerCompaction}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function runProcessingWorker(
+  input: RunProcessingWorkerInput,
+): Promise<RunProcessingWorkerResult> {
+  if (!isTauri()) {
+    return { jobsProcessed: 0 };
+  }
+  try {
+    return await invoke<RunProcessingWorkerResult>(COMMANDS.runProcessingWorker, input);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.runProcessingWorker}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function listJobs(input: ListJobsInput): Promise<JobSummary[]> {
+  if (!isTauri()) {
+    return [];
+  }
+  try {
+    const raw = await invoke<RustJobSummary[]>(COMMANDS.listJobs, input);
+    return raw.map(fromRustJobSummary);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.listJobs}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
 /**
  * Fetch the effective schema for a type.
  * @param partitionId - Target partition id.
@@ -711,6 +826,22 @@ interface RustOpEnvelope {
   op_type: number;
   payload: number[];
   deps: string[];
+}
+
+interface RustJobSummary {
+  partition: string;
+  job_id: string;
+  job_type: string;
+  status: number;
+  priority: number;
+  attempts: number;
+  max_attempts: number;
+  lease_expires_at?: number | null;
+  next_run_after?: number | null;
+  created_asserted_at: number;
+  updated_asserted_at: number;
+  dedupe_key?: string | null;
+  last_error?: string | null;
 }
 
 type RustValue =
@@ -958,6 +1089,24 @@ function toRustOpEnvelope(op: OpEnvelope) {
     opType: op.opType,
     payload: Array.from(op.payload),
     deps: op.deps,
+  };
+}
+
+function fromRustJobSummary(job: RustJobSummary): JobSummary {
+  return {
+    partitionId: job.partition,
+    jobId: job.job_id,
+    jobType: job.job_type,
+    status: job.status,
+    priority: job.priority,
+    attempts: job.attempts,
+    maxAttempts: job.max_attempts,
+    leaseExpiresAt: job.lease_expires_at ?? undefined,
+    nextRunAfter: job.next_run_after ?? undefined,
+    createdAssertedAt: hlcToString(job.created_asserted_at),
+    updatedAssertedAt: hlcToString(job.updated_asserted_at),
+    dedupeKey: job.dedupe_key ?? undefined,
+    lastError: job.last_error ?? undefined,
   };
 }
 

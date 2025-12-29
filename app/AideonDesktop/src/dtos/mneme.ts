@@ -342,3 +342,60 @@ export interface IngestOpsInput {
 export interface PartitionHeadResult {
   head: AssertedTime;
 }
+
+export interface TriggerProcessingInput {
+  partitionId: string;
+  scenarioId?: string;
+  reason: string;
+}
+
+export interface RetentionPolicy {
+  keepOpsDays?: number;
+  keepFactsDays?: number;
+  keepFailedJobsDays?: number;
+  keepPageRankRunsDays?: number;
+}
+
+export interface TriggerRetentionInput {
+  partitionId: string;
+  scenarioId?: string;
+  policy: RetentionPolicy;
+  reason: string;
+}
+
+export interface TriggerCompactionInput {
+  partitionId: string;
+  scenarioId?: string;
+  reason: string;
+}
+
+export interface RunProcessingWorkerInput {
+  maxJobs: number;
+  leaseMillis: number;
+}
+
+export interface RunProcessingWorkerResult {
+  jobsProcessed: number;
+}
+
+export interface ListJobsInput {
+  partitionId: string;
+  status?: number;
+  limit: number;
+}
+
+export interface JobSummary {
+  partitionId: string;
+  jobId: string;
+  jobType: string;
+  status: number;
+  priority: number;
+  attempts: number;
+  maxAttempts: number;
+  leaseExpiresAt?: number;
+  nextRunAfter?: number;
+  createdAssertedAt: AssertedTime;
+  updatedAssertedAt: AssertedTime;
+  dedupeKey?: string;
+  lastError?: string;
+}

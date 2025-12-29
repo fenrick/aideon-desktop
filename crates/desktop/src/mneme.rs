@@ -9,7 +9,8 @@ use aideon_praxis_facade::mneme::{
     OrSetUpdateInput, PageRankRunSpec, PartitionId, PropertyWriteApi, ReadEntityAtTimeInput,
     ReadEntityAtTimeResult, SchemaVersion, SetEdgeExistenceIntervalInput, SetOp,
     SetPropIntervalInput, SyncApi, TraverseAtTimeInput, TraverseEdgeItem, ValidTime, Value,
-    ProjectionEdge,
+    ProjectionEdge, MnemeProcessingApi, TriggerProcessingInput, TriggerRetentionInput,
+    TriggerCompactionInput, RetentionPolicy, RunWorkerInput, JobSummary,
 };
 use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
 use log::{debug, error, info};
@@ -590,6 +591,122 @@ pub async fn mneme_get_partition_head(
 }
 
 #[tauri::command]
+pub async fn mneme_trigger_rebuild_effective_schema(
+    state: State<'_, WorkerState>,
+    payload: TriggerProcessingPayload,
+) -> Result<(), HostError> {
+    let store = state.mneme();
+    store
+        .trigger_rebuild_effective_schema(TriggerProcessingInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            reason: payload.reason,
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_trigger_refresh_integrity(
+    state: State<'_, WorkerState>,
+    payload: TriggerProcessingPayload,
+) -> Result<(), HostError> {
+    let store = state.mneme();
+    store
+        .trigger_refresh_integrity(TriggerProcessingInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            reason: payload.reason,
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_trigger_refresh_analytics_projections(
+    state: State<'_, WorkerState>,
+    payload: TriggerProcessingPayload,
+) -> Result<(), HostError> {
+    let store = state.mneme();
+    store
+        .trigger_refresh_analytics_projections(TriggerProcessingInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            reason: payload.reason,
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_trigger_retention(
+    state: State<'_, WorkerState>,
+    payload: TriggerRetentionPayload,
+) -> Result<(), HostError> {
+    let store = state.mneme();
+    store
+        .trigger_retention(TriggerRetentionInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            policy: RetentionPolicy {
+                keep_ops_days: payload.policy.keep_ops_days,
+                keep_facts_days: payload.policy.keep_facts_days,
+                keep_failed_jobs_days: payload.policy.keep_failed_jobs_days,
+                keep_pagerank_runs_days: payload.policy.keep_pagerank_runs_days,
+            },
+            reason: payload.reason,
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_trigger_compaction(
+    state: State<'_, WorkerState>,
+    payload: TriggerCompactionPayload,
+) -> Result<(), HostError> {
+    let store = state.mneme();
+    store
+        .trigger_compaction(TriggerCompactionInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            reason: payload.reason,
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_run_processing_worker(
+    state: State<'_, WorkerState>,
+    payload: RunWorkerPayload,
+) -> Result<RunWorkerResult, HostError> {
+    let store = state.mneme();
+    let jobs = store
+        .run_processing_worker(RunWorkerInput {
+            max_jobs: payload.max_jobs,
+            lease_millis: payload.lease_millis,
+        })
+        .await
+        .map_err(host_error)?;
+    Ok(RunWorkerResult {
+        jobs_processed: jobs,
+    })
+}
+
+#[tauri::command]
+pub async fn mneme_list_jobs(
+    state: State<'_, WorkerState>,
+    payload: ListJobsPayload,
+) -> Result<Vec<JobSummary>, HostError> {
+    let store = state.mneme();
+    store
+        .list_jobs(payload.partition_id, payload.status, payload.limit)
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
 pub async fn mneme_get_effective_schema(
     state: State<'_, WorkerState>,
     partition_id: PartitionId,
@@ -948,6 +1065,61 @@ pub struct PartitionHeadResult {
 #[serde(rename_all = "camelCase")]
 pub struct PartitionHeadPayload {
     pub partition_id: PartitionId,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TriggerProcessingPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub reason: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RetentionPolicyPayload {
+    pub keep_ops_days: Option<u32>,
+    pub keep_facts_days: Option<u32>,
+    pub keep_failed_jobs_days: Option<u32>,
+    pub keep_pagerank_runs_days: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TriggerRetentionPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub policy: RetentionPolicyPayload,
+    pub reason: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TriggerCompactionPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub reason: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunWorkerPayload {
+    pub max_jobs: u32,
+    pub lease_millis: u64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunWorkerResult {
+    pub jobs_processed: u32,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListJobsPayload {
+    pub partition_id: PartitionId,
+    pub status: Option<u8>,
+    pub limit: u32,
 }
 
 #[cfg(test)]

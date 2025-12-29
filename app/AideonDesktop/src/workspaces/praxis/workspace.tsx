@@ -11,7 +11,6 @@ import {
 } from 'react';
 
 import { dedupeIds } from 'aideon/canvas/selection';
-import { AideonDesktopShell } from 'aideon/shell/aideon-desktop-shell';
 import { Badge } from 'design-system/components/ui/badge';
 import { Button } from 'design-system/components/ui/button';
 import {
@@ -176,12 +175,10 @@ export function PraxisWorkspaceSurface({
 } = {}) {
   return (
     <PraxisWorkspaceProvider onSelectionChange={onSelectionChange}>
-      <AideonDesktopShell
-        toolbar={<PraxisWorkspaceToolbar />}
-        navigation={<PraxisWorkspaceNavigation />}
-        content={<PraxisWorkspaceContent />}
-        inspector={<PraxisWorkspaceInspector />}
-      />
+      <PraxisWorkspaceNavigation />
+      <PraxisWorkspaceToolbar />
+      <PraxisWorkspaceContent />
+      <PraxisWorkspaceInspector />
     </PraxisWorkspaceProvider>
   );
 }

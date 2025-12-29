@@ -1,10 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { isTauriRuntime } from '../lib/runtime';
-import { FrontendReady, MainScreen } from './app-screens';
+import { FrontendReady, MainScreen } from '@/app/app-screens';
+import { isTauriRuntime } from 'lib/runtime';
 
-vi.mock('../root', () => ({ AideonDesktopRoot: () => <div>Root</div> }));
+vi.mock('@/root', () => ({ AideonDesktopRoot: () => <div>Root</div> }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(true) }));
 vi.mock('@tauri-apps/api/window', () => ({
   getCurrentWindow: () => ({ label: 'main' }),

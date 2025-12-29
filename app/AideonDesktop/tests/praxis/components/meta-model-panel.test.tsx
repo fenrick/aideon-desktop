@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type * as MetaModelModule from 'praxis/lib/meta-model';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchMetaModelSpy = vi.fn<typeof MetaModelModule.fetchMetaModel>();
 
@@ -36,6 +36,10 @@ const SAMPLE_SCHEMA: MetaModelModule.MetaModelSchema = {
 };
 
 describe('MetaModelPanel', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     fetchMetaModelSpy.mockReset();
     fetchMetaModelSpy.mockResolvedValue(SAMPLE_SCHEMA);

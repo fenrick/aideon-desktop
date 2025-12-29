@@ -155,7 +155,7 @@ vi.mock('praxis/praxis-api', () => {
     .mockResolvedValue([
       { id: 's1', name: 'Scenario 1', branch: 'main', updatedAt: '', isDefault: true },
     ]);
-  const applyOperations = vi.fn().mockResolvedValue(undefined);
+  const applyOperations = vi.fn(() => Promise.resolve());
   return { listScenarios, applyOperations };
 });
 vi.mock('praxis/domain-data', () => ({
@@ -200,10 +200,10 @@ describe('PraxisWorkspaceSurface (coverage)', () => {
   };
 
   const baseTemporalActions: TemporalPanelActions = {
-    refreshBranches: vi.fn().mockResolvedValue(undefined),
+    refreshBranches: vi.fn(() => Promise.resolve()),
     selectCommit: vi.fn(),
-    selectBranch: vi.fn().mockResolvedValue(undefined),
-    mergeIntoMain: vi.fn().mockResolvedValue(undefined),
+    selectBranch: vi.fn(() => Promise.resolve()),
+    mergeIntoMain: vi.fn(() => Promise.resolve()),
   };
 
   afterEach(() => {
@@ -226,7 +226,7 @@ describe('PraxisWorkspaceSurface (coverage)', () => {
     await waitFor(() => {
       expect(listTemplatesFromHost).toHaveBeenCalled();
     });
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('projects-count')).toHaveTextContent('1');
 
     fireEvent.click(screen.getByTestId('select-node'));
     expect(onSelectionChange).toHaveBeenCalledWith({
@@ -254,8 +254,8 @@ describe('PraxisWorkspaceSurface (coverage)', () => {
     await waitFor(() => {
       expect(listProjectsWithScenarios).toHaveBeenCalled();
     });
-    fireEvent.click(screen.getAllByTestId('scenario-change')[0]!);
-    expect(screen.getAllByTestId('reload-signal')[0]!).toHaveTextContent('0');
+    fireEvent.click(screen.getByTestId('scenario-change'));
+    expect(screen.getByTestId('reload-signal')).toHaveTextContent('0');
   });
 
   it('opens widget library and creates widgets; handles empty registry', async () => {
@@ -268,14 +268,14 @@ describe('PraxisWorkspaceSurface (coverage)', () => {
       baseTemporalActions,
     ]);
     render(<PraxisWorkspaceSurface />);
-    await waitFor(() => expect(screen.getAllByTestId('layout')[0]!).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('open-library')).toBeInTheDocument());
 
-    fireEvent.click(screen.getAllByTestId('open-library')[0]!);
+    fireEvent.click(screen.getByTestId('open-library'));
     const widgetButton = await screen.findByText('Graph');
     fireEvent.click(widgetButton);
 
     registryMock.mockReturnValueOnce([]);
-    fireEvent.click(screen.getAllByTestId('open-library')[0]!);
+    fireEvent.click(screen.getByTestId('open-library'));
     expect(await screen.findByText(/No widget types registered/)).toBeInTheDocument();
   });
 
@@ -296,9 +296,8 @@ describe('PraxisWorkspaceSurface (coverage)', () => {
     await waitFor(() => {
       expect(listProjectsWithScenarios).toHaveBeenCalled();
     });
-    fireEvent.click(screen.getAllByTestId('select-node')[0]!);
-    const inspectorSaveButton = (await screen.findAllByTestId('inspector-save'))[0]!;
-    fireEvent.click(inspectorSaveButton);
+    fireEvent.click(screen.getByTestId('select-node'));
+    fireEvent.click(await screen.findByTestId('inspector-save'));
     await waitFor(() => {
       expect(applyOperations).toHaveBeenCalled();
     });
@@ -306,6 +305,7 @@ describe('PraxisWorkspaceSurface (coverage)', () => {
 
   it('covers error paths and keyboard shortcuts', async () => {
     const temporalSelectCommit = vi.fn();
+    const keyTarget = globalThis as unknown as Window;
     useTemporalPanelMock.mockReturnValue([
       {
         ...baseTemporalState,
@@ -331,19 +331,19 @@ describe('PraxisWorkspaceSurface (coverage)', () => {
       expect(listTemplatesFromHost).toHaveBeenCalled();
     });
 
-    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
-    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
-    fireEvent.keyDown(window, { key: 'y', ctrlKey: true });
+    fireEvent.keyDown(keyTarget, { key: 'z', ctrlKey: true });
+    fireEvent.keyDown(keyTarget, { key: 'z', ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(keyTarget, { key: 'y', ctrlKey: true });
     expect(commandStackMock.undo).toHaveBeenCalled();
     expect(commandStackMock.redo).toHaveBeenCalled();
 
-    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(keyTarget, { key: 'ArrowRight' });
     expect(temporalSelectCommit).toHaveBeenCalledWith('c2');
 
-    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    fireEvent.keyDown(keyTarget, { key: 'ArrowLeft' });
     expect(temporalSelectCommit).toHaveBeenCalledWith('c0');
 
-    fireEvent.keyDown(window, { key: ' ', shiftKey: true });
+    fireEvent.keyDown(keyTarget, { key: ' ', shiftKey: true });
     expect(screen.getByTestId('branch-trigger')).toHaveFocus();
   });
 

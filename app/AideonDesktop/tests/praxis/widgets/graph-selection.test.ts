@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { areStringSetsEqual, selectionFromEvent } from './graph-selection';
+import { areStringSetsEqual, selectionFromEvent } from 'praxis/widgets/graph-selection';
 
 describe('graph-selection helpers', () => {
   it('maps selection event to snapshot ids', () => {

@@ -55,7 +55,7 @@ vi.mock('praxis/praxis-api', () => ({
 
 vi.mock('praxis/platform', () => ({ isTauri: vi.fn(() => false) }));
 
-import { PraxisWorkspaceSurface } from './workspace';
+import { PraxisWorkspaceSurface } from 'praxis/workspace';
 
 describe('PraxisWorkspaceSurface', () => {
   it('renders the new shell layout pieces', async () => {

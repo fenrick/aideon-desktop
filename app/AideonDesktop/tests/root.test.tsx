@@ -23,11 +23,11 @@ vi.mock('aideon/shell/aideon-desktop-shell', () => ({
   ),
 }));
 
-vi.mock('./workspaces/praxis/workspace', () => ({
+vi.mock('@/workspaces/praxis/workspace', () => ({
   PraxisWorkspaceProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
-vi.mock('./workspaces/registry', () => {
+vi.mock('@/workspaces/registry', () => {
   const workspace = {
     id: 'praxis',
     label: 'Praxis',
@@ -44,7 +44,7 @@ vi.mock('./workspaces/registry', () => {
   };
 });
 
-import { AideonDesktopRoot } from './root';
+import { AideonDesktopRoot } from '@/root';
 
 describe('AideonDesktopRoot', () => {
   it('renders the active workspace slots through the shell', () => {

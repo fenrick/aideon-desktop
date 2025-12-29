@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { AideonCanvasRuntime } from './canvas-runtime';
-import type { CanvasWidgetLayout } from './types';
+import { AideonCanvasRuntime } from 'aideon/canvas/canvas-runtime';
+import type { CanvasWidgetLayout } from 'aideon/canvas/types';
 
 describe('AideonCanvasRuntime', () => {
   const widgets: CanvasWidgetLayout[] = [
@@ -12,7 +12,10 @@ describe('AideonCanvasRuntime', () => {
 
   it('renders each widget via renderWidget callback', () => {
     render(
-      <AideonCanvasRuntime widgets={widgets} renderWidget={(widget) => <div>{widget.id}</div>} />,
+      <AideonCanvasRuntime
+        widgets={widgets}
+        renderWidget={(widget: CanvasWidgetLayout) => <div>{widget.id}</div>}
+      />,
     );
 
     expect(screen.getAllByText('w1').length).toBeGreaterThan(0);

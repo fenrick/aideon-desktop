@@ -15,6 +15,10 @@ describe('analytics', () => {
     const recent = recentAnalytics();
     expect(recent.length).toBeLessThanOrEqual(50);
     expect(recent).not.toHaveLength(0);
-    expect(recent[0]!.payload?.fn).toBeUndefined();
+    const first = recent[0];
+    if (!first) {
+      throw new Error('Expected analytics entry.');
+    }
+    expect(first.payload?.fn).toBeUndefined();
   });
 });

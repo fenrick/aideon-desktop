@@ -26,10 +26,10 @@ const temporalState: TemporalPanelState = {
 } as TemporalPanelState;
 
 const temporalActions: TemporalPanelActions = {
-  selectBranch: vi.fn().mockResolvedValue(undefined),
+  selectBranch: vi.fn(() => Promise.resolve()),
   selectCommit: vi.fn(),
-  refreshBranches: vi.fn().mockResolvedValue(undefined),
-  mergeIntoMain: vi.fn().mockResolvedValue(undefined),
+  refreshBranches: vi.fn(() => Promise.resolve()),
+  mergeIntoMain: vi.fn(() => Promise.resolve()),
 };
 
 describe('OverviewTabs', () => {

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 
+import { AideonDesktopRoot } from '@/root';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { SplashScreen as PraxisSplashScreen } from '../components/splash/splash-screen';
@@ -16,7 +17,6 @@ import {
 import { RadioGroup, RadioGroupItem } from '../design-system/components/ui/radio-group';
 import { useColorTheme } from '../design-system/theme/color-theme';
 import { isTauriRuntime } from '../lib/runtime';
-import { AideonDesktopRoot } from '../root';
 
 /**
  * Root screen for the main desktop window.

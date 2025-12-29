@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TemporalPanelState } from 'praxis/time/use-temporal-panel';
 
@@ -18,6 +18,10 @@ const mockActions = {
   refreshBranches: refreshBranchesSpy,
   mergeIntoMain: mergeIntoMainSpy,
 };
+
+afterEach(() => {
+  cleanup();
+});
 
 let mockState: TemporalPanelState;
 
@@ -88,7 +92,11 @@ describe('CommitTimelineCard', () => {
   it('invokes branch selection when chips are clicked', () => {
     render(<CommitTimelineCard />);
 
-    fireEvent.click(screen.getByText('main'));
+    const mainChip = screen.getAllByText('main')[0];
+    if (!mainChip) {
+      throw new Error('Expected main branch chip.');
+    }
+    fireEvent.click(mainChip);
     expect(selectBranchSpy).toHaveBeenCalledWith('main');
   });
 });

@@ -10,7 +10,6 @@ vi.mock('react-resizable-panels', () => ({
   PanelResizeHandle: () => <div aria-label="Resize handle" />,
 }));
 
-import { DesktopShell } from './desktop-shell';
 import {
   Menubar,
   ResizableHandle,
@@ -18,7 +17,8 @@ import {
   ResizablePanelGroup,
   Sidebar,
   SidebarProvider,
-} from './index';
+} from 'design-system/desktop-shell';
+import { DesktopShell } from 'design-system/desktop-shell/desktop-shell';
 
 describe('desktop-shell proxies', () => {
   it('exposes shadcn primitives through the design system', () => {

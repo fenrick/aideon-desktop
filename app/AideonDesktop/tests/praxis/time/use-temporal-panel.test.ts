@@ -198,25 +198,23 @@ describe('useTemporalPanel', () => {
       { name: 'chronaplay', head: 'commit-feature-001' },
     ]);
 
-    listCommitsSpy.mockImplementation(async (branch: string) => {
+    listCommitsSpy.mockImplementation((branch: string) => {
       if (branch === 'main') {
-        return MAIN_COMMITS;
+        return Promise.resolve(MAIN_COMMITS);
       }
       if (branch === 'chronaplay') {
-        return FEATURE_COMMITS;
+        return Promise.resolve(FEATURE_COMMITS);
       }
-      return [];
+      return Promise.resolve([]);
     });
 
-    getSnapshotSpy.mockImplementation(
-      async ({ asOf }: { asOf: string; scenario?: string }) => {
+    getSnapshotSpy.mockImplementation(({ asOf }: { asOf: string; scenario?: string }) => {
       const snapshot = SNAPSHOT_MAP.get(asOf);
       if (!snapshot) {
-        throw new Error(`Missing snapshot for ${asOf}`);
+        return Promise.reject(new Error(`Missing snapshot for ${asOf}`));
       }
-      return snapshot;
-      },
-    );
+      return Promise.resolve(snapshot);
+    });
 
     getDiffSpy.mockResolvedValue({
       from: 'commit-main-001',
@@ -255,7 +253,11 @@ describe('useTemporalPanel', () => {
       await waitForState(() => harness.state.commitId === 'commit-main-002');
 
       getSnapshotSpy.mockClear();
-      getSnapshotSpy.mockResolvedValueOnce(SNAPSHOTS['commit-main-001']!);
+      const snapshot = SNAPSHOTS['commit-main-001'];
+      if (!snapshot) {
+        throw new Error('Missing snapshot fixture.');
+      }
+      getSnapshotSpy.mockResolvedValueOnce(snapshot);
 
       act(() => {
         harness.actions.selectCommit('commit-main-001');
@@ -264,7 +266,11 @@ describe('useTemporalPanel', () => {
       await waitForState(() => harness.state.commitId === 'commit-main-001');
       await waitForState(() => harness.state.snapshot?.asOf === 'commit-main-001');
       expect(getSnapshotSpy).toHaveBeenCalledWith({ asOf: 'commit-main-001', scenario: 'main' });
-      expect(harness.state.snapshot).toEqual(SNAPSHOTS['commit-main-001']!);
+      const expectedSnapshot = SNAPSHOTS['commit-main-001'];
+      if (!expectedSnapshot) {
+        throw new Error('Missing snapshot fixture.');
+      }
+      expect(harness.state.snapshot).toEqual(expectedSnapshot);
     } finally {
       harness.unmount();
     }

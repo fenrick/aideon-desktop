@@ -117,8 +117,12 @@ describe('praxis-api fallbacks and normalization', () => {
     );
     expect(conflicts).toHaveLength(1);
     expect(conflicts).not.toHaveLength(0);
-    expect(conflicts[0]!).toMatchObject({ reference: 'cap-1', kind: 'unknown' });
-    expect(typeof conflicts[0]!.message).toBe('string');
+    const firstConflict = conflicts[0];
+    if (!firstConflict) {
+      throw new Error('Expected conflict entry.');
+    }
+    expect(firstConflict).toMatchObject({ reference: 'cap-1', kind: 'unknown' });
+    expect(typeof firstConflict.message).toBe('string');
   });
 
   it('rejects empty operation batches in mock mode', async () => {

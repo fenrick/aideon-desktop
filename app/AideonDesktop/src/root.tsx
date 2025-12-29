@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from 'react';
+import type { ComponentType, ReactElement } from 'react';
 import { useCallback, useState } from 'react';
 
 import { AideonDesktopShell } from 'aideon/shell/aideon-desktop-shell';
@@ -12,7 +12,7 @@ import type { WorkspaceId } from './workspaces/types';
 const ACTIVE_WORKSPACE_STORAGE_KEY = 'aideon.active-workspace';
 
 interface WorkspaceProviderProperties {
-  readonly children: ReactNode;
+  readonly children: ReactElement;
 }
 
 /**
@@ -20,7 +20,7 @@ interface WorkspaceProviderProperties {
  * @param root0
  * @param root0.children
  */
-function WorkspaceProviderPassthrough({ children }: WorkspaceProviderProperties) {
+function WorkspaceProviderPassthrough({ children }: WorkspaceProviderProperties): ReactElement {
   return children;
 }
 

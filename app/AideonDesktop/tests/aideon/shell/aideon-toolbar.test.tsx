@@ -5,6 +5,7 @@ import { AideonToolbar } from 'aideon/shell/aideon-toolbar';
 import { AideonShellControlsProvider } from 'aideon/shell/shell-controls';
 
 const toggleSidebar = vi.fn();
+const keyTarget = globalThis as unknown as Window;
 
 vi.mock('design-system/desktop-shell', async () => {
   const menubar = await import('design-system/components/ui/menubar');
@@ -42,13 +43,13 @@ describe('AideonToolbar', () => {
       </AideonShellControlsProvider>,
     );
 
-    fireEvent.keyDown(window, { key: 'b', ctrlKey: true });
+    fireEvent.keyDown(keyTarget, { key: 'b', ctrlKey: true });
     expect(toggleSidebar).toHaveBeenCalledTimes(1);
 
-    fireEvent.keyDown(window, { key: 'i', ctrlKey: true });
+    fireEvent.keyDown(keyTarget, { key: 'i', ctrlKey: true });
     expect(toggleInspector).toHaveBeenCalledTimes(1);
 
-    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    fireEvent.keyDown(keyTarget, { key: 'k', ctrlKey: true });
     expect(screen.getByPlaceholderText('Search commands…')).toBeInTheDocument();
     expect(screen.getByText('Toggle navigation')).toBeInTheDocument();
     expect(screen.getByText('Toggle inspector')).toBeInTheDocument();
@@ -82,7 +83,7 @@ describe('AideonToolbar', () => {
       </AideonShellControlsProvider>,
     );
 
-    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    fireEvent.keyDown(keyTarget, { key: 'k', ctrlKey: true });
     fireEvent.click(screen.getByText('Keyboard shortcuts…'));
 
     expect(screen.getByText('Keyboard shortcuts')).toBeInTheDocument();

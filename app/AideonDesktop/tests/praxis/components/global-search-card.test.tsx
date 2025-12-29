@@ -12,7 +12,7 @@ const refreshBranchesSpy = vi.fn();
 const selectNodesSpy = vi.fn();
 const focusMetaModelSpy = vi.fn();
 const scrollIntoViewMock = vi.fn();
-const originalScrollIntoView = Element.prototype.scrollIntoView;
+const originalScrollIntoView = Element.prototype.scrollIntoView.bind(Element.prototype);
 
 class ResizeObserverMock {
   observe = vi.fn();
@@ -42,7 +42,7 @@ vi.mock('praxis/time/use-temporal-panel', () => ({
         selectCommit: selectCommitSpy,
         selectBranch: selectBranchSpy,
         refreshBranches: refreshBranchesSpy,
-        mergeIntoMain: vi.fn().mockResolvedValue(undefined),
+        mergeIntoMain: vi.fn(() => Promise.resolve()),
       },
     ] as const,
 }));
@@ -146,10 +146,18 @@ describe('GlobalSearchCard', () => {
       <GlobalSearchCard onSelectNodes={selectNodesSpy} onFocusMetaModel={focusMetaModelSpy} />,
     );
 
-    fireEvent.click(screen.getByText('Switch branch'));
+    const switchBranchButton = screen.getAllByText('Switch branch')[0];
+    if (!switchBranchButton) {
+      throw new Error('Expected switch branch button.');
+    }
+    fireEvent.click(switchBranchButton);
     expect(selectBranchSpy).toHaveBeenCalledWith('chronaplay');
 
-    fireEvent.click(screen.getByText('Jump to commit'));
+    const jumpButton = screen.getAllByText('Jump to commit')[0];
+    if (!jumpButton) {
+      throw new Error('Expected jump button.');
+    }
+    fireEvent.click(jumpButton);
     expect(selectCommitSpy).toHaveBeenCalledWith('commit-2');
 
     await waitFor(() => {
@@ -204,6 +212,7 @@ describe('GlobalSearchCard', () => {
   });
 
   it('shows empty commits and surfaces catalogue errors', async () => {
+    const keyTarget = globalThis as unknown as Window;
     mockState = { ...mockState, commits: [] };
     getCatalogueViewMock.mockRejectedValueOnce(new Error('catalogue down'));
 
@@ -217,7 +226,7 @@ describe('GlobalSearchCard', () => {
       expect(screen.getByText(/catalogue down/i)).toBeInTheDocument();
     });
 
-    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    fireEvent.keyDown(keyTarget, { key: 'k', ctrlKey: true });
     await waitFor(() => {
       expect(screen.getAllByText('chronaplay').length).toBeGreaterThan(0);
     });

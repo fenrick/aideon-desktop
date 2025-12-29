@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { SidebarProvider } from './design-system';
+import { SidebarProvider } from 'design-system/desktop-shell';
 
 vi.mock('praxis', () => ({
   listScenarios: vi
@@ -13,7 +13,7 @@ vi.mock('praxis', () => ({
 
 import { listScenarios } from 'praxis';
 
-import { DesktopTree } from './desktop-tree';
+import { DesktopTree } from '@/desktop-tree';
 
 describe('DesktopTree', () => {
   it('renders stub projects and workspaces', () => {

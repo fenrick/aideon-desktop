@@ -5,8 +5,8 @@ import { useCommandStack } from 'praxis/hooks/use-command-stack';
 
 describe('useCommandStack', () => {
   it('records commands and supports undo/redo with async fallbacks', async () => {
-    const undo = vi.fn().mockResolvedValue(undefined);
-    const redo = vi.fn().mockResolvedValue(undefined);
+    const undo = vi.fn(() => Promise.resolve());
+    const redo = vi.fn(() => Promise.resolve());
 
     const { result } = renderHook(() => useCommandStack());
 

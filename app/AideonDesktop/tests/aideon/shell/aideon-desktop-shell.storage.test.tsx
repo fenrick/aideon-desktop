@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const onLayoutCalls: number[][] = [];
 
@@ -22,8 +22,10 @@ vi.mock('design-system/desktop-shell', () => ({
   }: PropsWithChildren<{ onLayout?: (sizes: number[]) => void }>) => {
     if (onLayout) {
       const sizes = [18, 62, 20];
-      onLayoutCalls.push(sizes);
-      onLayout(sizes);
+      setTimeout(() => {
+        onLayoutCalls.push(sizes);
+        onLayout(sizes);
+      }, 0);
     }
     return <div>{children}</div>;
   },
@@ -50,6 +52,10 @@ function setLocalStorage(storage: Storage | undefined) {
 describe('AideonDesktopShell storage', () => {
   beforeEach(() => {
     onLayoutCalls.length = 0;
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it('renders without toolbar and ignores missing localStorage', () => {
@@ -133,7 +139,7 @@ describe('AideonDesktopShell storage', () => {
     expect(setItem).toHaveBeenCalledWith('aideon-shell-inspector-collapsed', '1');
   });
 
-  it('writes layout sizes when storage allows, and ignores write failures', () => {
+  it('writes layout sizes when storage allows, and ignores write failures', async () => {
     const getItem = vi.fn().mockReturnValue(JSON.stringify([20, 60, 20]));
     const setItem = vi.fn();
     setLocalStorage({ getItem, setItem } as unknown as Storage);
@@ -146,6 +152,11 @@ describe('AideonDesktopShell storage', () => {
       />,
     );
 
+    expect(onLayoutCalls.length).toBe(0);
+    await screen.findByText('Content');
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
     expect(onLayoutCalls.length).toBeGreaterThan(0);
     expect(setItem).toHaveBeenCalledWith('aideon-shell-panels', JSON.stringify([18, 62, 20]));
 
@@ -161,6 +172,9 @@ describe('AideonDesktopShell storage', () => {
       />,
     );
 
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
     expect(setItem).toHaveBeenCalled();
   });
 

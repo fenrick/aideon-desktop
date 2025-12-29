@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const undo = vi.fn();
 const redo = vi.fn();
@@ -50,10 +50,10 @@ vi.mock('praxis/time/use-temporal-panel', () => ({
       merging: false,
     },
     {
-      refreshBranches: vi.fn().mockResolvedValue(undefined),
+      refreshBranches: vi.fn(() => Promise.resolve()),
       selectCommit,
-      selectBranch: vi.fn().mockResolvedValue(undefined),
-      mergeIntoMain: vi.fn().mockResolvedValue(undefined),
+      selectBranch: vi.fn(() => Promise.resolve()),
+      mergeIntoMain: vi.fn(() => Promise.resolve()),
     },
   ],
 }));
@@ -64,10 +64,14 @@ const projectError = vi.fn<() => boolean>();
 const listProjectsWithScenariosMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 const listTemplatesFromHostMock = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 
+afterEach(() => {
+  cleanup();
+});
+
 vi.mock('praxis/domain-data', () => ({
   listProjectsWithScenarios: () =>
     listProjectsWithScenariosMock().then(() => {
-      const shouldFail = Boolean(projectError());
+      const shouldFail = projectError();
       if (shouldFail) {
         throw new Error('projects-failed');
       }
@@ -83,7 +87,7 @@ vi.mock('praxis/domain-data', () => ({
     }),
   listTemplatesFromHost: () =>
     listTemplatesFromHostMock().then(() => {
-      const shouldFail = Boolean(templateError());
+      const shouldFail = templateError();
       if (shouldFail) {
         throw new Error('templates-failed');
       }
@@ -109,7 +113,7 @@ vi.mock('praxis/widgets/registry', () => ({
 }));
 
 vi.mock('praxis/praxis-api', () => ({
-  applyOperations: vi.fn().mockResolvedValue(undefined),
+  applyOperations: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('praxis/components/template-screen/projects-sidebar', () => ({
@@ -193,21 +197,22 @@ describe('PraxisWorkspaceSurface interactions', () => {
     render(<PraxisWorkspaceSurface />);
 
     await screen.findByText(/projects-failed/);
-    fireEvent.click(screen.getAllByTestId('retry-projects')[0]!);
+    fireEvent.click(screen.getByTestId('retry-projects'));
     await waitFor(() => {
       expect(listProjectsWithScenariosMock).toHaveBeenCalledTimes(2);
     });
   });
 
   it('handles keyboard shortcuts for undo/redo and commit navigation', async () => {
+    const keyTarget = globalThis as unknown as Window;
     render(<PraxisWorkspaceSurface />);
     await waitFor(() => {
       expect(screen.getAllByTestId('project-count').length).toBeGreaterThan(0);
     });
 
-    fireEvent.keyDown(window, { key: 'z', metaKey: true });
-    fireEvent.keyDown(window, { key: 'z', ctrlKey: true, shiftKey: true });
-    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(keyTarget, { key: 'z', metaKey: true });
+    fireEvent.keyDown(keyTarget, { key: 'z', ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(keyTarget, { key: 'ArrowRight' });
 
     expect(undo).toHaveBeenCalled();
     expect(redo).toHaveBeenCalled();
@@ -220,7 +225,7 @@ describe('PraxisWorkspaceSurface interactions', () => {
       expect(screen.getAllByTestId('project-count').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getAllByTestId('reset-properties')[0]!);
+    fireEvent.click(screen.getByTestId('reset-properties'));
     expect(resetProperties).toHaveBeenCalledWith('n1');
   });
 });

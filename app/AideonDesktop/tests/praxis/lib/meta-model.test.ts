@@ -11,7 +11,11 @@ describe('meta-model fetch', () => {
     const schema = await promise;
     expect(schema.types.length).toBeGreaterThan(0);
     expect(schema.relationships).not.toHaveLength(0);
-    expect(schema.relationships[0]!.from).toContain('Application');
+    const relationship = schema.relationships[0];
+    if (!relationship) {
+      throw new Error('Expected at least one relationship.');
+    }
+    expect(relationship.from).toContain('Application');
     expect(Date.now() - now).toBeGreaterThanOrEqual(0);
     vi.useRealTimers();
   });

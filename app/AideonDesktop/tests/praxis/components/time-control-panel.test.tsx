@@ -103,10 +103,10 @@ describe('TimeControlPanel', () => {
   } as TemporalPanelState;
 
   const actions: TemporalPanelActions = {
-    selectBranch: vi.fn().mockResolvedValue(undefined),
+    selectBranch: vi.fn(() => Promise.resolve()),
     selectCommit: vi.fn(),
-    refreshBranches: vi.fn().mockResolvedValue(undefined),
-    mergeIntoMain: vi.fn().mockResolvedValue(undefined),
+    refreshBranches: vi.fn(() => Promise.resolve()),
+    mergeIntoMain: vi.fn(() => Promise.resolve()),
   };
 
   it('invokes actions from buttons and slider', () => {
@@ -127,10 +127,10 @@ describe('TimeControlPanel', () => {
 
   it('handles empty commit lists, main branch, and invalid slider events', () => {
     const localActions: TemporalPanelActions = {
-      selectBranch: vi.fn().mockResolvedValue(undefined),
+      selectBranch: vi.fn(() => Promise.resolve()),
       selectCommit: vi.fn(),
-      refreshBranches: vi.fn().mockResolvedValue(undefined),
-      mergeIntoMain: vi.fn().mockResolvedValue(undefined),
+      refreshBranches: vi.fn(() => Promise.resolve()),
+      mergeIntoMain: vi.fn(() => Promise.resolve()),
     };
     const localState: TemporalPanelState = {
       branches: [],

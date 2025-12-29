@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import * as React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('praxis/time/use-temporal-panel', () => ({
   useTemporalPanel: vi.fn(),
@@ -81,6 +81,10 @@ vi.mock('@radix-ui/react-tabs', () => {
   return { Root, List, Trigger, Content };
 });
 
+afterEach(() => {
+  cleanup();
+});
+
 vi.mock('praxis/components/blocks/activity-timeline-panel', () => ({
   ActivityTimelinePanel: () => <div data-testid="activity-panel">Activity</div>,
 }));
@@ -96,10 +100,10 @@ vi.mock('praxis/components/dashboard/canvas-runtime-card', () => ({
 }));
 
 import type { SelectionState } from 'aideon/canvas/types';
-import type { PraxisCanvasWidget } from 'praxis/types';
-import type { TemporalPanelActions, TemporalPanelState } from 'praxis/time/use-temporal-panel';
 import { WorkspaceTabs } from 'praxis/components/workspace-tabs';
+import type { TemporalPanelActions, TemporalPanelState } from 'praxis/time/use-temporal-panel';
 import { useTemporalPanel } from 'praxis/time/use-temporal-panel';
+import type { PraxisCanvasWidget } from 'praxis/types';
 
 const mockUseTemporalPanel = vi.mocked(useTemporalPanel);
 
@@ -114,10 +118,10 @@ const baseTemporalState: TemporalPanelState = {
 };
 
 const baseTemporalActions: TemporalPanelActions = {
-  selectBranch: vi.fn().mockResolvedValue(undefined),
+  selectBranch: vi.fn(() => Promise.resolve()),
   selectCommit: vi.fn(),
-  refreshBranches: vi.fn().mockResolvedValue(undefined),
-  mergeIntoMain: vi.fn().mockResolvedValue(undefined),
+  refreshBranches: vi.fn(() => Promise.resolve()),
+  mergeIntoMain: vi.fn(() => Promise.resolve()),
 };
 
 const canvasWidget: PraxisCanvasWidget = {

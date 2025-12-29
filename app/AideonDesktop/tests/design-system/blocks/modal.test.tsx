@@ -34,9 +34,9 @@ vi.mock('design-system/ui/dialog', () => {
     displayName?: string;
   };
   DialogContent.displayName = 'DialogContent';
-  const DialogDescription = withTestId(
-    'dialog-description',
-  ) as React.FC<{ children?: React.ReactNode }> & { displayName?: string };
+  const DialogDescription = withTestId('dialog-description') as React.FC<{
+    children?: React.ReactNode;
+  }> & { displayName?: string };
   DialogDescription.displayName = 'DialogDescription';
   const DialogFooter = withTestId('dialog-footer') as React.FC<{ children?: React.ReactNode }> & {
     displayName?: string;

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { DesktopPropertiesPanel } from './desktop-properties-panel';
+import { DesktopPropertiesPanel } from '@/desktop-properties-panel';
 
 describe('DesktopPropertiesPanel', () => {
   it('shows empty-state when nothing is selected', () => {

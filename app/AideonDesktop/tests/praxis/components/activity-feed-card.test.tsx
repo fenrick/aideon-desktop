@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TemporalPanelState } from 'praxis/time/use-temporal-panel';
 
@@ -13,8 +13,8 @@ vi.mock('praxis/time/use-temporal-panel', () => ({
       {
         selectCommit: selectCommitSpy,
         refreshBranches: refreshBranchesSpy,
-        selectBranch: vi.fn().mockResolvedValue(undefined),
-        mergeIntoMain: vi.fn().mockResolvedValue(undefined),
+        selectBranch: vi.fn(() => Promise.resolve()),
+        mergeIntoMain: vi.fn(() => Promise.resolve()),
       },
     ] as const,
 }));
@@ -24,6 +24,10 @@ let mockState: TemporalPanelState;
 import { ActivityFeedCard } from 'praxis/components/dashboard/activity-feed-card';
 
 describe('ActivityFeedCard', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     selectCommitSpy.mockReset();
     refreshBranchesSpy.mockReset();
@@ -68,7 +72,11 @@ describe('ActivityFeedCard', () => {
 
   it('handles refresh control', () => {
     render(<ActivityFeedCard />);
-    fireEvent.click(screen.getByText('Refresh timeline'));
+    const refreshButton = screen.getAllByText('Refresh timeline')[0];
+    if (!refreshButton) {
+      throw new Error('Expected refresh button.');
+    }
+    fireEvent.click(refreshButton);
     expect(refreshBranchesSpy).toHaveBeenCalled();
   });
 });

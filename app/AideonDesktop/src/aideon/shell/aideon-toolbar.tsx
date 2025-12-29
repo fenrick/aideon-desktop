@@ -389,6 +389,231 @@ function handleBrowserShortcut({
 }
 
 /**
+ *
+ * @param root0
+ * @param root0.theme
+ */
+function ThemeMenu({
+  theme,
+}: {
+  readonly theme: NonNullable<ReturnType<typeof useOptionalTheme>>;
+}) {
+  const currentTheme = theme.theme ?? 'system';
+  const icon = (() => {
+    if (currentTheme === 'dark') {
+      return <MoonIcon className="size-4" />;
+    }
+    if (currentTheme === 'light') {
+      return <SunIcon className="size-4" />;
+    }
+    return <LaptopIcon className="size-4" />;
+  })();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="ghost" size="icon" className="size-7" aria-label="Theme">
+          {icon}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          onSelect={() => {
+            theme.setTheme('system');
+          }}
+        >
+          System
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => {
+            theme.setTheme('light');
+          }}
+        >
+          Light
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => {
+            theme.setTheme('dark');
+          }}
+        >
+          Dark
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
+ *
+ * @param root0
+ * @param root0.sidebar
+ * @param root0.shell
+ * @param root0.isTauri
+ * @param root0.isDevelopment
+ * @param root0.openStyleguide
+ * @param root0.shortcutLabelFor
+ * @param root0.start
+ * @param root0.title
+ * @param root0.subtitle
+ * @param root0.modeLabel
+ * @param root0.onOpenCommandPalette
+ * @param root0.onOpenShortcuts
+ */
+function ToolbarStartSection({
+  sidebar,
+  shell,
+  isTauri,
+  isDevelopment,
+  openStyleguide,
+  shortcutLabelFor,
+  start,
+  title,
+  subtitle,
+  modeLabel,
+  onOpenCommandPalette,
+  onOpenShortcuts,
+}: {
+  readonly sidebar: ReturnType<typeof useOptionalSidebar>;
+  readonly shell: ReturnType<typeof useAideonShellControls>;
+  readonly isTauri: boolean;
+  readonly isDevelopment: boolean;
+  readonly openStyleguide: () => void;
+  readonly shortcutLabelFor: (letter: string) => string;
+  readonly start?: ReactNode;
+  readonly title: string;
+  readonly subtitle?: string;
+  readonly modeLabel?: string;
+  readonly onOpenCommandPalette: () => void;
+  readonly onOpenShortcuts: () => void;
+}) {
+  return (
+    <ToolbarSection className="min-w-0 gap-2">
+      {sidebar ? <SidebarTrigger className="size-7" /> : undefined}
+      {shell ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          aria-label="Toggle inspector"
+          onClick={() => {
+            shell.toggleInspector();
+          }}
+        >
+          {shell.inspectorCollapsed ? (
+            <PanelRightOpen className="size-4" />
+          ) : (
+            <PanelRightClose className="size-4" />
+          )}
+        </Button>
+      ) : undefined}
+      {isTauri ? undefined : (
+        <AppMenu
+          onOpenCommandPalette={onOpenCommandPalette}
+          onOpenShortcuts={onOpenShortcuts}
+          onOpenStyleguide={openStyleguide}
+          shortcutLabelFor={shortcutLabelFor}
+          showDebugItems={isDevelopment}
+        />
+      )}
+      {start}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="hidden h-8 gap-2 md:inline-flex"
+        aria-label="Open command palette"
+        onClick={onOpenCommandPalette}
+      >
+        <CommandIcon className="size-4" />
+        Commands
+        <Kbd className="ml-1">{shortcutLabelFor('K')}</Kbd>
+      </Button>
+      <ToolbarSeparator />
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-semibold tracking-tight">{title}</span>
+          {modeLabel ? (
+            <Badge variant="secondary" className="hidden sm:inline-flex">
+              {modeLabel}
+            </Badge>
+          ) : undefined}
+        </div>
+        {subtitle ? (
+          <div className="truncate text-xs text-muted-foreground">{subtitle}</div>
+        ) : undefined}
+      </div>
+    </ToolbarSection>
+  );
+}
+
+/**
+ *
+ * @param root0
+ * @param root0.workspaceToolbar
+ * @param root0.center
+ */
+function ToolbarCenterSection({
+  workspaceToolbar,
+  center,
+}: {
+  readonly workspaceToolbar?: ReactNode;
+  readonly center?: ReactNode;
+}) {
+  if (workspaceToolbar) {
+    return (
+      <ToolbarSection justify="center" className="min-w-0 flex-1 px-2">
+        {workspaceToolbar}
+      </ToolbarSection>
+    );
+  }
+  return (
+    <ToolbarSection justify="center" className="hidden min-w-0 max-w-[520px] px-2 md:flex">
+      {center}
+    </ToolbarSection>
+  );
+}
+
+/**
+ *
+ * @param root0
+ * @param root0.end
+ * @param root0.theme
+ */
+function ToolbarEndSection({
+  end,
+  theme,
+}: {
+  readonly end?: ReactNode;
+  readonly theme: ReturnType<typeof useOptionalTheme>;
+}) {
+  return (
+    <ToolbarSection justify="end" className="gap-2">
+      {end}
+      {theme ? <ThemeMenu theme={theme} /> : undefined}
+    </ToolbarSection>
+  );
+}
+
+/**
+ *
+ * @param root0
+ * @param root0.statusMessage
+ */
+function ToolbarStatusMessage({ statusMessage }: { readonly statusMessage?: string }) {
+  return (
+    <div
+      className={cn(
+        'rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive',
+        statusMessage ? 'block' : 'hidden',
+      )}
+    >
+      {statusMessage}
+    </div>
+  );
+}
+
+/**
  * Application-level toolbar shell for Aideon Desktop.
  * Workspace modules provide `center` (search) and `end` (actions) content.
  * @param root0
@@ -502,139 +727,31 @@ export function AideonToolbar({
       {...properties}
     >
       <Toolbar className="h-12 w-full rounded-2xl px-3 py-2">
-        <ToolbarSection className="min-w-0 gap-2">
-          {sidebar ? <SidebarTrigger className="size-7" /> : undefined}
-          {shell ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              aria-label="Toggle inspector"
-              onClick={() => {
-                shell.toggleInspector();
-              }}
-            >
-              {shell.inspectorCollapsed ? (
-                <PanelRightOpen className="size-4" />
-              ) : (
-                <PanelRightClose className="size-4" />
-              )}
-            </Button>
-          ) : undefined}
-          {isTauri ? undefined : (
-            <AppMenu
-              onOpenCommandPalette={() => {
-                setCommandPaletteOpen(true);
-              }}
-              onOpenShortcuts={() => {
-                setShortcutsOpen(true);
-              }}
-              onOpenStyleguide={() => {
-                openStyleguide();
-              }}
-              shortcutLabelFor={shortcutLabelFor}
-              showDebugItems={isDevelopment}
-            />
-          )}
-          {start}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="hidden h-8 gap-2 md:inline-flex"
-            aria-label="Open command palette"
-            onClick={() => {
-              setCommandPaletteOpen(true);
-            }}
-          >
-            <CommandIcon className="size-4" />
-            Commands
-            <Kbd className="ml-1">{shortcutLabelFor('K')}</Kbd>
-          </Button>
-          <ToolbarSeparator />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="truncate text-sm font-semibold tracking-tight">{title}</span>
-              {modeLabel ? (
-                <Badge variant="secondary" className="hidden sm:inline-flex">
-                  {modeLabel}
-                </Badge>
-              ) : undefined}
-            </div>
-            {subtitle ? (
-              <div className="truncate text-xs text-muted-foreground">{subtitle}</div>
-            ) : undefined}
-          </div>
-        </ToolbarSection>
+        <ToolbarStartSection
+          sidebar={sidebar}
+          shell={shell}
+          isTauri={isTauri}
+          isDevelopment={isDevelopment}
+          openStyleguide={openStyleguide}
+          shortcutLabelFor={shortcutLabelFor}
+          start={start}
+          title={title}
+          subtitle={subtitle}
+          modeLabel={modeLabel}
+          onOpenCommandPalette={() => {
+            setCommandPaletteOpen(true);
+          }}
+          onOpenShortcuts={() => {
+            setShortcutsOpen(true);
+          }}
+        />
 
-        {workspaceToolbar ? (
-          <ToolbarSection justify="center" className="min-w-0 flex-1 px-2">
-            {workspaceToolbar}
-          </ToolbarSection>
-        ) : (
-          <ToolbarSection justify="center" className="hidden min-w-0 max-w-[520px] px-2 md:flex">
-            {center}
-          </ToolbarSection>
-        )}
+        <ToolbarCenterSection workspaceToolbar={workspaceToolbar} center={center} />
 
-        <ToolbarSection justify="end" className="gap-2">
-          {end}
-          {theme ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-7"
-                  aria-label="Theme"
-                >
-                  {(() => {
-                    const currentTheme = theme.theme ?? 'system';
-                    if (currentTheme === 'dark') {
-                      return <MoonIcon className="size-4" />;
-                    }
-                    if (currentTheme === 'light') {
-                      return <SunIcon className="size-4" />;
-                    }
-                    return <LaptopIcon className="size-4" />;
-                  })()}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onSelect={() => {
-                    theme.setTheme('system');
-                  }}
-                >
-                  System
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => {
-                    theme.setTheme('light');
-                  }}
-                >
-                  Light
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => {
-                    theme.setTheme('dark');
-                  }}
-                >
-                  Dark
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : undefined}
-        </ToolbarSection>
+        <ToolbarEndSection end={end} theme={theme} />
       </Toolbar>
 
-      {statusMessage ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-          {statusMessage}
-        </div>
-      ) : undefined}
+      <ToolbarStatusMessage statusMessage={statusMessage} />
 
       <AideonCommandPalette
         open={commandPaletteOpen}

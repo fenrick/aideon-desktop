@@ -8,7 +8,10 @@ import { isTauri } from 'praxis/platform';
 import type { CanvasTemplate } from 'praxis/templates';
 
 import { AideonToolbar } from 'aideon/shell/aideon-toolbar';
-import { WorkspaceSwitcher } from 'aideon/shell/workspace-switcher';
+import {
+  WorkspaceSwitcher,
+  type WorkspaceSwitcherProperties,
+} from 'aideon/shell/workspace-switcher';
 import { Button } from 'design-system/components/ui/button';
 import { Input } from 'design-system/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from 'design-system/components/ui/popover';
@@ -30,6 +33,10 @@ export interface PraxisWorkspaceToolbarProperties {
   readonly timeTriggerRef?: Ref<HTMLButtonElement>;
   readonly loading?: boolean;
   readonly error?: string;
+  readonly workspaceSwitcher?: Pick<
+    WorkspaceSwitcherProperties,
+    'currentId' | 'options' | 'onSelect'
+  >;
 }
 
 /**
@@ -61,6 +68,7 @@ export function PraxisWorkspaceToolbar({
   timeTriggerRef,
   loading = false,
   error,
+  workspaceSwitcher,
 }: PraxisWorkspaceToolbarProperties) {
   const isDesktop = isTauri();
   const modeLabel = isDesktop ? 'Desktop' : 'Browser preview';
@@ -90,15 +98,19 @@ export function PraxisWorkspaceToolbar({
         }
       }}
       start={
-        <WorkspaceSwitcher
-          currentId="praxis"
-          options={[
-            { id: 'praxis', label: 'Praxis', disabled: false },
-            { id: 'chrona', label: 'Chrona', disabled: true },
-            { id: 'metis', label: 'Metis', disabled: true },
-            { id: 'continuum', label: 'Continuum', disabled: true },
-          ]}
-        />
+        workspaceSwitcher ? (
+          <WorkspaceSwitcher {...workspaceSwitcher} />
+        ) : (
+          <WorkspaceSwitcher
+            currentId="praxis"
+            options={[
+              { id: 'praxis', label: 'Praxis', disabled: false },
+              { id: 'chrona', label: 'Chrona', disabled: true },
+              { id: 'metis', label: 'Metis', disabled: true },
+              { id: 'continuum', label: 'Continuum', disabled: true },
+            ]}
+          />
+        )
       }
       center={
         <Input

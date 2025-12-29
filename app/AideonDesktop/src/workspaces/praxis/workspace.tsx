@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefCallback } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefCallback,
+} from 'react';
 
 import { dedupeIds } from 'aideon/canvas/selection';
 import { AideonDesktopShell } from 'aideon/shell/aideon-desktop-shell';
@@ -43,6 +51,11 @@ import type {
   PraxisWidgetKind as WidgetKind,
 } from 'praxis/types';
 import { listWidgetRegistry, type WidgetRegistryEntry } from 'praxis/widgets/registry';
+import type {
+  WorkspaceHostProps,
+  WorkspaceShellSlots,
+  WorkspaceSwitcherConfig,
+} from 'workspaces/types';
 import {
   SelectionProvider,
   deriveSelectionKind,
@@ -105,8 +118,48 @@ export function PraxisWorkspaceSurface({
   readonly onSelectionChange?: (selection: SelectionState) => void;
 } = {}) {
   return (
+    <PraxisWorkspaceSlots onSelectionChange={onSelectionChange}>
+      {(slots) => (
+        <>
+          <AideonDesktopShell
+            toolbar={slots.toolbar}
+            navigation={slots.navigation}
+            content={slots.content}
+            inspector={slots.inspector}
+          />
+          {slots.overlays}
+        </>
+      )}
+    </PraxisWorkspaceSlots>
+  );
+}
+
+export function PraxisWorkspaceHost({ workspaceSwitcher, children }: WorkspaceHostProps) {
+  return (
+    <PraxisWorkspaceSlots workspaceSwitcher={workspaceSwitcher}>
+      {children}
+    </PraxisWorkspaceSlots>
+  );
+}
+
+interface PraxisWorkspaceSlotsProperties {
+  readonly onSelectionChange?: (selection: SelectionState) => void;
+  readonly workspaceSwitcher?: WorkspaceSwitcherConfig;
+  readonly children: (slots: WorkspaceShellSlots) => ReactNode;
+}
+
+function PraxisWorkspaceSlots({
+  onSelectionChange,
+  workspaceSwitcher,
+  children,
+}: PraxisWorkspaceSlotsProperties) {
+  return (
     <SelectionProvider>
-      <PraxisWorkspaceExperience onSelectionChange={onSelectionChange} />
+      <PraxisWorkspaceExperience
+        onSelectionChange={onSelectionChange}
+        workspaceSwitcher={workspaceSwitcher}
+        render={children}
+      />
     </SelectionProvider>
   );
 }
@@ -118,8 +171,12 @@ export function PraxisWorkspaceSurface({
  */
 function PraxisWorkspaceExperience({
   onSelectionChange,
+  workspaceSwitcher,
+  render,
 }: {
   readonly onSelectionChange?: (selection: SelectionState) => void;
+  readonly workspaceSwitcher?: WorkspaceSwitcherConfig;
+  readonly render: (slots: WorkspaceShellSlots) => ReactNode;
 }) {
   const {
     state: selectionState,
@@ -465,89 +522,92 @@ function PraxisWorkspaceExperience({
     };
   }, [handleArrowNavigation, handleUndoRedo, sliderFocusShortcut]);
 
-  return (
-    <>
-      <AideonDesktopShell
-        toolbar={
-          <PraxisWorkspaceToolbar
-            scenarioName={activeScenario?.name}
-            templateName={activeTemplate?.name}
-            templates={templatesState.data}
-            activeTemplateId={activeTemplate?.id ?? ''}
-            onTemplateChange={handleTemplateChange}
-            onTemplateSave={handleTemplateSave}
-            onCreateWidget={() => {
-              setWidgetLibraryOpen(true);
-            }}
-            temporalState={temporalState}
-            temporalActions={temporalActions}
-            timeTriggerRef={branchSelectReferenceCallback}
-            loading={templatesState.loading}
-            error={scenarioState.error}
-          />
-        }
-        navigation={
-          <ProjectsSidebar
-            projects={projectState.data}
-            scenarios={scenarioState.data}
-            loading={projectState.loading}
-            error={projectState.error}
-            activeScenarioId={activeScenario?.id}
-            onSelectScenario={handleScenarioSelect}
-            onRetry={() => {
-              refreshProjects().catch((_ignoredError: unknown) => {
-                return;
-              });
-            }}
-          />
-        }
-        content={
-          <div className="space-y-6">
-            <OverviewTabs
-              state={temporalState}
-              actions={temporalActions}
-              widgets={widgets}
-              selection={selectionState.selection}
-              onSelectionChange={handleSelectionChange}
-              onRequestMetaModelFocus={(types) => {
-                if (types.length === 0) {
-                  return;
-                }
-              }}
-              reloadSignal={propertyState.reloadTick}
-              branchTriggerRef={branchSelectReferenceCallback}
-            />
-          </div>
-        }
-        inspector={
-          <PropertiesInspector
-            key={selectionId ?? 'none'}
-            selectionKind={selectionKind as SelectionKind}
-            selectionId={selectionId}
-            properties={selectedProperties}
-            onSave={handleInspectorSave}
-            onReset={handleInspectorReset}
-            saving={propertyState.saving}
-            error={propertyState.error}
-          />
-        }
-      />
-      <DebugOverlay
-        visible={debugVisible && debugEnabled}
+  const slots: WorkspaceShellSlots = {
+    toolbar: (
+      <PraxisWorkspaceToolbar
         scenarioName={activeScenario?.name}
         templateName={activeTemplate?.name}
-        selection={selectionState.selection}
-        branch={temporalState.branch}
-        commitId={temporalState.commitId}
+        templates={templatesState.data}
+        activeTemplateId={activeTemplate?.id ?? ''}
+        onTemplateChange={handleTemplateChange}
+        onTemplateSave={handleTemplateSave}
+        onCreateWidget={() => {
+          setWidgetLibraryOpen(true);
+        }}
+        temporalState={temporalState}
+        temporalActions={temporalActions}
+        timeTriggerRef={branchSelectReferenceCallback}
+        loading={templatesState.loading}
+        error={scenarioState.error}
+        workspaceSwitcher={workspaceSwitcher}
       />
-      <WidgetLibraryDialog
-        open={widgetLibraryOpen}
-        onOpenChange={setWidgetLibraryOpen}
-        registry={listWidgetRegistry()}
-        onCreate={handleWidgetCreate}
+    ),
+    navigation: (
+      <ProjectsSidebar
+        projects={projectState.data}
+        scenarios={scenarioState.data}
+        loading={projectState.loading}
+        error={projectState.error}
+        activeScenarioId={activeScenario?.id}
+        onSelectScenario={handleScenarioSelect}
+        onRetry={() => {
+          refreshProjects().catch((_ignoredError: unknown) => {
+            return;
+          });
+        }}
       />
-    </>
-  );
+    ),
+    content: (
+      <div className="space-y-6">
+        <OverviewTabs
+          state={temporalState}
+          actions={temporalActions}
+          widgets={widgets}
+          selection={selectionState.selection}
+          onSelectionChange={handleSelectionChange}
+          onRequestMetaModelFocus={(types) => {
+            if (types.length === 0) {
+              return;
+            }
+          }}
+          reloadSignal={propertyState.reloadTick}
+          branchTriggerRef={branchSelectReferenceCallback}
+        />
+      </div>
+    ),
+    inspector: (
+      <PropertiesInspector
+        key={selectionId ?? 'none'}
+        selectionKind={selectionKind as SelectionKind}
+        selectionId={selectionId}
+        properties={selectedProperties}
+        onSave={handleInspectorSave}
+        onReset={handleInspectorReset}
+        saving={propertyState.saving}
+        error={propertyState.error}
+      />
+    ),
+    overlays: (
+      <>
+        <DebugOverlay
+          visible={debugVisible && debugEnabled}
+          scenarioName={activeScenario?.name}
+          templateName={activeTemplate?.name}
+          selection={selectionState.selection}
+          branch={temporalState.branch}
+          commitId={temporalState.commitId}
+        />
+        <WidgetLibraryDialog
+          open={widgetLibraryOpen}
+          onOpenChange={setWidgetLibraryOpen}
+          registry={listWidgetRegistry()}
+          onCreate={handleWidgetCreate}
+        />
+      </>
+    ),
+  };
+
+  return render(slots);
 }
 
 interface WidgetLibraryDialogProperties {

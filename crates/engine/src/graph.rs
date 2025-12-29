@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use aideon_mneme::temporal::{
+use crate::temporal::{
     ChangeSet, DiffPatch, EdgeTombstone, EdgeVersion, NodeTombstone, NodeVersion,
 };
 use serde::{Deserialize, Serialize};
@@ -386,7 +386,7 @@ fn remove_edges_matching(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aideon_mneme::meta::{
+    use crate::meta::{
         MetaModelDocument, MetaRelationship, MetaRelationshipValidation, MetaType,
         MetaValidationRules,
     };
@@ -412,7 +412,7 @@ mod tests {
                     category: None,
                     extends: None,
                     attributes: vec![],
-                    effect_types: vec![],
+                    effect_types: None,
                 },
                 MetaType {
                     id: "B".into(),
@@ -420,7 +420,7 @@ mod tests {
                     category: None,
                     extends: None,
                     attributes: vec![],
-                    effect_types: vec![],
+                    effect_types: None,
                 },
             ],
             relationships: vec![MetaRelationship {

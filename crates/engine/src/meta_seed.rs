@@ -1,6 +1,6 @@
 use serde_json::{Map, Value, json};
 
-use aideon_mneme::temporal::{ChangeSet, NodeVersion};
+use crate::temporal::{ChangeSet, NodeVersion};
 
 pub fn meta_model_seed_change_set() -> ChangeSet {
     let mut change = ChangeSet::default();

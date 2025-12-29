@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use aideon_mneme::{MnemeConfig, MnemeResult, MnemeStore};
+use aideon_mneme_store::{MnemeConfig, MnemeResult, MnemeStore};
 use sea_orm::{ConnectionTrait, DatabaseBackend, Statement};
 use tempfile::tempdir;
 
@@ -12,12 +12,12 @@ async fn list_tables(store: &MnemeStore) -> MnemeResult<HashSet<String>> {
             "SELECT name FROM sqlite_master WHERE type = 'table'",
         ))
         .await
-        .map_err(aideon_mneme::MnemeError::from)?;
+        .map_err(aideon_mneme_store::MnemeError::from)?;
     let mut tables = HashSet::new();
     for row in rows {
         let name: String = row
             .try_get("", "name")
-            .map_err(aideon_mneme::MnemeError::from)?;
+            .map_err(aideon_mneme_store::MnemeError::from)?;
         tables.insert(name);
     }
     Ok(tables)

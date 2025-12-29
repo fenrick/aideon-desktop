@@ -4,8 +4,8 @@ use crate::engine::config::PraxisEngineConfig;
 use crate::error::PraxisResult;
 use crate::graph::GraphSnapshot;
 use crate::meta::MetaModelRegistry;
-use aideon_mneme::temporal::ChangeSet;
-use aideon_mneme::{CommitSummary, Store};
+use crate::store::Store;
+use crate::temporal::{ChangeSet, CommitSummary};
 use async_recursion::async_recursion;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -106,7 +106,7 @@ impl Inner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aideon_mneme::{MemoryStore, Store};
+    use crate::store::{MemoryStore, Store};
 
     #[tokio::test]
     async fn new_ensures_main_branch_exists() {

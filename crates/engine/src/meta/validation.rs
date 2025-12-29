@@ -2,8 +2,8 @@
 
 use crate::error::{PraxisError, PraxisResult};
 use crate::meta::model::{AttributeRuleSet, RelationshipRule, TypeDescriptor};
-use aideon_mneme::meta::{MetaAttribute, MetaAttributeKind};
-use aideon_mneme::temporal::{EdgeVersion, NodeVersion};
+use crate::meta::{MetaAttribute, MetaAttributeKind};
+use crate::temporal::{EdgeVersion, NodeVersion};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use time::OffsetDateTime;
@@ -263,7 +263,7 @@ fn validate_blob(value: &Value, format_error: impl Fn(String) -> String) -> Prax
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aideon_mneme::meta::{MetaAttribute, MetaAttributeKind};
+    use crate::meta::{MetaAttribute, MetaAttributeKind};
     use serde_json::json;
     use std::collections::BTreeMap;
 

@@ -12,7 +12,7 @@ mod windows;
 mod worker;
 
 pub use aideon_praxis_facade::mneme::WorkerHealth;
-pub use aideon_praxis_facade::mneme::temporal::{
+pub use aideon_praxis_facade::praxis::temporal::{
     DiffArgs, DiffSummary, StateAtArgs, StateAtResult,
 };
 

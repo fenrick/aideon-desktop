@@ -6,7 +6,6 @@ authors = ["Aideon Praxis Contributors"]
 license = "MIT"
 
 [dependencies]
-aideon_mneme = { path = "../mneme" }
 aideon_engine = { path = "../engine" }
 log = "0.4"
 

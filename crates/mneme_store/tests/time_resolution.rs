@@ -1,5 +1,5 @@
-use aideon_mneme::{ActorId, Direction, Hlc, Id, MergePolicy, SyncApi, TraverseAtTimeInput};
-use aideon_mneme::{
+use aideon_mneme_store::{ActorId, Direction, Hlc, Id, MergePolicy, SyncApi, TraverseAtTimeInput};
+use aideon_mneme_store::{
     CreateNodeInput, EntityKind, FieldDef, GraphReadApi, GraphWriteApi, Layer, MetamodelApi,
     MetamodelBatch, MnemeConfig, MnemeStore, PartitionId, PropertyWriteApi, ReadEntityAtTimeInput,
     SetEdgeExistenceIntervalInput, SetPropIntervalInput, TypeDef, TypeFieldDef, ValidTime, Value,
@@ -12,7 +12,7 @@ fn new_ids() -> (PartitionId, ActorId) {
 }
 
 #[tokio::test]
-async fn resolves_layer_precedence_for_lww() -> aideon_mneme::MnemeResult<()> {
+async fn resolves_layer_precedence_for_lww() -> aideon_mneme_store::MnemeResult<()> {
     let dir = tempdir().expect("tempdir");
     let base = dir.path();
     let config = MnemeConfig::default_sqlite(base.join("mneme.sqlite").to_string_lossy());
@@ -40,6 +40,7 @@ async fn resolves_layer_precedence_for_lww() -> aideon_mneme::MnemeResult<()> {
                     cardinality_multi: false,
                     merge_policy: MergePolicy::Lww,
                     is_indexed: true,
+                    disallow_overlap: false,
                 }],
                 type_fields: vec![TypeFieldDef {
                     type_id,
@@ -48,8 +49,11 @@ async fn resolves_layer_precedence_for_lww() -> aideon_mneme::MnemeResult<()> {
                     default_value: None,
                     override_default: false,
                     tighten_required: false,
+                    disallow_overlap: None,
                 }],
                 edge_type_rules: Vec::new(),
+                metamodel_version: None,
+                metamodel_source: None,
             },
         )
         .await?;
@@ -113,13 +117,13 @@ async fn resolves_layer_precedence_for_lww() -> aideon_mneme::MnemeResult<()> {
     let value = result.properties.get(&field_id).expect("field value");
     assert_eq!(
         value,
-        &aideon_mneme::ReadValue::Single(Value::Str("actual".to_string()))
+        &aideon_mneme_store::ReadValue::Single(Value::Str("actual".to_string()))
     );
     Ok(())
 }
 
 #[tokio::test]
-async fn resolves_multi_value_for_mv() -> aideon_mneme::MnemeResult<()> {
+async fn resolves_multi_value_for_mv() -> aideon_mneme_store::MnemeResult<()> {
     let dir = tempdir().expect("tempdir");
     let base = dir.path();
     let config = MnemeConfig::default_sqlite(base.join("mneme.sqlite").to_string_lossy());
@@ -147,6 +151,7 @@ async fn resolves_multi_value_for_mv() -> aideon_mneme::MnemeResult<()> {
                     cardinality_multi: true,
                     merge_policy: MergePolicy::Mv,
                     is_indexed: false,
+                    disallow_overlap: false,
                 }],
                 type_fields: vec![TypeFieldDef {
                     type_id,
@@ -155,8 +160,11 @@ async fn resolves_multi_value_for_mv() -> aideon_mneme::MnemeResult<()> {
                     default_value: None,
                     override_default: false,
                     tighten_required: false,
+                    disallow_overlap: None,
                 }],
                 edge_type_rules: Vec::new(),
+                metamodel_version: None,
+                metamodel_source: None,
             },
         )
         .await?;
@@ -219,7 +227,11 @@ async fn resolves_multi_value_for_mv() -> aideon_mneme::MnemeResult<()> {
         .await?;
     let value = result.properties.get(&field_id).expect("field value");
     match value {
-        aideon_mneme::ReadValue::Multi(values) => {
+        aideon_mneme_store::ReadValue::Multi(values)
+        | aideon_mneme_store::ReadValue::MultiLimited {
+            values,
+            more_available: _,
+        } => {
             let mut labels: Vec<String> = values
                 .iter()
                 .filter_map(|v| match v {
@@ -236,7 +248,7 @@ async fn resolves_multi_value_for_mv() -> aideon_mneme::MnemeResult<()> {
 }
 
 #[tokio::test]
-async fn respects_as_of_asserted_at_for_reads() -> aideon_mneme::MnemeResult<()> {
+async fn respects_as_of_asserted_at_for_reads() -> aideon_mneme_store::MnemeResult<()> {
     let dir = tempdir().expect("tempdir");
     let base = dir.path();
     let config = MnemeConfig::default_sqlite(base.join("mneme.sqlite").to_string_lossy());
@@ -264,6 +276,7 @@ async fn respects_as_of_asserted_at_for_reads() -> aideon_mneme::MnemeResult<()>
                     cardinality_multi: false,
                     merge_policy: MergePolicy::Lww,
                     is_indexed: false,
+                    disallow_overlap: false,
                 }],
                 type_fields: vec![TypeFieldDef {
                     type_id,
@@ -272,8 +285,11 @@ async fn respects_as_of_asserted_at_for_reads() -> aideon_mneme::MnemeResult<()>
                     default_value: None,
                     override_default: false,
                     tighten_required: false,
+                    disallow_overlap: None,
                 }],
                 edge_type_rules: Vec::new(),
+                metamodel_version: None,
+                metamodel_source: None,
             },
         )
         .await?;
@@ -338,13 +354,13 @@ async fn respects_as_of_asserted_at_for_reads() -> aideon_mneme::MnemeResult<()>
     let value = result.properties.get(&field_id).expect("field value");
     assert_eq!(
         value,
-        &aideon_mneme::ReadValue::Single(Value::Str("alpha".to_string()))
+        &aideon_mneme_store::ReadValue::Single(Value::Str("alpha".to_string()))
     );
     Ok(())
 }
 
 #[tokio::test]
-async fn edge_existence_intervals_override_at_valid_time() -> aideon_mneme::MnemeResult<()> {
+async fn edge_existence_intervals_override_at_valid_time() -> aideon_mneme_store::MnemeResult<()> {
     let dir = tempdir().expect("tempdir");
     let base = dir.path();
     let config = MnemeConfig::default_sqlite(base.join("mneme.sqlite").to_string_lossy());
@@ -383,7 +399,7 @@ async fn edge_existence_intervals_override_at_valid_time() -> aideon_mneme::Mnem
         })
         .await?;
     store
-        .create_edge(aideon_mneme::CreateEdgeInput {
+        .create_edge(aideon_mneme_store::CreateEdgeInput {
             partition,
             scenario_id: None,
             actor,
@@ -451,7 +467,7 @@ async fn edge_existence_intervals_override_at_valid_time() -> aideon_mneme::Mnem
 }
 
 #[tokio::test]
-async fn tombstone_edge_removes_traversal() -> aideon_mneme::MnemeResult<()> {
+async fn tombstone_edge_removes_traversal() -> aideon_mneme_store::MnemeResult<()> {
     let dir = tempdir().expect("tempdir");
     let base = dir.path();
     let config = MnemeConfig::default_sqlite(base.join("mneme.sqlite").to_string_lossy());
@@ -483,6 +499,8 @@ async fn tombstone_edge_removes_traversal() -> aideon_mneme::MnemeResult<()> {
                 fields: Vec::new(),
                 type_fields: Vec::new(),
                 edge_type_rules: Vec::new(),
+                metamodel_version: None,
+                metamodel_source: None,
             },
         )
         .await?;
@@ -518,7 +536,7 @@ async fn tombstone_edge_removes_traversal() -> aideon_mneme::MnemeResult<()> {
         .await?;
     let edge_id = Id::new();
     store
-        .create_edge(aideon_mneme::CreateEdgeInput {
+        .create_edge(aideon_mneme_store::CreateEdgeInput {
             partition,
             scenario_id: None,
             actor,

@@ -1,6 +1,7 @@
 //! Praxis meta-model schema registry.
 
 use crate::error::PraxisResult;
+use crate::meta::MetaModelDocument;
 use crate::meta::config::MetaModelConfig;
 use crate::meta::loader::{load_document, merge_documents};
 use crate::meta::model::{
@@ -8,8 +9,7 @@ use crate::meta::model::{
     build_relationship_descriptors, build_type_descriptors, relationship_rules,
 };
 use crate::meta::validation::{validate_edge, validate_node};
-use aideon_mneme::meta::MetaModelDocument;
-use aideon_mneme::temporal::{EdgeVersion, NodeVersion};
+use crate::temporal::{EdgeVersion, NodeVersion};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 

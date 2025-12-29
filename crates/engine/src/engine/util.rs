@@ -3,7 +3,7 @@
 use crate::engine::state::Inner;
 use crate::error::{PraxisError, PraxisResult};
 use crate::graph::GraphSnapshot;
-use aideon_mneme::temporal::{ChangeSet, CommitRef, EdgeTombstone, EdgeVersion};
+use crate::temporal::{ChangeSet, CommitRef, EdgeTombstone, EdgeVersion};
 use blake3::Hasher;
 use serde::Serialize;
 use std::cmp::min;
@@ -235,7 +235,7 @@ async fn collect_ancestors(inner: &mut Inner, head: &str) -> PraxisResult<HashSe
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aideon_mneme::temporal::{EdgeVersion, NodeTombstone, NodeVersion};
+    use crate::temporal::{EdgeVersion, NodeTombstone, NodeVersion};
 
     #[test]
     fn change_count_counts_all_change_vectors() {

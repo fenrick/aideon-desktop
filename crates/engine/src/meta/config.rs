@@ -1,6 +1,6 @@
 //! Meta-model configuration and source definitions for Praxis.
 
-use aideon_mneme::meta::MetaModelDocument;
+use crate::meta::MetaModelDocument;
 use std::path::PathBuf;
 
 /// Source definition for loading meta-model documents.

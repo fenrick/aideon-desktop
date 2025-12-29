@@ -1,4 +1,3 @@
-use aideon_mneme::MnemeError;
 use thiserror::Error;
 
 /// Structured error codes emitted by the Praxis engine.
@@ -57,23 +56,6 @@ impl PraxisError {
     }
 }
 
-impl From<MnemeError> for PraxisError {
-    fn from(value: MnemeError) -> Self {
-        match value {
-            MnemeError::ConcurrencyConflict {
-                branch,
-                expected,
-                actual,
-            } => PraxisError::ConcurrencyConflict {
-                branch,
-                expected,
-                actual,
-            },
-            MnemeError::Storage { message } => PraxisError::IntegrityViolation { message },
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,22 +106,5 @@ mod tests {
             .code(),
             PraxisErrorCode::MergeConflict
         );
-    }
-
-    #[test]
-    fn mneme_errors_map_to_praxis_errors() {
-        let err: PraxisError = MnemeError::Storage {
-            message: "disk".into(),
-        }
-        .into();
-        assert!(matches!(err, PraxisError::IntegrityViolation { .. }));
-
-        let err: PraxisError = MnemeError::ConcurrencyConflict {
-            branch: "main".into(),
-            expected: Some("a".into()),
-            actual: Some("b".into()),
-        }
-        .into();
-        assert!(matches!(err, PraxisError::ConcurrencyConflict { .. }));
     }
 }

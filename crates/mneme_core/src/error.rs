@@ -6,12 +6,14 @@ pub enum MnemeError {
     Storage { message: String },
     #[error("not found: {message}")]
     NotFound { message: String },
-    #[error("invalid input: {message}")]
-    InvalidInput { message: String },
+    #[error("validation error: {message}")]
+    Validation { message: String },
     #[error("conflict: {message}")]
     Conflict { message: String },
-    #[error("not implemented: {message}")]
-    NotImplemented { message: String },
+    #[error("processing error: {message}")]
+    Processing { message: String },
+    #[error("sync error: {message}")]
+    Sync { message: String },
 }
 
 impl MnemeError {
@@ -28,7 +30,13 @@ impl MnemeError {
     }
 
     pub fn invalid(message: impl Into<String>) -> Self {
-        Self::InvalidInput {
+        Self::Validation {
+            message: message.into(),
+        }
+    }
+
+    pub fn validation(message: impl Into<String>) -> Self {
+        Self::Validation {
             message: message.into(),
         }
     }
@@ -39,8 +47,14 @@ impl MnemeError {
         }
     }
 
-    pub fn not_implemented(message: impl Into<String>) -> Self {
-        Self::NotImplemented {
+    pub fn processing(message: impl Into<String>) -> Self {
+        Self::Processing {
+            message: message.into(),
+        }
+    }
+
+    pub fn sync(message: impl Into<String>) -> Self {
+        Self::Sync {
             message: message.into(),
         }
     }

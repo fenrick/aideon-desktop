@@ -1,4 +1,4 @@
-use aideon_mneme::{DatabaseConfig, MnemeConfig, PoolConfig};
+use aideon_mneme_store::{DatabaseConfig, MnemeConfig, PoolConfig};
 use serde_json::json;
 
 #[test]
@@ -51,6 +51,8 @@ fn pool_config_roundtrip() {
             acquire_timeout_ms: Some(2000),
             idle_timeout_ms: None,
         }),
+        limits: None,
+        integrity: None,
     };
     let encoded = serde_json::to_string(&config).expect("encode");
     let decoded: MnemeConfig = serde_json::from_str(&encoded).expect("decode");

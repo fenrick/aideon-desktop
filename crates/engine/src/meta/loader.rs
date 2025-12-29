@@ -2,7 +2,7 @@
 
 use crate::error::{PraxisError, PraxisResult};
 use crate::meta::config::MetaModelSource;
-use aideon_mneme::meta::{MetaModelDocument, MetaRelationship, MetaType};
+use crate::meta::{MetaModelDocument, MetaRelationship, MetaType};
 use std::collections::HashMap;
 use std::fs;
 
@@ -90,7 +90,7 @@ fn merge_relationships(base: &mut Vec<MetaRelationship>, overrides: &[MetaRelati
 mod tests {
     use super::*;
     use crate::meta::config::MetaModelSource;
-    use aideon_mneme::meta::{MetaAttribute, MetaAttributeKind, MetaModelDocument};
+    use crate::meta::{MetaAttribute, MetaAttributeKind, MetaModelDocument};
 
     fn doc(
         version: &str,
@@ -136,7 +136,7 @@ mod tests {
                 required: true,
                 enum_values: vec![],
             }],
-            effect_types: vec![],
+            effect_types: None,
         };
         let overlay_type = MetaType {
             id: "Capability".into(),
@@ -149,7 +149,7 @@ mod tests {
                 required: false,
                 enum_values: vec![],
             }],
-            effect_types: vec![],
+            effect_types: None,
         };
         let base_rel = MetaRelationship {
             id: "supports".into(),

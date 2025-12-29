@@ -1,5 +1,5 @@
 use aideon_engine::PraxisEngine;
-use aideon_mneme::temporal::{CommitChangesRequest, MergeRequest, StateAtArgs};
+use aideon_engine::temporal::{CommitChangesRequest, MergeRequest, StateAtArgs};
 use serde_json::json;
 
 #[tokio::test]
@@ -18,7 +18,7 @@ async fn merge_creates_commit_when_no_conflicts() {
     engine
         .create_branch(
             "feature/merge-demo".into(),
-            Some(aideon_mneme::temporal::CommitRef::Id(base_head.clone())),
+            Some(aideon_engine::temporal::CommitRef::Id(base_head.clone())),
         )
         .await
         .expect("branch created");
@@ -30,8 +30,8 @@ async fn merge_creates_commit_when_no_conflicts() {
         time: Some("2025-11-28T00:00:00Z".into()),
         message: "add feature node".into(),
         tags: vec!["merge-demo".into()],
-        changes: aideon_mneme::temporal::ChangeSet {
-            node_creates: vec![aideon_mneme::temporal::NodeVersion {
+        changes: aideon_engine::temporal::ChangeSet {
+            node_creates: vec![aideon_engine::temporal::NodeVersion {
                 id: "feature-node".into(),
                 r#type: Some("Capability".into()),
                 props: Some(json!({"name":"Feature"})),
@@ -91,8 +91,8 @@ async fn merge_returns_conflict_when_branches_diverge_on_same_node() {
             time: None,
             message: "seed conflict node".into(),
             tags: vec![],
-            changes: aideon_mneme::temporal::ChangeSet {
-                node_creates: vec![aideon_mneme::temporal::NodeVersion {
+            changes: aideon_engine::temporal::ChangeSet {
+                node_creates: vec![aideon_engine::temporal::NodeVersion {
                     id: "conflict-node".into(),
                     r#type: Some("Capability".into()),
                     props: Some(json!({"name":"Seed"})),
@@ -107,20 +107,24 @@ async fn merge_returns_conflict_when_branches_diverge_on_same_node() {
     engine
         .create_branch(
             "feature/alpha".into(),
-            Some(aideon_mneme::temporal::CommitRef::Id(seeded_commit.clone())),
+            Some(aideon_engine::temporal::CommitRef::Id(
+                seeded_commit.clone(),
+            )),
         )
         .await
         .expect("alpha branch");
     engine
         .create_branch(
             "feature/beta".into(),
-            Some(aideon_mneme::temporal::CommitRef::Id(seeded_commit.clone())),
+            Some(aideon_engine::temporal::CommitRef::Id(
+                seeded_commit.clone(),
+            )),
         )
         .await
         .expect("beta branch");
 
     // Alpha updates a node; Beta deletes it to force conflict.
-    let target_node = aideon_mneme::temporal::NodeVersion {
+    let target_node = aideon_engine::temporal::NodeVersion {
         id: "conflict-node".into(),
         r#type: Some("Capability".into()),
         props: Some(json!({"name":"Conflicting"})),
@@ -134,7 +138,7 @@ async fn merge_returns_conflict_when_branches_diverge_on_same_node() {
             time: None,
             message: "alpha updates".into(),
             tags: vec![],
-            changes: aideon_mneme::temporal::ChangeSet {
+            changes: aideon_engine::temporal::ChangeSet {
                 node_updates: vec![target_node.clone()],
                 ..Default::default()
             },
@@ -150,8 +154,8 @@ async fn merge_returns_conflict_when_branches_diverge_on_same_node() {
             time: None,
             message: "beta deletes".into(),
             tags: vec![],
-            changes: aideon_mneme::temporal::ChangeSet {
-                node_deletes: vec![aideon_mneme::temporal::NodeTombstone {
+            changes: aideon_engine::temporal::ChangeSet {
+                node_deletes: vec![aideon_engine::temporal::NodeTombstone {
                     id: target_node.id.clone(),
                 }],
                 ..Default::default()

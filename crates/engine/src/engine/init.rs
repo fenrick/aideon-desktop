@@ -4,7 +4,7 @@ use crate::PraxisEngine;
 use crate::engine::config::PraxisEngineConfig;
 use crate::engine::state::Inner;
 use crate::error::PraxisResult;
-use aideon_mneme::{MemoryStore, SqliteDb, Store};
+use crate::store::{MemoryStore, SqliteDb, Store};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;

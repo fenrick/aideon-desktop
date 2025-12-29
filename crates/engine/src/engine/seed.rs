@@ -4,7 +4,7 @@ use crate::PraxisEngine;
 use crate::dataset::BaselineDataset;
 use crate::error::PraxisResult;
 use crate::meta_seed::meta_model_seed_change_set;
-use aideon_mneme::temporal::CommitChangesRequest;
+use crate::temporal::CommitChangesRequest;
 use std::collections::BTreeMap;
 
 impl PraxisEngine {

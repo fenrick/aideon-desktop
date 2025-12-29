@@ -12,9 +12,13 @@ mod error;
 mod graph;
 pub mod meta;
 mod meta_seed;
+pub mod store;
+pub mod temporal;
 
 pub use dataset::{BaselineDataset, DatasetCommit};
 pub use engine::{PraxisEngine, PraxisEngineConfig};
 pub use error::{PraxisError, PraxisErrorCode, PraxisResult};
 pub use graph::{GraphSnapshot, SnapshotStats};
 pub use meta::{MetaModelConfig, MetaModelRegistry};
+pub use store::{MemoryStore, SqliteDb, Store};
+pub use temporal::*;

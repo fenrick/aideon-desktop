@@ -55,6 +55,15 @@ impl Hlc {
     pub fn from_i64(value: i64) -> Self {
         Hlc(value)
     }
+
+    pub fn physical_micros(self) -> i64 {
+        ((self.0 as u64) >> HLC_COUNTER_BITS) as i64
+    }
+
+    pub fn from_physical_micros(micros: i64) -> Self {
+        let packed = (micros as u64) << HLC_COUNTER_BITS;
+        Hlc(packed as i64)
+    }
 }
 
 impl Serialize for Hlc {

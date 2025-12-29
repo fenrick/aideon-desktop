@@ -3,8 +3,8 @@
 //! These commands remain thin so that all business logic stays within the worker
 //! crate, reinforcing the boundary guidance spelled out in `AGENTS.md`.
 
-use aideon_praxis_facade::mneme::meta::MetaModelDocument;
-use aideon_praxis_facade::mneme::temporal::{
+use aideon_praxis_facade::praxis::meta::MetaModelDocument;
+use aideon_praxis_facade::praxis::temporal::{
     BranchInfo, CommitChangesRequest, CommitChangesResponse, CreateBranchRequest, DiffArgs,
     DiffSummary, ListBranchesResponse, ListCommitsResponse, MergeRequest, MergeResponse,
     StateAtArgs, StateAtResult, TopologyDeltaArgs, TopologyDeltaResult,

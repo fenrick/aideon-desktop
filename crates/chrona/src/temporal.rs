@@ -3,13 +3,13 @@
 //! Chrona keeps the IPC-friendly API exposed to the Tauri host while delegating
 //! persistence, validation, and diff computation to the Praxis engine.
 
-use aideon_engine::{PraxisEngine, PraxisResult};
-use aideon_mneme::meta::MetaModelDocument;
-use aideon_mneme::temporal::{
+use aideon_engine::meta::MetaModelDocument;
+use aideon_engine::temporal::{
     BranchInfo, CommitChangesRequest, CommitRef, CommitSummary, DiffArgs, DiffSummary,
     ListBranchesResponse, MergeRequest, MergeResponse, StateAtArgs, StateAtResult,
     TopologyDeltaArgs, TopologyDeltaResult,
 };
+use aideon_engine::{PraxisEngine, PraxisResult};
 
 /// Thin wrapper that keeps the previous `TemporalEngine` name stable for the host.
 #[derive(Clone)]
@@ -87,7 +87,7 @@ impl TemporalEngine {
 #[cfg(test)]
 mod tests {
     use super::TemporalEngine;
-    use aideon_mneme::temporal::{
+    use aideon_engine::temporal::{
         ChangeSet, CommitChangesRequest, CommitRef, EdgeTombstone, EdgeVersion, NodeTombstone,
         NodeVersion, StateAtArgs, TopologyDeltaArgs,
     };

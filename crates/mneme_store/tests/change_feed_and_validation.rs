@@ -1,12 +1,12 @@
-use aideon_mneme::ops::CreateNodeInput;
-use aideon_mneme::{
+use aideon_mneme_store::ops::CreateNodeInput;
+use aideon_mneme_store::{
     ActorId, ChangeFeedApi, GraphWriteApi, Hlc, Id, MnemeConfig, MnemeStore, PartitionId,
     ValidationRule, ValidationRulesApi,
 };
 use tempfile::tempdir;
 
 #[tokio::test]
-async fn change_feed_records_create_node() -> aideon_mneme::MnemeResult<()> {
+async fn change_feed_records_create_node() -> aideon_mneme_store::MnemeResult<()> {
     let dir = tempdir().expect("tempdir");
     let base = dir.path();
     let config = MnemeConfig::default_sqlite(base.join("mneme.sqlite").to_string_lossy());
@@ -38,7 +38,7 @@ async fn change_feed_records_create_node() -> aideon_mneme::MnemeResult<()> {
 }
 
 #[tokio::test]
-async fn validation_rules_roundtrip() -> aideon_mneme::MnemeResult<()> {
+async fn validation_rules_roundtrip() -> aideon_mneme_store::MnemeResult<()> {
     let dir = tempdir().expect("tempdir");
     let base = dir.path();
     let config = MnemeConfig::default_sqlite(base.join("mneme.sqlite").to_string_lossy());

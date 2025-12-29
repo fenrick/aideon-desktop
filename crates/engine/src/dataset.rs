@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-use aideon_mneme::temporal::{ChangeSet, EdgeVersion, NodeVersion};
+use crate::temporal::{ChangeSet, EdgeVersion, NodeVersion};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -58,11 +58,8 @@ impl BaselineDataset {
 }
 
 impl DatasetCommit {
-    pub fn to_request(
-        &self,
-        parent: Option<String>,
-    ) -> aideon_mneme::temporal::CommitChangesRequest {
-        aideon_mneme::temporal::CommitChangesRequest {
+    pub fn to_request(&self, parent: Option<String>) -> crate::temporal::CommitChangesRequest {
+        crate::temporal::CommitChangesRequest {
             branch: self.branch.clone(),
             parent,
             author: self.author.clone(),
@@ -222,8 +219,8 @@ fn default_branch() -> String {
 
 #[cfg(test)]
 mod tests {
-    use aideon_mneme::temporal::ChangeSet;
-    use aideon_mneme::{MemoryStore, Store};
+    use crate::store::{MemoryStore, Store};
+    use crate::temporal::ChangeSet;
     use std::sync::Arc;
 
     use super::*;

@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     ActorId, ClearPropIntervalInput, CounterUpdateInput, CreateEdgeInput, CreateNodeInput,
-    EdgeTypeRule, EffectiveSchema, EntityKind, Hlc, Id, MetamodelBatch, MnemeResult, OpEnvelope,
-    OpId, OrSetUpdateInput, PartitionId, ScenarioId, SchemaVersion,
+    EdgeTypeRule, EffectiveSchema, EntityKind, Hlc, Id, MetamodelBatch, MnemeError, MnemeResult,
+    OpEnvelope, OpId, OrSetUpdateInput, PartitionId, ScenarioId, SchemaManifest, SchemaVersion,
     SetEdgeExistenceIntervalInput, SetPropIntervalInput, ValidTime, Value,
 };
 
@@ -18,7 +19,7 @@ pub trait MetamodelApi {
         actor: ActorId,
         asserted_at: Hlc,
         batch: MetamodelBatch,
-    ) -> MnemeResult<()>;
+    ) -> MnemeResult<OpId>;
 
     async fn compile_effective_schema(
         &self,
@@ -71,6 +72,10 @@ pub trait PropertyWriteApi {
 pub enum ReadValue {
     Single(Value),
     Multi(Vec<Value>),
+    MultiLimited {
+        values: Vec<Value>,
+        more_available: bool,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -161,6 +166,31 @@ pub struct ListEntitiesResultItem {
     pub type_id: Option<Id>,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct EntityCursor {
+    pub entity_id: String,
+}
+
+pub fn encode_entity_cursor(entity_id: Id) -> MnemeResult<String> {
+    let cursor = EntityCursor {
+        entity_id: entity_id.to_uuid_string(),
+    };
+    let payload =
+        serde_json::to_vec(&cursor).map_err(|err| MnemeError::storage(err.to_string()))?;
+    Ok(URL_SAFE_NO_PAD.encode(payload))
+}
+
+pub fn decode_entity_cursor(cursor: &str) -> MnemeResult<Id> {
+    let decoded = URL_SAFE_NO_PAD
+        .decode(cursor.as_bytes())
+        .map_err(|_| MnemeError::invalid("invalid cursor"))?;
+    let parsed: EntityCursor =
+        serde_json::from_slice(&decoded).map_err(|_| MnemeError::invalid("invalid cursor"))?;
+    Id::from_uuid_str(&parsed.entity_id)
+        .or_else(|_| Id::from_ulid_str(&parsed.entity_id))
+        .map_err(|_| MnemeError::invalid("invalid cursor"))
+}
+
 #[async_trait]
 pub trait GraphReadApi {
     async fn read_entity_at_time(
@@ -198,6 +228,39 @@ pub struct GetProjectionEdgesInput {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GraphDegreeStat {
+    pub entity_id: Id,
+    pub out_degree: i32,
+    pub in_degree: i32,
+    pub as_of_valid_time: Option<ValidTime>,
+    pub computed_asserted_at: Hlc,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct GetGraphDegreeStatsInput {
+    pub partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub as_of_valid_time: Option<ValidTime>,
+    pub entity_ids: Option<Vec<Id>>,
+    pub limit: Option<u32>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GraphEdgeTypeCount {
+    pub edge_type_id: Option<Id>,
+    pub count: i32,
+    pub computed_asserted_at: Hlc,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct GetGraphEdgeTypeCountsInput {
+    pub partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub edge_type_ids: Option<Vec<Id>>,
+    pub limit: Option<u32>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SecurityContext {
     pub allowed_acl_groups: Option<Vec<String>>,
     pub allowed_owner_ids: Option<Vec<ActorId>>,
@@ -212,12 +275,35 @@ pub struct RetentionPolicy {
     pub keep_pagerank_runs_days: Option<u32>,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TriggerRetentionInput {
+    pub partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub policy: RetentionPolicy,
+    pub reason: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TriggerCompactionInput {
+    pub partition: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub reason: String,
+}
+
 #[async_trait]
 pub trait AnalyticsApi {
     async fn get_projection_edges(
         &self,
         input: GetProjectionEdgesInput,
     ) -> MnemeResult<Vec<ProjectionEdge>>;
+    async fn get_graph_degree_stats(
+        &self,
+        input: GetGraphDegreeStatsInput,
+    ) -> MnemeResult<Vec<GraphDegreeStat>>;
+    async fn get_graph_edge_type_counts(
+        &self,
+        input: GetGraphEdgeTypeCountsInput,
+    ) -> MnemeResult<Vec<GraphEdgeTypeCount>>;
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -376,6 +462,8 @@ pub trait MnemeProcessingApi {
         &self,
         input: TriggerProcessingInput,
     ) -> MnemeResult<()>;
+    async fn trigger_retention(&self, input: TriggerRetentionInput) -> MnemeResult<()>;
+    async fn trigger_compaction(&self, input: TriggerCompactionInput) -> MnemeResult<()>;
     async fn run_processing_worker(&self, input: RunWorkerInput) -> MnemeResult<u32>;
     async fn list_jobs(
         &self,
@@ -418,6 +506,7 @@ pub trait DiagnosticsApi {
         partition: PartitionId,
         limit: u32,
     ) -> MnemeResult<Vec<JobSummary>>;
+    async fn get_schema_manifest(&self) -> MnemeResult<SchemaManifest>;
     async fn explain_resolution(
         &self,
         input: ExplainResolutionInput,
@@ -434,6 +523,9 @@ pub struct ExportOptions {
     pub scenario_id: Option<ScenarioId>,
     pub since_asserted_at: Option<Hlc>,
     pub until_asserted_at: Option<Hlc>,
+    pub include_schema: bool,
+    pub include_data_ops: bool,
+    pub include_scenarios: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -492,11 +584,7 @@ pub trait MnemeSnapshotApi {
         &self,
         opts: SnapshotOptions,
     ) -> MnemeResult<Box<dyn Iterator<Item = ExportRecord> + Send>>;
-    async fn import_snapshot_stream<I>(
-        &self,
-        opts: ImportOptions,
-        records: I,
-    ) -> MnemeResult<()>
+    async fn import_snapshot_stream<I>(&self, opts: ImportOptions, records: I) -> MnemeResult<()>
     where
         I: Iterator<Item = ExportRecord> + Send;
 }
@@ -626,6 +714,62 @@ pub trait ValidationRulesApi {
     ) -> MnemeResult<Vec<ValidationRule>>;
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ComputedRule {
+    pub rule_id: Id,
+    pub target_type_id: Option<Id>,
+    pub output_field_id: Option<Id>,
+    pub template_kind: String,
+    pub params: serde_json::Value,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ComputedCacheEntry {
+    pub entity_id: Id,
+    pub field_id: Id,
+    pub valid_from: i64,
+    pub valid_to: Option<i64>,
+    pub value: Value,
+    pub rule_version_hash: String,
+    pub computed_asserted_at: Hlc,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ListComputedCacheInput {
+    pub partition: PartitionId,
+    pub entity_id: Option<Id>,
+    pub field_id: Id,
+    pub at_valid_time: Option<ValidTime>,
+    pub limit: u32,
+}
+
+#[async_trait]
+pub trait ComputedRulesApi {
+    async fn upsert_computed_rules(
+        &self,
+        partition: PartitionId,
+        actor: ActorId,
+        asserted_at: Hlc,
+        rules: Vec<ComputedRule>,
+    ) -> MnemeResult<()>;
+
+    async fn list_computed_rules(&self, partition: PartitionId) -> MnemeResult<Vec<ComputedRule>>;
+}
+
+#[async_trait]
+pub trait ComputedCacheApi {
+    async fn upsert_computed_cache(
+        &self,
+        partition: PartitionId,
+        entries: Vec<ComputedCacheEntry>,
+    ) -> MnemeResult<()>;
+
+    async fn list_computed_cache(
+        &self,
+        input: ListComputedCacheInput,
+    ) -> MnemeResult<Vec<ComputedCacheEntry>>;
+}
+
 pub trait MnemeStore:
     MetamodelApi
     + GraphWriteApi
@@ -638,6 +782,8 @@ pub trait MnemeStore:
     + MnemeProcessingApi
     + ChangeFeedApi
     + ValidationRulesApi
+    + ComputedRulesApi
+    + ComputedCacheApi
     + DiagnosticsApi
     + MnemeExportApi
     + MnemeImportApi
@@ -659,6 +805,8 @@ impl<T> MnemeStore for T where
         + MnemeProcessingApi
         + ChangeFeedApi
         + ValidationRulesApi
+        + ComputedRulesApi
+        + ComputedCacheApi
         + DiagnosticsApi
         + MnemeExportApi
         + MnemeImportApi

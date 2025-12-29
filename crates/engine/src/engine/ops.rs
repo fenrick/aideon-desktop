@@ -7,11 +7,11 @@ use crate::engine::util::{
 };
 use crate::error::{PraxisError, PraxisResult};
 use crate::graph::GraphSnapshot;
-use aideon_mneme::PersistedCommit;
-use aideon_mneme::temporal::{
+use crate::temporal::{
     BranchInfo, ChangeSet, CommitChangesRequest, CommitRef, CommitSummary, DiffArgs, DiffPatch,
     DiffSummary, EdgeTombstone, EdgeVersion, MergeConflict, MergeRequest, MergeResponse,
-    NodeTombstone, StateAtArgs, StateAtResult, TopologyDeltaArgs, TopologyDeltaResult,
+    NodeTombstone, PersistedCommit, StateAtArgs, StateAtResult, TopologyDeltaArgs,
+    TopologyDeltaResult,
 };
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -502,11 +502,11 @@ fn build_change_set(target_snapshot: &GraphSnapshot, patch: &DiffPatch) -> Chang
 mod tests {
     use super::*;
     use crate::meta::MetaModelRegistry;
-    use aideon_mneme::NodeVersion;
-    use aideon_mneme::meta::{
+    use crate::meta::{
         MetaModelDocument, MetaRelationship, MetaRelationshipValidation, MetaType,
         MetaValidationRules,
     };
+    use crate::temporal::NodeVersion;
     use serde_json::json;
     use std::collections::BTreeMap;
 
@@ -529,7 +529,7 @@ mod tests {
                     category: None,
                     extends: None,
                     attributes: vec![],
-                    effect_types: vec![],
+                    effect_types: None,
                 },
                 MetaType {
                     id: "B".into(),
@@ -537,7 +537,7 @@ mod tests {
                     category: None,
                     extends: None,
                     attributes: vec![],
-                    effect_types: vec![],
+                    effect_types: None,
                 },
             ],
             relationships: vec![MetaRelationship {

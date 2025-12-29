@@ -29,6 +29,7 @@ pub enum AideonHlcState {
 pub enum AideonOps {
     Table,
     PartitionId,
+    ScenarioId,
     OpId,
     ActorId,
     AssertedAtHlc,
@@ -268,6 +269,7 @@ pub enum AideonFields {
     Cardinality,
     MergePolicy,
     IsIndexed,
+    DisallowOverlap,
     Label,
     IsDeleted,
     UpdatedAssertedAtHlc,
@@ -291,6 +293,7 @@ pub enum AideonTypeFields {
     DefaultValueJson,
     OverrideDefault,
     TightenRequired,
+    DisallowOverlap,
     UpdatedAssertedAtHlc,
 }
 

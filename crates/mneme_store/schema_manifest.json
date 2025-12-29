@@ -1,0 +1,3230 @@
+{
+  "manifest_version": "1",
+  "migrations": ["20250101_000001_init"],
+  "tables": [
+    {
+      "name": "aideon_partitions",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "created_at_asserted",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "created_by_actor",
+          "logical_type": "id",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_partitions",
+          "columns": ["partition_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_actors",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "actor_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "metadata_json",
+          "logical_type": "json",
+          "nullable": true
+        },
+        {
+          "name": "created_at_asserted",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_actors",
+          "columns": ["partition_id", "actor_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_hlc_state",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "last_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_hlc_state",
+          "columns": ["partition_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_ops",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "op_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "actor_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "tx_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "op_type",
+          "logical_type": "i16",
+          "nullable": false
+        },
+        {
+          "name": "payload",
+          "logical_type": "blob",
+          "nullable": false
+        },
+        {
+          "name": "schema_version_hint",
+          "logical_type": "string",
+          "nullable": true
+        },
+        {
+          "name": "ingested_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_ops_partition_actor_idx",
+          "columns": ["partition_id", "actor_id", "asserted_at_hlc"],
+          "unique": false
+        },
+        {
+          "name": "aideon_ops_partition_asserted_idx",
+          "columns": ["partition_id", "asserted_at_hlc"],
+          "unique": false
+        },
+        {
+          "name": "aideon_ops_partition_tx_idx",
+          "columns": ["partition_id", "tx_id"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_ops",
+          "columns": ["partition_id", "op_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_op_deps",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "op_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "dep_op_id",
+          "logical_type": "id",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_op_deps",
+          "columns": ["partition_id", "op_id", "dep_op_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_change_feed",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "sequence",
+          "logical_type": "i64",
+          "nullable": false
+        },
+        {
+          "name": "op_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "change_kind",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "payload_json",
+          "logical_type": "json",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_change_feed",
+          "columns": ["partition_id", "sequence"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_entities",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "entity_kind",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "type_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "is_deleted",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "acl_group_id",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "owner_actor_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "visibility",
+          "logical_type": "u8",
+          "nullable": true
+        },
+        {
+          "name": "created_op_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "updated_op_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "created_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "updated_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_entities_kind_idx",
+          "columns": ["partition_id", "entity_kind", "type_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_entities_updated_idx",
+          "columns": ["partition_id", "updated_asserted_at_hlc"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_entities",
+          "columns": ["partition_id", "entity_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_edges",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "edge_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "src_entity_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "dst_entity_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "edge_type_id",
+          "logical_type": "id",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_edges_in_idx",
+          "columns": ["partition_id", "dst_entity_id", "edge_type_id", "edge_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_edges_out_idx",
+          "columns": ["partition_id", "src_entity_id", "edge_type_id", "edge_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_edges_type_idx",
+          "columns": ["partition_id", "edge_type_id", "edge_id"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_edges",
+          "columns": ["partition_id", "edge_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_edge_exists_facts",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "edge_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "op_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "is_tombstone",
+          "logical_type": "bool",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_edge_exists_from_idx",
+          "columns": ["partition_id", "edge_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_edge_exists_partition_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_edge_exists_partition_valid_idx",
+          "columns": ["partition_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_edge_exists_to_idx",
+          "columns": ["partition_id", "edge_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_edge_exists",
+          "columns": ["partition_id", "edge_id", "valid_from", "asserted_at_hlc", "op_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_prop_fact_str",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "op_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "is_tombstone",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "value_text",
+          "logical_type": "text",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_prop_fact_str_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_str_field_from_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_str_field_to_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_str_from_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_str_to_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_prop_fact_str",
+          "columns": [
+            "partition_id",
+            "entity_id",
+            "field_id",
+            "valid_from",
+            "asserted_at_hlc",
+            "op_id"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_prop_fact_i64",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "op_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "is_tombstone",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "value_i64",
+          "logical_type": "i64",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_prop_fact_i64_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_i64_field_from_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_i64_field_to_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_i64_from_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_i64_to_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_prop_fact_i64",
+          "columns": [
+            "partition_id",
+            "entity_id",
+            "field_id",
+            "valid_from",
+            "asserted_at_hlc",
+            "op_id"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_prop_fact_f64",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "op_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "is_tombstone",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "value_f64",
+          "logical_type": "f64",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_prop_fact_f64_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_f64_field_from_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_f64_field_to_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_f64_from_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_f64_to_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_prop_fact_f64",
+          "columns": [
+            "partition_id",
+            "entity_id",
+            "field_id",
+            "valid_from",
+            "asserted_at_hlc",
+            "op_id"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_prop_fact_bool",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "op_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "is_tombstone",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "value_bool",
+          "logical_type": "bool",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_prop_fact_bool_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_bool_field_from_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_bool_field_to_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_bool_from_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_bool_to_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_prop_fact_bool",
+          "columns": [
+            "partition_id",
+            "entity_id",
+            "field_id",
+            "valid_from",
+            "asserted_at_hlc",
+            "op_id"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_prop_fact_time",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "op_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "is_tombstone",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "value_time",
+          "logical_type": "valid_time",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_prop_fact_time_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_time_field_from_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_time_field_to_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_time_from_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_time_to_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_prop_fact_time",
+          "columns": [
+            "partition_id",
+            "entity_id",
+            "field_id",
+            "valid_from",
+            "asserted_at_hlc",
+            "op_id"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_prop_fact_ref",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "op_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "is_tombstone",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "value_ref_entity_id",
+          "logical_type": "id",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_prop_fact_ref_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_ref_field_from_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_ref_field_to_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_ref_from_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_ref_to_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_prop_fact_ref",
+          "columns": [
+            "partition_id",
+            "entity_id",
+            "field_id",
+            "valid_from",
+            "asserted_at_hlc",
+            "op_id"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_prop_fact_blob",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "op_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "is_tombstone",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "value_blob",
+          "logical_type": "blob",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_prop_fact_blob_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_blob_field_from_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_blob_field_to_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_blob_from_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_blob_to_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_prop_fact_blob",
+          "columns": [
+            "partition_id",
+            "entity_id",
+            "field_id",
+            "valid_from",
+            "asserted_at_hlc",
+            "op_id"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_prop_fact_json",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "op_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "is_tombstone",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "value_json",
+          "logical_type": "json",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_prop_fact_json_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_json_field_from_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_json_field_to_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_json_from_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_from"],
+          "unique": false
+        },
+        {
+          "name": "aideon_prop_fact_json_to_idx",
+          "columns": ["partition_id", "scenario_id", "entity_id", "field_id", "valid_to"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_prop_fact_json",
+          "columns": [
+            "partition_id",
+            "entity_id",
+            "field_id",
+            "valid_from",
+            "asserted_at_hlc",
+            "op_id"
+          ],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_types",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "type_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "applies_to",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "label",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "is_abstract",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "is_deleted",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "updated_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_types_applies_idx",
+          "columns": ["partition_id", "applies_to", "type_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_types_label_idx",
+          "columns": ["partition_id", "label"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_types",
+          "columns": ["partition_id", "type_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_type_extends",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "type_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "parent_type_id",
+          "logical_type": "id",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_type_extends_parent_idx",
+          "columns": ["partition_id", "parent_type_id"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_type_extends",
+          "columns": ["partition_id", "type_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_fields",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "value_type",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "cardinality",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "merge_policy",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "is_indexed",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "label",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "is_deleted",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "updated_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_fields_label_idx",
+          "columns": ["partition_id", "label"],
+          "unique": false
+        },
+        {
+          "name": "aideon_fields_value_type_idx",
+          "columns": ["partition_id", "value_type"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_fields",
+          "columns": ["partition_id", "field_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_type_fields",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "type_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "is_required",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "default_value_kind",
+          "logical_type": "string",
+          "nullable": true
+        },
+        {
+          "name": "default_value_str",
+          "logical_type": "string",
+          "nullable": true
+        },
+        {
+          "name": "default_value_i64",
+          "logical_type": "string",
+          "nullable": true
+        },
+        {
+          "name": "default_value_f64",
+          "logical_type": "string",
+          "nullable": true
+        },
+        {
+          "name": "default_value_bool",
+          "logical_type": "string",
+          "nullable": true
+        },
+        {
+          "name": "default_value_time",
+          "logical_type": "string",
+          "nullable": true
+        },
+        {
+          "name": "default_value_ref",
+          "logical_type": "string",
+          "nullable": true
+        },
+        {
+          "name": "default_value_blob",
+          "logical_type": "string",
+          "nullable": true
+        },
+        {
+          "name": "default_value_json",
+          "logical_type": "json",
+          "nullable": true
+        },
+        {
+          "name": "override_default",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "tighten_required",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "updated_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_type_fields_field_idx",
+          "columns": ["partition_id", "field_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_type_fields_type_idx",
+          "columns": ["partition_id", "type_id"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_type_fields",
+          "columns": ["partition_id", "type_id", "field_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_effective_schema_cache",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "type_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "schema_version_hash",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "blob",
+          "logical_type": "blob",
+          "nullable": false
+        },
+        {
+          "name": "built_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_effective_schema_cache",
+          "columns": ["partition_id", "type_id", "schema_version_hash"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_metamodel_versions",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "source",
+          "logical_type": "string",
+          "nullable": true
+        },
+        {
+          "name": "op_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "created_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_metamodel_versions",
+          "columns": ["partition_id", "version"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_validation_rules",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "rule_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scope_kind",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "scope_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "severity",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "template_kind",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "params_json",
+          "logical_type": "json",
+          "nullable": false
+        },
+        {
+          "name": "updated_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_validation_rules",
+          "columns": ["partition_id", "rule_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_computed_rules",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "rule_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "target_type_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "output_field_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "template_kind",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "params_json",
+          "logical_type": "json",
+          "nullable": false
+        },
+        {
+          "name": "updated_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_computed_rules",
+          "columns": ["partition_id", "rule_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_computed_cache_str",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "value_text",
+          "logical_type": "text",
+          "nullable": false
+        },
+        {
+          "name": "rule_version_hash",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "computed_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_computed_cache_str",
+          "columns": ["partition_id", "entity_id", "field_id", "valid_from", "rule_version_hash"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_computed_cache_i64",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "value_i64",
+          "logical_type": "i64",
+          "nullable": false
+        },
+        {
+          "name": "rule_version_hash",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "computed_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_computed_cache_i64",
+          "columns": ["partition_id", "entity_id", "field_id", "valid_from", "rule_version_hash"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_computed_cache_f64",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "value_f64",
+          "logical_type": "f64",
+          "nullable": false
+        },
+        {
+          "name": "rule_version_hash",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "computed_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_computed_cache_f64",
+          "columns": ["partition_id", "entity_id", "field_id", "valid_from", "rule_version_hash"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_computed_cache_bool",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "value_bool",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "rule_version_hash",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "computed_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_computed_cache_bool",
+          "columns": ["partition_id", "entity_id", "field_id", "valid_from", "rule_version_hash"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_computed_cache_time",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "value_time",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "rule_version_hash",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "computed_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_computed_cache_time",
+          "columns": ["partition_id", "entity_id", "field_id", "valid_from", "rule_version_hash"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_computed_cache_ref",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "value_ref_entity_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "rule_version_hash",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "computed_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_computed_cache_ref",
+          "columns": ["partition_id", "entity_id", "field_id", "valid_from", "rule_version_hash"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_computed_cache_blob",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "value_blob",
+          "logical_type": "blob",
+          "nullable": false
+        },
+        {
+          "name": "rule_version_hash",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "computed_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_computed_cache_blob",
+          "columns": ["partition_id", "entity_id", "field_id", "valid_from", "rule_version_hash"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_computed_cache_json",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "value_json",
+          "logical_type": "json",
+          "nullable": false
+        },
+        {
+          "name": "rule_version_hash",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "computed_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_computed_cache_json",
+          "columns": ["partition_id", "entity_id", "field_id", "valid_from", "rule_version_hash"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_jobs",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "job_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "job_type",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "priority",
+          "logical_type": "i32",
+          "nullable": false
+        },
+        {
+          "name": "attempts",
+          "logical_type": "i32",
+          "nullable": false
+        },
+        {
+          "name": "max_attempts",
+          "logical_type": "i32",
+          "nullable": false
+        },
+        {
+          "name": "lease_expires_at",
+          "logical_type": "hlc",
+          "nullable": true
+        },
+        {
+          "name": "next_run_after",
+          "logical_type": "hlc",
+          "nullable": true
+        },
+        {
+          "name": "created_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "updated_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "payload",
+          "logical_type": "blob",
+          "nullable": false
+        },
+        {
+          "name": "dedupe_key",
+          "logical_type": "string",
+          "nullable": true
+        },
+        {
+          "name": "last_error",
+          "logical_type": "string",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_jobs_dedupe_idx",
+          "columns": ["partition_id", "job_type", "dedupe_key", "status"],
+          "unique": true
+        },
+        {
+          "name": "aideon_jobs_lease_idx",
+          "columns": ["partition_id", "lease_expires_at"],
+          "unique": false
+        },
+        {
+          "name": "aideon_jobs_pending_idx",
+          "columns": ["partition_id", "status", "priority", "created_asserted_at_hlc"],
+          "unique": false
+        },
+        {
+          "name": "aideon_jobs_ready_idx",
+          "columns": ["partition_id", "status", "next_run_after", "priority"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_jobs",
+          "columns": ["partition_id", "job_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_job_events",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "job_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "event_time",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "message",
+          "logical_type": "string",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_job_events",
+          "columns": ["partition_id", "job_id", "event_time"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_edge_type_rules",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "edge_type_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "allowed_src_type_ids_json",
+          "logical_type": "json",
+          "nullable": false
+        },
+        {
+          "name": "allowed_dst_type_ids_json",
+          "logical_type": "json",
+          "nullable": false
+        },
+        {
+          "name": "semantic_direction",
+          "logical_type": "string",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_edge_type_rules",
+          "columns": ["partition_id", "edge_type_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_graph_projection_edges",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "edge_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "src_entity_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "dst_entity_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "edge_type_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "weight",
+          "logical_type": "f64",
+          "nullable": false
+        },
+        {
+          "name": "updated_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_graph_projection_dst_idx",
+          "columns": ["partition_id", "scenario_id", "dst_entity_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_graph_projection_src_idx",
+          "columns": ["partition_id", "scenario_id", "src_entity_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_graph_projection_type_idx",
+          "columns": ["partition_id", "scenario_id", "edge_type_id", "src_entity_id"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_graph_projection_edges",
+          "columns": ["partition_id", "edge_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_pagerank_runs",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "run_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "as_of_valid_time",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "as_of_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": true
+        },
+        {
+          "name": "params_json",
+          "logical_type": "json",
+          "nullable": false
+        },
+        {
+          "name": "created_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_pagerank_runs",
+          "columns": ["partition_id", "run_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_pagerank_scores",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "run_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "score",
+          "logical_type": "f64",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_pagerank_scores_run_score_idx",
+          "columns": ["partition_id", "run_id", "score"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_pagerank_scores",
+          "columns": ["partition_id", "run_id", "entity_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_graph_degree_stats",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "as_of_valid_time",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "out_degree",
+          "logical_type": "i32",
+          "nullable": false
+        },
+        {
+          "name": "in_degree",
+          "logical_type": "i32",
+          "nullable": false
+        },
+        {
+          "name": "computed_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_graph_degree_in_idx",
+          "columns": ["partition_id", "scenario_id", "as_of_valid_time", "in_degree"],
+          "unique": false
+        },
+        {
+          "name": "aideon_graph_degree_out_idx",
+          "columns": ["partition_id", "scenario_id", "as_of_valid_time", "out_degree"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_graph_degree_stats",
+          "columns": ["partition_id", "scenario_id", "entity_id", "as_of_valid_time"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_graph_edge_type_counts",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "edge_type_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "count",
+          "logical_type": "i32",
+          "nullable": false
+        },
+        {
+          "name": "computed_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_graph_edge_type_counts_idx",
+          "columns": ["partition_id", "scenario_id", "edge_type_id"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_graph_edge_type_counts",
+          "columns": ["partition_id", "scenario_id", "edge_type_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_integrity_runs",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "run_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "as_of_valid_time",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "as_of_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": true
+        },
+        {
+          "name": "params_json",
+          "logical_type": "json",
+          "nullable": false
+        },
+        {
+          "name": "created_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_integrity_runs",
+          "columns": ["partition_id", "run_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_integrity_findings",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "run_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "finding_type",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "severity",
+          "logical_type": "u8",
+          "nullable": false
+        },
+        {
+          "name": "subject_entity_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "details_json",
+          "logical_type": "json",
+          "nullable": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "aideon_integrity_head",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "run_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "updated_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_integrity_head",
+          "columns": ["partition_id", "scenario_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_type_schema_head",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "type_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "schema_version_hash",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "updated_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_type_schema_head",
+          "columns": ["partition_id", "type_id"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_idx_field_str",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "value_text_norm",
+          "logical_type": "text",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_idx_field_str_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_str_entity_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "entity_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_str_lookup_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "value_text_norm"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_str_lookup_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "value_text_norm"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_idx_field_str",
+          "columns": ["partition_id", "field_id", "entity_id", "valid_from", "asserted_at_hlc"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_idx_field_i64",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "value_i64",
+          "logical_type": "i64",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_idx_field_i64_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_i64_entity_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "entity_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_i64_lookup_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "value_i64"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_i64_lookup_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "value_i64"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_idx_field_i64",
+          "columns": ["partition_id", "field_id", "entity_id", "valid_from", "asserted_at_hlc"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_idx_field_f64",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "value_f64",
+          "logical_type": "f64",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_idx_field_f64_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_f64_entity_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "entity_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_f64_lookup_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "value_f64"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_f64_lookup_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "value_f64"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_idx_field_f64",
+          "columns": ["partition_id", "field_id", "entity_id", "valid_from", "asserted_at_hlc"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_idx_field_bool",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "value_bool",
+          "logical_type": "bool",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_idx_field_bool_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_bool_entity_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "entity_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_bool_lookup_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "value_bool"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_bool_lookup_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "value_bool"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_idx_field_bool",
+          "columns": ["partition_id", "field_id", "entity_id", "valid_from", "asserted_at_hlc"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_idx_field_time",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "value_time",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_idx_field_time_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_time_entity_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "entity_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_time_lookup_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "value_time"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_time_lookup_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "value_time"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_idx_field_time",
+          "columns": ["partition_id", "field_id", "entity_id", "valid_from", "asserted_at_hlc"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_idx_field_ref",
+      "columns": [
+        {
+          "name": "partition_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "scenario_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "field_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "value_ref_entity_id",
+          "logical_type": "id",
+          "nullable": false
+        },
+        {
+          "name": "entity_id",
+          "logical_type": "id",
+          "nullable": true
+        },
+        {
+          "name": "valid_from",
+          "logical_type": "valid_time",
+          "nullable": false
+        },
+        {
+          "name": "valid_to",
+          "logical_type": "valid_time",
+          "nullable": true
+        },
+        {
+          "name": "valid_bucket",
+          "logical_type": "i32",
+          "nullable": true
+        },
+        {
+          "name": "asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "layer",
+          "logical_type": "u8",
+          "nullable": false
+        }
+      ],
+      "indexes": [
+        {
+          "name": "aideon_idx_field_ref_bucket_idx",
+          "columns": ["partition_id", "valid_bucket"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_ref_entity_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "entity_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_ref_lookup_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "value_ref_entity_id"],
+          "unique": false
+        },
+        {
+          "name": "aideon_idx_field_ref_lookup_idx",
+          "columns": ["partition_id", "scenario_id", "field_id", "value_ref_entity_id"],
+          "unique": false
+        },
+        {
+          "name": "pk_aideon_idx_field_ref",
+          "columns": ["partition_id", "field_id", "entity_id", "valid_from", "asserted_at_hlc"],
+          "unique": true
+        }
+      ]
+    },
+    {
+      "name": "aideon_schema_version",
+      "columns": [
+        {
+          "name": "version",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "applied_asserted_at_hlc",
+          "logical_type": "hlc",
+          "nullable": false
+        },
+        {
+          "name": "checksum",
+          "logical_type": "string",
+          "nullable": false
+        },
+        {
+          "name": "app_version",
+          "logical_type": "string",
+          "nullable": true
+        }
+      ],
+      "indexes": [
+        {
+          "name": "pk_aideon_schema_version",
+          "columns": ["version"],
+          "unique": true
+        }
+      ]
+    }
+  ]
+}

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{MnemeError, MnemeResult};
+use aideon_mneme_core::{MnemeError, MnemeResult};
 
 const DEFAULT_CONFIG_NAME: &str = "mneme.json";
 
@@ -25,9 +25,47 @@ pub struct PoolConfig {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LimitsConfig {
+    pub max_op_payload_bytes: Option<usize>,
+    pub max_blob_bytes: Option<usize>,
+    pub max_mv_values: Option<usize>,
+    pub max_pending_jobs: Option<u32>,
+    pub max_ingest_batch: Option<usize>,
+}
+
+impl LimitsConfig {
+    pub fn with_defaults() -> Self {
+        Self {
+            max_op_payload_bytes: Some(1_048_576),
+            max_blob_bytes: Some(4_194_304),
+            max_mv_values: Some(100),
+            max_pending_jobs: Some(10_000),
+            max_ingest_batch: Some(5_000),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct IntegrityConfig {
+    pub record_overlap_warnings: Option<bool>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ValidationMode {
+    Off,
+    Warn,
+    Error,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MnemeConfig {
     pub database: DatabaseConfig,
     pub pool: Option<PoolConfig>,
+    pub limits: Option<LimitsConfig>,
+    pub integrity: Option<IntegrityConfig>,
+    pub validation_mode: Option<ValidationMode>,
+    pub failpoints: Option<Vec<String>>,
 }
 
 impl MnemeConfig {
@@ -37,6 +75,12 @@ impl MnemeConfig {
                 path: Some(path.into()),
             },
             pool: None,
+            limits: Some(LimitsConfig::with_defaults()),
+            integrity: Some(IntegrityConfig {
+                record_overlap_warnings: Some(true),
+            }),
+            validation_mode: Some(ValidationMode::Error),
+            failpoints: None,
         }
     }
 

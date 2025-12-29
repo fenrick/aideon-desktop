@@ -8,6 +8,8 @@ members = [
   "crates/metis",
   "crates/continuum",
   "crates/mneme",
+  "crates/mneme_core",
+  "crates/mneme_store",
   "aideon_xtask"
 ]
 

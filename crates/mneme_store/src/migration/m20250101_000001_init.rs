@@ -6,6 +6,7 @@ use sea_orm_migration::sea_query::{
 };
 
 use crate::db::*;
+use aideon_mneme_core::Hlc;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -99,16 +100,8 @@ impl MigrationTrait for Migration {
                             .not_null(),
                     )
                     .col(id_col(backend, AideonOps::TxId, true))
-                    .col(
-                        ColumnDef::new(AideonOps::OpType)
-                            .small_integer()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(AideonOps::Payload)
-                            .blob()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(AideonOps::OpType).small_integer().not_null())
+                    .col(ColumnDef::new(AideonOps::Payload).blob().not_null())
                     .col(ColumnDef::new(AideonOps::SchemaVersionHint).string())
                     .col(ColumnDef::new(AideonOps::IngestedAssertedAtHlc).big_integer())
                     .primary_key(
@@ -442,21 +435,9 @@ impl MigrationTrait for Migration {
                             .tiny_integer()
                             .not_null(),
                     )
-                    .col(
-                        ColumnDef::new(AideonTypes::Label)
-                            .string()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(AideonTypes::IsAbstract)
-                            .boolean()
-                            .not_null(),
-                    )
-                    .col(
-                        ColumnDef::new(AideonTypes::IsDeleted)
-                            .boolean()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(AideonTypes::Label).string().not_null())
+                    .col(ColumnDef::new(AideonTypes::IsAbstract).boolean().not_null())
+                    .col(ColumnDef::new(AideonTypes::IsDeleted).boolean().not_null())
                     .col(
                         ColumnDef::new(AideonTypes::UpdatedAssertedAtHlc)
                             .big_integer()
@@ -497,11 +478,7 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(id_col(backend, AideonFields::PartitionId, false))
                     .col(id_col(backend, AideonFields::FieldId, false))
-                    .col(
-                        ColumnDef::new(AideonFields::Label)
-                            .string()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(AideonFields::Label).string().not_null())
                     .col(
                         ColumnDef::new(AideonFields::ValueType)
                             .tiny_integer()
@@ -517,16 +494,14 @@ impl MigrationTrait for Migration {
                             .tiny_integer()
                             .not_null(),
                     )
+                    .col(ColumnDef::new(AideonFields::IsIndexed).boolean().not_null())
                     .col(
-                        ColumnDef::new(AideonFields::IsIndexed)
+                        ColumnDef::new(AideonFields::DisallowOverlap)
                             .boolean()
-                            .not_null(),
+                            .not_null()
+                            .default(false),
                     )
-                    .col(
-                        ColumnDef::new(AideonFields::IsDeleted)
-                            .boolean()
-                            .not_null(),
-                    )
+                    .col(ColumnDef::new(AideonFields::IsDeleted).boolean().not_null())
                     .col(
                         ColumnDef::new(AideonFields::UpdatedAssertedAtHlc)
                             .big_integer()
@@ -574,6 +549,7 @@ impl MigrationTrait for Migration {
                             .boolean()
                             .not_null(),
                     )
+                    .col(ColumnDef::new(AideonTypeFields::DisallowOverlap).boolean())
                     .col(
                         ColumnDef::new(AideonTypeFields::UpdatedAssertedAtHlc)
                             .big_integer()
@@ -595,7 +571,11 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(AideonEffectiveSchemaCache::Table)
                     .if_not_exists()
-                    .col(id_col(backend, AideonEffectiveSchemaCache::PartitionId, false))
+                    .col(id_col(
+                        backend,
+                        AideonEffectiveSchemaCache::PartitionId,
+                        false,
+                    ))
                     .col(id_col(backend, AideonEffectiveSchemaCache::TypeId, false))
                     .col(
                         ColumnDef::new(AideonEffectiveSchemaCache::SchemaVersionHash)
@@ -656,12 +636,32 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(AideonGraphProjectionEdges::Table)
                     .if_not_exists()
-                    .col(id_col(backend, AideonGraphProjectionEdges::PartitionId, false))
-                    .col(id_col(backend, AideonGraphProjectionEdges::ScenarioId, true))
+                    .col(id_col(
+                        backend,
+                        AideonGraphProjectionEdges::PartitionId,
+                        false,
+                    ))
+                    .col(id_col(
+                        backend,
+                        AideonGraphProjectionEdges::ScenarioId,
+                        true,
+                    ))
                     .col(id_col(backend, AideonGraphProjectionEdges::EdgeId, false))
-                    .col(id_col(backend, AideonGraphProjectionEdges::SrcEntityId, false))
-                    .col(id_col(backend, AideonGraphProjectionEdges::DstEntityId, false))
-                    .col(id_col(backend, AideonGraphProjectionEdges::EdgeTypeId, true))
+                    .col(id_col(
+                        backend,
+                        AideonGraphProjectionEdges::SrcEntityId,
+                        false,
+                    ))
+                    .col(id_col(
+                        backend,
+                        AideonGraphProjectionEdges::DstEntityId,
+                        false,
+                    ))
+                    .col(id_col(
+                        backend,
+                        AideonGraphProjectionEdges::EdgeTypeId,
+                        true,
+                    ))
                     .col(
                         ColumnDef::new(AideonGraphProjectionEdges::Weight)
                             .double()
@@ -860,8 +860,16 @@ impl MigrationTrait for Migration {
                     .col(id_col(backend, AideonGraphDegreeStats::ScenarioId, true))
                     .col(ColumnDef::new(AideonGraphDegreeStats::AsOfValidTime).big_integer())
                     .col(id_col(backend, AideonGraphDegreeStats::EntityId, false))
-                    .col(ColumnDef::new(AideonGraphDegreeStats::OutDegree).integer().not_null())
-                    .col(ColumnDef::new(AideonGraphDegreeStats::InDegree).integer().not_null())
+                    .col(
+                        ColumnDef::new(AideonGraphDegreeStats::OutDegree)
+                            .integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(AideonGraphDegreeStats::InDegree)
+                            .integer()
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(AideonGraphDegreeStats::ComputedAssertedAtHlc)
                             .big_integer()
@@ -884,10 +892,18 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(AideonGraphEdgeTypeCounts::Table)
                     .if_not_exists()
-                    .col(id_col(backend, AideonGraphEdgeTypeCounts::PartitionId, false))
+                    .col(id_col(
+                        backend,
+                        AideonGraphEdgeTypeCounts::PartitionId,
+                        false,
+                    ))
                     .col(id_col(backend, AideonGraphEdgeTypeCounts::ScenarioId, true))
                     .col(id_col(backend, AideonGraphEdgeTypeCounts::EdgeTypeId, true))
-                    .col(ColumnDef::new(AideonGraphEdgeTypeCounts::Count).integer().not_null())
+                    .col(
+                        ColumnDef::new(AideonGraphEdgeTypeCounts::Count)
+                            .integer()
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(AideonGraphEdgeTypeCounts::ComputedAssertedAtHlc)
                             .big_integer()
@@ -914,7 +930,11 @@ impl MigrationTrait for Migration {
                     .col(id_col(backend, AideonIntegrityRuns::ScenarioId, true))
                     .col(ColumnDef::new(AideonIntegrityRuns::AsOfValidTime).big_integer())
                     .col(ColumnDef::new(AideonIntegrityRuns::AsOfAssertedAtHlc).big_integer())
-                    .col(ColumnDef::new(AideonIntegrityRuns::ParamsJson).text().not_null())
+                    .col(
+                        ColumnDef::new(AideonIntegrityRuns::ParamsJson)
+                            .text()
+                            .not_null(),
+                    )
                     .col(
                         ColumnDef::new(AideonIntegrityRuns::CreatedAssertedAtHlc)
                             .big_integer()
@@ -947,7 +967,11 @@ impl MigrationTrait for Migration {
                             .tiny_integer()
                             .not_null(),
                     )
-                    .col(id_col(backend, AideonIntegrityFindings::SubjectEntityId, true))
+                    .col(id_col(
+                        backend,
+                        AideonIntegrityFindings::SubjectEntityId,
+                        true,
+                    ))
                     .col(
                         ColumnDef::new(AideonIntegrityFindings::DetailsJson)
                             .text()
@@ -1397,7 +1421,7 @@ impl MigrationTrait for Migration {
             ])
             .values_panic([
                 self.name().to_string().into(),
-                crate::Hlc::now().as_i64().into(),
+                Hlc::now().as_i64().into(),
                 checksum.into(),
                 SeaValue::String(None).into(),
             ])
@@ -1692,11 +1716,7 @@ async fn create_property_fact_table(
                 )
                 .col(ColumnDef::new(valid_to_col.clone()).big_integer())
                 .col(ColumnDef::new(valid_bucket_col.clone()).integer())
-                .col(
-                    ColumnDef::new(layer_col.clone())
-                        .tiny_integer()
-                        .not_null(),
-                )
+                .col(ColumnDef::new(layer_col.clone()).tiny_integer().not_null())
                 .col(
                     ColumnDef::new(asserted_col.clone())
                         .big_integer()
@@ -1759,11 +1779,7 @@ async fn create_index_field_table(
                         .big_integer()
                         .not_null(),
                 )
-                .col(
-                    ColumnDef::new(layer_col.clone())
-                        .tiny_integer()
-                        .not_null(),
-                )
+                .col(ColumnDef::new(layer_col.clone()).tiny_integer().not_null())
                 .primary_key(
                     Index::create()
                         .name(pk_name)
@@ -1808,11 +1824,7 @@ async fn create_computed_cache_table(
                 )
                 .col(ColumnDef::new(valid_to_col.clone()).big_integer())
                 .col(value_col)
-                .col(
-                    ColumnDef::new(rule_hash_col.clone())
-                        .string()
-                        .not_null(),
-                )
+                .col(ColumnDef::new(rule_hash_col.clone()).string().not_null())
                 .col(
                     ColumnDef::new(computed_at_col.clone())
                         .big_integer()

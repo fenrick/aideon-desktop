@@ -1,7 +1,7 @@
 //! Internal meta-model descriptors and rule structures for Praxis.
 
 use crate::error::{PraxisError, PraxisResult};
-use aideon_mneme::meta::{
+use crate::meta::{
     MetaAttribute, MetaEnumRule, MetaRelationship, MetaStringRule, MetaType, MetaValidationRules,
 };
 use std::collections::{BTreeMap, HashMap};
@@ -149,7 +149,7 @@ pub(super) fn relationship_rules(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aideon_mneme::meta::{MetaAttribute, MetaAttributeKind};
+    use crate::meta::{MetaAttribute, MetaAttributeKind};
 
     #[test]
     fn build_type_descriptors_inherits_parent_attributes() {
@@ -164,7 +164,7 @@ mod tests {
                 required: true,
                 enum_values: vec![],
             }],
-            effect_types: vec![],
+            effect_types: None,
         };
         let child = MetaType {
             id: "Child".into(),
@@ -177,7 +177,7 @@ mod tests {
                 required: false,
                 enum_values: vec![],
             }],
-            effect_types: vec![],
+            effect_types: None,
         };
         let descriptors = build_type_descriptors(&[parent, child]).unwrap();
         let child_desc = descriptors.get("Child").expect("child desc");
@@ -193,7 +193,7 @@ mod tests {
             category: None,
             extends: Some("B".into()),
             attributes: vec![],
-            effect_types: vec![],
+            effect_types: None,
         };
         let b = MetaType {
             id: "B".into(),
@@ -201,7 +201,7 @@ mod tests {
             category: None,
             extends: Some("A".into()),
             attributes: vec![],
-            effect_types: vec![],
+            effect_types: None,
         };
         let err = build_type_descriptors(&[a, b]).unwrap_err();
         assert!(matches!(err, PraxisError::IntegrityViolation { .. }));

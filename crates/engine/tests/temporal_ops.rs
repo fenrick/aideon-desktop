@@ -1,5 +1,7 @@
 use aideon_engine::PraxisEngine;
-use aideon_mneme::temporal::{ChangeSet, CommitChangesRequest, DiffArgs, NodeVersion, StateAtArgs};
+use aideon_engine::temporal::{
+    ChangeSet, CommitChangesRequest, DiffArgs, NodeVersion, StateAtArgs,
+};
 use serde_json::json;
 
 #[tokio::test]
@@ -57,8 +59,8 @@ async fn state_at_and_diff_cover_new_commit() {
 
     let diff = engine
         .diff_summary(DiffArgs {
-            from: aideon_mneme::temporal::CommitRef::Id(baseline_head.clone()),
-            to: aideon_mneme::temporal::CommitRef::Id(commit_id.clone()),
+            from: aideon_engine::temporal::CommitRef::Id(baseline_head.clone()),
+            to: aideon_engine::temporal::CommitRef::Id(commit_id.clone()),
             scope: None,
         })
         .await

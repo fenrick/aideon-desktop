@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefCallback } from 'react';
 
 import { dedupeIds } from 'aideon/canvas/selection';
-import { AideonShellLayout } from 'aideon/shell/aideon-shell-layout';
+import { AideonDesktopShell } from 'aideon/shell/aideon-desktop-shell';
 import { Badge } from 'design-system/components/ui/badge';
 import { Button } from 'design-system/components/ui/button';
 import {
@@ -467,7 +467,7 @@ function PraxisWorkspaceExperience({
 
   return (
     <>
-      <AideonShellLayout
+      <AideonDesktopShell
         toolbar={
           <PraxisWorkspaceToolbar
             scenarioName={activeScenario?.name}

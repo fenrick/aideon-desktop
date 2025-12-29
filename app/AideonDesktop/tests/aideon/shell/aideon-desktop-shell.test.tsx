@@ -1,12 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { AideonShellLayout } from 'aideon/shell/aideon-shell-layout';
+import { AideonDesktopShell } from 'aideon/shell/aideon-desktop-shell';
 
-describe('AideonShellLayout', () => {
+describe('AideonDesktopShell', () => {
   it('renders navigation, content, and inspector panes', () => {
     render(
-      <AideonShellLayout
+      <AideonDesktopShell
         navigation={<div>ProjectsNav</div>}
         content={<div>MainContent</div>}
         inspector={<div>InspectorPane</div>}

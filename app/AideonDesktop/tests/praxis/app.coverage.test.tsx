@@ -111,8 +111,8 @@ vi.mock('praxis/components/template-screen/properties-inspector', () => ({
     </div>
   ),
 }));
-vi.mock('aideon/shell/aideon-shell-layout', () => ({
-  AideonShellLayout: ({
+vi.mock('aideon/shell/aideon-desktop-shell', () => ({
+  AideonDesktopShell: ({
     navigation,
     toolbar,
     content,

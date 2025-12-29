@@ -29,7 +29,7 @@ export function AideonShellControlsProvider({
 }
 
 /**
- * Access shell-level controls when rendered inside `AideonShellLayout`.
+ * Access shell-level controls when rendered inside `AideonDesktopShell`.
  */
 export function useAideonShellControls(): AideonShellControls | undefined {
   return useContext(AideonShellControlsContext);

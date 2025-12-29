@@ -33,7 +33,7 @@ vi.mock('design-system/lib/utilities', () => ({
   cn: (...classes: (string | undefined)[]) => classes.filter(Boolean).join(' '),
 }));
 
-import { AideonShellLayout } from 'aideon/shell/aideon-shell-layout';
+import { AideonDesktopShell } from 'aideon/shell/aideon-desktop-shell';
 import { useAideonShellControls } from 'aideon/shell/shell-controls';
 
 /**
@@ -47,7 +47,7 @@ function setLocalStorage(storage: Storage | undefined) {
   });
 }
 
-describe('AideonShellLayout storage', () => {
+describe('AideonDesktopShell storage', () => {
   beforeEach(() => {
     onLayoutCalls.length = 0;
   });
@@ -56,7 +56,7 @@ describe('AideonShellLayout storage', () => {
     setLocalStorage(undefined);
 
     render(
-      <AideonShellLayout
+      <AideonDesktopShell
         navigation={<div>Nav</div>}
         content={<div>Content</div>}
         inspector={<div>Inspector</div>}
@@ -78,7 +78,7 @@ describe('AideonShellLayout storage', () => {
     setLocalStorage({ getItem, setItem } as unknown as Storage);
 
     const { unmount } = render(
-      <AideonShellLayout
+      <AideonDesktopShell
         navigation={<div>Nav</div>}
         content={<div>Content</div>}
         inspector={<div>Inspector</div>}
@@ -89,7 +89,7 @@ describe('AideonShellLayout storage', () => {
     unmount();
 
     render(
-      <AideonShellLayout
+      <AideonDesktopShell
         navigation={<div>Nav</div>}
         content={<div>Content</div>}
         inspector={<div>Inspector</div>}
@@ -121,7 +121,7 @@ describe('AideonShellLayout storage', () => {
     }
 
     render(
-      <AideonShellLayout
+      <AideonDesktopShell
         navigation={<div>Nav</div>}
         content={<div>Content</div>}
         inspector={<div>Inspector</div>}
@@ -139,7 +139,7 @@ describe('AideonShellLayout storage', () => {
     setLocalStorage({ getItem, setItem } as unknown as Storage);
 
     render(
-      <AideonShellLayout
+      <AideonDesktopShell
         navigation={<div>Nav</div>}
         content={<div>Content</div>}
         inspector={<div>Inspector</div>}
@@ -154,7 +154,7 @@ describe('AideonShellLayout storage', () => {
     });
 
     render(
-      <AideonShellLayout
+      <AideonDesktopShell
         navigation={<div>Nav</div>}
         content={<div>Content</div>}
         inspector={<div>Inspector</div>}
@@ -172,7 +172,7 @@ describe('AideonShellLayout storage', () => {
     setLocalStorage(storage as unknown as Storage);
 
     render(
-      <AideonShellLayout
+      <AideonDesktopShell
         navigation={<div>Nav</div>}
         content={<div>Content</div>}
         inspector={<div>Inspector</div>}

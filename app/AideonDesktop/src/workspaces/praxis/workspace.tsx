@@ -1,5 +1,7 @@
 import {
+  createContext,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -21,7 +23,7 @@ import {
   DialogTitle,
 } from 'design-system/components/ui/dialog';
 import { isDevelopmentBuild } from 'lib/runtime';
-import { PraxisWorkspaceToolbar } from 'praxis/components/chrome/praxis-workspace-toolbar';
+import { PraxisWorkspaceToolbar as PraxisWorkspaceToolbarChrome } from 'praxis/components/chrome/praxis-workspace-toolbar';
 import { DebugOverlay } from 'praxis/components/debug-overlay';
 import { OverviewTabs } from 'praxis/components/template-screen/overview-tabs';
 import { ProjectsSidebar } from 'praxis/components/template-screen/projects-sidebar';
@@ -51,11 +53,7 @@ import type {
   PraxisWidgetKind as WidgetKind,
 } from 'praxis/types';
 import { listWidgetRegistry, type WidgetRegistryEntry } from 'praxis/widgets/registry';
-import type {
-  WorkspaceHostProps,
-  WorkspaceShellSlots,
-  WorkspaceSwitcherConfig,
-} from 'workspaces/types';
+import type { WorkspaceSwitcherProperties } from 'aideon/shell/workspace-switcher';
 import {
   SelectionProvider,
   deriveSelectionKind,
@@ -99,6 +97,65 @@ interface ScenarioState {
   data: ScenarioSummary[];
 }
 
+type WorkspaceSwitcherConfig = Pick<
+  WorkspaceSwitcherProperties,
+  'currentId' | 'options' | 'onSelect'
+>;
+
+interface PraxisWorkspaceContextValue {
+  readonly projectState: {
+    loading: boolean;
+    data: ProjectSummary[];
+    error?: string;
+  };
+  readonly scenarioState: ScenarioState;
+  readonly templatesState: {
+    loading: boolean;
+    data: CanvasTemplate[];
+    error?: string;
+  };
+  readonly activeTemplateId: string;
+  readonly activeScenarioId?: string;
+  readonly templateName?: string;
+  readonly scenarioName?: string;
+  readonly widgets: CanvasWidget[];
+  readonly selection: SelectionState;
+  readonly selectedProperties: SelectionProperties[];
+  readonly selectionKind?: string;
+  readonly selectionId?: string;
+  readonly propertyState: {
+    saving: boolean;
+    error?: string;
+    reloadTick: number;
+  };
+  readonly temporalState: ReturnType<typeof useTemporalPanel>[0];
+  readonly temporalActions: ReturnType<typeof useTemporalPanel>[1];
+  readonly workspaceSwitcher?: WorkspaceSwitcherConfig;
+  readonly branchSelectReferenceCallback: RefCallback<HTMLButtonElement>;
+  readonly onTemplateChange: (templateId: string) => void;
+  readonly onTemplateSave: () => void;
+  readonly onCreateWidget: () => void;
+  readonly onSelectScenario: (scenarioId: string) => void;
+  readonly onRetryProjects: () => void;
+  readonly onSelectionChange: (selection: SelectionState) => void;
+  readonly onInspectorSave: (updates: SelectionProperties) => void;
+  readonly onInspectorReset: () => void;
+  readonly debugVisible: boolean;
+  readonly widgetLibraryOpen: boolean;
+  readonly onToggleWidgetLibrary: (open: boolean) => void;
+  readonly onCreateWidgetType: (type: WidgetKind) => void;
+}
+
+const PraxisWorkspaceContext = createContext<PraxisWorkspaceContextValue | undefined>(undefined);
+
+function usePraxisWorkspaceContext(): PraxisWorkspaceContextValue {
+  const context = useContext(PraxisWorkspaceContext);
+  if (!context) {
+    throw new Error('Praxis workspace components must be rendered within PraxisWorkspaceProvider.');
+  }
+  return context;
+}
+
 /**
  * Entry point for the Praxis workspace renderer.
  * @returns {import('react').ReactElement} Workspace route content.
@@ -118,48 +175,36 @@ export function PraxisWorkspaceSurface({
   readonly onSelectionChange?: (selection: SelectionState) => void;
 } = {}) {
   return (
-    <PraxisWorkspaceSlots onSelectionChange={onSelectionChange}>
-      {(slots) => (
-        <>
-          <AideonDesktopShell
-            toolbar={slots.toolbar}
-            navigation={slots.navigation}
-            content={slots.content}
-            inspector={slots.inspector}
-          />
-          {slots.overlays}
-        </>
-      )}
-    </PraxisWorkspaceSlots>
+    <PraxisWorkspaceProvider onSelectionChange={onSelectionChange}>
+      <AideonDesktopShell
+        toolbar={<PraxisWorkspaceToolbar />}
+        navigation={<PraxisWorkspaceNavigation />}
+        content={<PraxisWorkspaceContent />}
+        inspector={<PraxisWorkspaceInspector />}
+      />
+    </PraxisWorkspaceProvider>
   );
 }
 
-export function PraxisWorkspaceHost({ workspaceSwitcher, children }: WorkspaceHostProps) {
-  return (
-    <PraxisWorkspaceSlots workspaceSwitcher={workspaceSwitcher}>
-      {children}
-    </PraxisWorkspaceSlots>
-  );
-}
-
-interface PraxisWorkspaceSlotsProperties {
+interface PraxisWorkspaceProviderProperties {
   readonly onSelectionChange?: (selection: SelectionState) => void;
   readonly workspaceSwitcher?: WorkspaceSwitcherConfig;
-  readonly children: (slots: WorkspaceShellSlots) => ReactNode;
+  readonly children: ReactNode;
 }
 
-function PraxisWorkspaceSlots({
+export function PraxisWorkspaceProvider({
   onSelectionChange,
   workspaceSwitcher,
   children,
-}: PraxisWorkspaceSlotsProperties) {
+}: PraxisWorkspaceProviderProperties) {
   return (
     <SelectionProvider>
-      <PraxisWorkspaceExperience
+      <PraxisWorkspaceStateProvider
         onSelectionChange={onSelectionChange}
         workspaceSwitcher={workspaceSwitcher}
-        render={children}
-      />
+      >
+        {children}
+      </PraxisWorkspaceStateProvider>
     </SelectionProvider>
   );
 }
@@ -169,14 +214,14 @@ function PraxisWorkspaceSlots({
  * @param root0
  * @param root0.onSelectionChange
  */
-function PraxisWorkspaceExperience({
+function PraxisWorkspaceStateProvider({
   onSelectionChange,
   workspaceSwitcher,
-  render,
+  children,
 }: {
   readonly onSelectionChange?: (selection: SelectionState) => void;
   readonly workspaceSwitcher?: WorkspaceSwitcherConfig;
-  readonly render: (slots: WorkspaceShellSlots) => ReactNode;
+  readonly children: ReactNode;
 }) {
   const {
     state: selectionState,
@@ -522,49 +567,160 @@ function PraxisWorkspaceExperience({
     };
   }, [handleArrowNavigation, handleUndoRedo, sliderFocusShortcut]);
 
-  const slots: WorkspaceShellSlots = {
-    toolbar: (
-      <PraxisWorkspaceToolbar
-        scenarioName={activeScenario?.name}
-        templateName={activeTemplate?.name}
-        templates={templatesState.data}
-        activeTemplateId={activeTemplate?.id ?? ''}
-        onTemplateChange={handleTemplateChange}
-        onTemplateSave={handleTemplateSave}
-        onCreateWidget={() => {
-          setWidgetLibraryOpen(true);
-        }}
-        temporalState={temporalState}
-        temporalActions={temporalActions}
-        timeTriggerRef={branchSelectReferenceCallback}
-        loading={templatesState.loading}
-        error={scenarioState.error}
-        workspaceSwitcher={workspaceSwitcher}
-      />
-    ),
-    navigation: (
-      <ProjectsSidebar
-        projects={projectState.data}
-        scenarios={scenarioState.data}
-        loading={projectState.loading}
-        error={projectState.error}
-        activeScenarioId={activeScenario?.id}
-        onSelectScenario={handleScenarioSelect}
-        onRetry={() => {
-          refreshProjects().catch((_ignoredError: unknown) => {
-            return;
-          });
-        }}
-      />
-    ),
-    content: (
+  const handleRetryProjects = useCallback(() => {
+    refreshProjects().catch((_ignoredError: unknown) => {
+      return;
+    });
+  }, [refreshProjects]);
+
+  const contextValue = useMemo<PraxisWorkspaceContextValue>(() => {
+    return {
+      projectState,
+      scenarioState,
+      templatesState,
+      activeTemplateId: activeTemplate?.id ?? '',
+      activeScenarioId: activeScenario?.id,
+      templateName: activeTemplate?.name,
+      scenarioName: activeScenario?.name,
+      widgets,
+      selection: selectionState.selection,
+      selectedProperties,
+      selectionKind,
+      selectionId,
+      propertyState,
+      temporalState,
+      temporalActions,
+      workspaceSwitcher,
+      branchSelectReferenceCallback,
+      onTemplateChange: handleTemplateChange,
+      onTemplateSave: handleTemplateSave,
+      onCreateWidget: () => {
+        setWidgetLibraryOpen(true);
+      },
+      onSelectScenario: handleScenarioSelect,
+      onRetryProjects: handleRetryProjects,
+      onSelectionChange: handleSelectionChange,
+      onInspectorSave: handleInspectorSave,
+      onInspectorReset: handleInspectorReset,
+      debugVisible,
+      widgetLibraryOpen,
+      onToggleWidgetLibrary: setWidgetLibraryOpen,
+      onCreateWidgetType: handleWidgetCreate,
+    };
+  }, [
+    activeScenario?.id,
+    activeScenario?.name,
+    activeTemplate?.id,
+    activeTemplate?.name,
+    branchSelectReferenceCallback,
+    debugVisible,
+    handleInspectorReset,
+    handleInspectorSave,
+    handleRetryProjects,
+    handleScenarioSelect,
+    handleSelectionChange,
+    handleTemplateChange,
+    handleTemplateSave,
+    handleWidgetCreate,
+    projectState,
+    scenarioState,
+    selectionId,
+    selectionKind,
+    selectionState.selection,
+    selectedProperties,
+    templatesState,
+    temporalActions,
+    temporalState,
+    widgetLibraryOpen,
+    widgets,
+    workspaceSwitcher,
+  ]);
+
+  return (
+    <PraxisWorkspaceContext.Provider value={contextValue}>
+      {children}
+    </PraxisWorkspaceContext.Provider>
+  );
+}
+
+export function PraxisWorkspaceNavigation() {
+  const { projectState, scenarioState, activeScenarioId, onSelectScenario, onRetryProjects } =
+    usePraxisWorkspaceContext();
+
+  return (
+    <ProjectsSidebar
+      projects={projectState.data}
+      scenarios={scenarioState.data}
+      loading={projectState.loading}
+      error={projectState.error}
+      activeScenarioId={activeScenarioId}
+      onSelectScenario={onSelectScenario}
+      onRetry={onRetryProjects}
+    />
+  );
+}
+
+export function PraxisWorkspaceToolbar() {
+  const {
+    scenarioName,
+    templateName,
+    templatesState,
+    activeTemplateId,
+    onTemplateChange,
+    onTemplateSave,
+    onCreateWidget,
+    temporalState,
+    temporalActions,
+    branchSelectReferenceCallback,
+    scenarioState,
+    workspaceSwitcher,
+  } = usePraxisWorkspaceContext();
+
+  return (
+    <PraxisWorkspaceToolbarChrome
+      scenarioName={scenarioName}
+      templateName={templateName}
+      templates={templatesState.data}
+      activeTemplateId={activeTemplateId}
+      onTemplateChange={onTemplateChange}
+      onTemplateSave={onTemplateSave}
+      onCreateWidget={onCreateWidget}
+      temporalState={temporalState}
+      temporalActions={temporalActions}
+      timeTriggerRef={branchSelectReferenceCallback}
+      loading={templatesState.loading}
+      error={scenarioState.error}
+      workspaceSwitcher={workspaceSwitcher}
+    />
+  );
+}
+
+export function PraxisWorkspaceContent() {
+  const {
+    temporalState,
+    temporalActions,
+    widgets,
+    selection,
+    onSelectionChange,
+    branchSelectReferenceCallback,
+    propertyState,
+    debugVisible,
+    scenarioName,
+    templateName,
+    widgetLibraryOpen,
+    onToggleWidgetLibrary,
+    onCreateWidgetType,
+  } = usePraxisWorkspaceContext();
+
+  return (
+    <>
       <div className="space-y-6">
         <OverviewTabs
           state={temporalState}
           actions={temporalActions}
           widgets={widgets}
-          selection={selectionState.selection}
-          onSelectionChange={handleSelectionChange}
+          selection={selection}
+          onSelectionChange={onSelectionChange}
           onRequestMetaModelFocus={(types) => {
             if (types.length === 0) {
               return;
@@ -574,40 +730,40 @@ function PraxisWorkspaceExperience({
           branchTriggerRef={branchSelectReferenceCallback}
         />
       </div>
-    ),
-    inspector: (
-      <PropertiesInspector
-        key={selectionId ?? 'none'}
-        selectionKind={selectionKind as SelectionKind}
-        selectionId={selectionId}
-        properties={selectedProperties}
-        onSave={handleInspectorSave}
-        onReset={handleInspectorReset}
-        saving={propertyState.saving}
-        error={propertyState.error}
+      <DebugOverlay
+        visible={debugVisible && debugEnabled}
+        scenarioName={scenarioName}
+        templateName={templateName}
+        selection={selection}
+        branch={temporalState.branch}
+        commitId={temporalState.commitId}
       />
-    ),
-    overlays: (
-      <>
-        <DebugOverlay
-          visible={debugVisible && debugEnabled}
-          scenarioName={activeScenario?.name}
-          templateName={activeTemplate?.name}
-          selection={selectionState.selection}
-          branch={temporalState.branch}
-          commitId={temporalState.commitId}
-        />
-        <WidgetLibraryDialog
-          open={widgetLibraryOpen}
-          onOpenChange={setWidgetLibraryOpen}
-          registry={listWidgetRegistry()}
-          onCreate={handleWidgetCreate}
-        />
-      </>
-    ),
-  };
+      <WidgetLibraryDialog
+        open={widgetLibraryOpen}
+        onOpenChange={onToggleWidgetLibrary}
+        registry={listWidgetRegistry()}
+        onCreate={onCreateWidgetType}
+      />
+    </>
+  );
+}
 
-  return render(slots);
+export function PraxisWorkspaceInspector() {
+  const { selectionKind, selectionId, selectedProperties, propertyState, onInspectorSave, onInspectorReset } =
+    usePraxisWorkspaceContext();
+
+  return (
+    <PropertiesInspector
+      key={selectionId ?? 'none'}
+      selectionKind={(selectionKind ?? 'none') as SelectionKind}
+      selectionId={selectionId}
+      properties={selectedProperties}
+      onSave={onInspectorSave}
+      onReset={onInspectorReset}
+      saving={propertyState.saving}
+      error={propertyState.error}
+    />
+  );
 }
 
 interface WidgetLibraryDialogProperties {

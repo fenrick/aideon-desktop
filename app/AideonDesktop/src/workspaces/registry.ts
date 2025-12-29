@@ -1,30 +1,47 @@
-import type { WorkspaceOption } from 'aideon/shell/workspace-switcher';
-import { PraxisWorkspaceHost } from './praxis/workspace';
-import type { WorkspaceDefinition } from './types';
+import type { WorkspaceModule } from './types';
+import {
+  PraxisWorkspaceContent,
+  PraxisWorkspaceInspector,
+  PraxisWorkspaceNavigation,
+  PraxisWorkspaceToolbar,
+} from './praxis/workspace';
 
-const workspaceRegistry: WorkspaceDefinition[] = [
+export const WORKSPACES: WorkspaceModule[] = [
   {
     id: 'praxis',
     label: 'Praxis',
-    Host: PraxisWorkspaceHost,
+    enabled: true,
+    Navigation: PraxisWorkspaceNavigation,
+    Toolbar: PraxisWorkspaceToolbar,
+    Content: PraxisWorkspaceContent,
+    Inspector: PraxisWorkspaceInspector,
+  },
+  {
+    id: 'metis',
+    label: 'Metis',
+    enabled: false,
+    Navigation: () => null,
+    Content: () => null,
+    Inspector: () => null,
+  },
+  {
+    id: 'mneme',
+    label: 'Mneme',
+    enabled: false,
+    Navigation: () => null,
+    Content: () => null,
+    Inspector: () => null,
   },
 ];
 
-const workspaceOptions: WorkspaceOption[] = [
-  { id: 'praxis', label: 'Praxis', disabled: false },
-  { id: 'chrona', label: 'Chrona', disabled: true },
-  { id: 'metis', label: 'Metis', disabled: true },
-  { id: 'continuum', label: 'Continuum', disabled: true },
-];
-
-export function listWorkspaces(): WorkspaceDefinition[] {
-  return workspaceRegistry;
+export function getWorkspace(id: WorkspaceModule['id']): WorkspaceModule {
+  return WORKSPACES.find((workspace) => workspace.id === id) ?? WORKSPACES[0];
 }
 
-export function listWorkspaceOptions(): WorkspaceOption[] {
-  return workspaceOptions;
-}
-
-export function resolveWorkspace(id: string): WorkspaceDefinition {
-  return workspaceRegistry.find((workspace) => workspace.id === id) ?? workspaceRegistry[0];
+export function getWorkspaceOptions(): { id: string; label: string; disabled: boolean }[] {
+  return WORKSPACES.map((workspace) => ({
+    id: workspace.id,
+    label: workspace.label,
+    disabled: !workspace.enabled,
+  }));
 }

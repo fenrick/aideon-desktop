@@ -3,6 +3,10 @@ export { listScenarios } from './praxis-api';
 export type { ScenarioSummary } from './praxis-api';
 export {
   default as PraxisWorkspaceApp,
-  PraxisWorkspaceHost,
   PraxisWorkspaceSurface,
+  PraxisWorkspaceContent,
+  PraxisWorkspaceInspector,
+  PraxisWorkspaceNavigation,
+  PraxisWorkspaceProvider,
+  PraxisWorkspaceToolbar,
 } from './workspace';

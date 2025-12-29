@@ -1,29 +1,15 @@
-import type { ReactNode } from 'react';
+import type { ComponentType } from 'react';
 
-import type { WorkspaceSwitcherProperties } from 'aideon/shell/workspace-switcher';
+export type WorkspaceId = 'praxis' | 'metis' | 'mneme';
 
-export interface WorkspaceShellSlots {
-  readonly toolbar?: ReactNode;
-  readonly navigation: ReactNode;
-  readonly content: ReactNode;
-  readonly inspector: ReactNode;
-  readonly overlays?: ReactNode;
-}
+export interface WorkspaceModule {
+  id: WorkspaceId;
+  label: string;
+  enabled: boolean;
 
-export type WorkspaceSwitcherConfig = Pick<
-  WorkspaceSwitcherProperties,
-  'currentId' | 'options' | 'onSelect'
->;
-
-export interface WorkspaceHostProps {
-  readonly workspaceSwitcher: WorkspaceSwitcherConfig;
-  readonly children: (slots: WorkspaceShellSlots) => ReactNode;
-}
-
-export type WorkspaceHost = (props: WorkspaceHostProps) => ReactNode;
-
-export interface WorkspaceDefinition {
-  readonly id: string;
-  readonly label: string;
-  readonly Host: WorkspaceHost;
+  // these map 1:1 into AideonDesktopShell slots
+  Navigation: ComponentType;
+  Toolbar?: ComponentType;
+  Content: ComponentType;
+  Inspector?: ComponentType;
 }

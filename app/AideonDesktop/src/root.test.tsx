@@ -23,35 +23,24 @@ vi.mock('aideon/shell/aideon-desktop-shell', () => ({
   ),
 }));
 
+vi.mock('./workspaces/praxis/workspace', () => ({
+  PraxisWorkspaceProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
 vi.mock('./workspaces/registry', () => {
   const workspace = {
     id: 'praxis',
     label: 'Praxis',
-    Host: ({
-      children,
-      workspaceSwitcher,
-    }: {
-      children: (slots: {
-        toolbar: ReactNode;
-        navigation: ReactNode;
-        content: ReactNode;
-        inspector: ReactNode;
-        overlays?: ReactNode;
-      }) => ReactNode;
-      workspaceSwitcher: { currentId: string };
-    }) =>
-      children({
-        toolbar: <div>Toolbar {workspaceSwitcher.currentId}</div>,
-        navigation: <div>Navigation</div>,
-        content: <div>Content</div>,
-        inspector: <div>Inspector</div>,
-        overlays: <div>Overlay</div>,
-      }),
+    enabled: true,
+    Navigation: () => <div>Navigation</div>,
+    Toolbar: () => <div>Toolbar</div>,
+    Content: () => <div>Content</div>,
+    Inspector: () => <div>Inspector</div>,
   };
 
   return {
-    listWorkspaceOptions: () => [{ id: 'praxis', label: 'Praxis', disabled: false }],
-    resolveWorkspace: () => workspace,
+    getWorkspaceOptions: () => [{ id: 'praxis', label: 'Praxis', disabled: false }],
+    getWorkspace: () => workspace,
   };
 });
 
@@ -61,10 +50,9 @@ describe('AideonDesktopRoot', () => {
   it('renders the active workspace slots through the shell', () => {
     render(<AideonDesktopRoot />);
 
-    expect(screen.getByText('Toolbar praxis')).toBeInTheDocument();
+    expect(screen.getByText('Toolbar')).toBeInTheDocument();
     expect(screen.getByText('Navigation')).toBeInTheDocument();
     expect(screen.getByText('Content')).toBeInTheDocument();
     expect(screen.getByText('Inspector')).toBeInTheDocument();
-    expect(screen.getByText('Overlay')).toBeInTheDocument();
   });
 });

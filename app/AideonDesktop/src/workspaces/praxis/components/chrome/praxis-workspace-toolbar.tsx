@@ -105,9 +105,8 @@ export function PraxisWorkspaceToolbar({
             currentId="praxis"
             options={[
               { id: 'praxis', label: 'Praxis', disabled: false },
-              { id: 'chrona', label: 'Chrona', disabled: true },
               { id: 'metis', label: 'Metis', disabled: true },
-              { id: 'continuum', label: 'Continuum', disabled: true },
+              { id: 'mneme', label: 'Mneme', disabled: true },
             ]}
           />
         )

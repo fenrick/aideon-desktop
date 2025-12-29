@@ -8,7 +8,7 @@ chart views over the time-first digital twin.
 
 ## Responsibilities
 
-- Render the main workspace UI for Praxis inside the Aideon Desktop shell.
+- Render the main workspace UI for Praxis via the workspace module contract.
 - Manage widget composition, time/selection state, and template flows.
 - Talk to the Tauri host via typed APIs (`app/AideonDesktop/src/workspaces/praxis/praxis-api.ts`).
 - Consume shared UI primitives from `app/AideonDesktop/src/design-system`.
@@ -17,7 +17,7 @@ chart views over the time-first digital twin.
 ## Relationships
 
 - **Depends on:** Aideon Design System, host IPC, shared DTOs.
-- **Used by:** Aideon Desktop shell (React/Tauri renderer).
+- **Used by:** Aideon Desktop shell (React/Tauri renderer) via `WorkspaceModule` registration.
 
 ## Running and testing
 

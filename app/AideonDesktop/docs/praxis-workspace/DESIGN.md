@@ -6,17 +6,18 @@ Praxis Workspace is the React-based renderer surface for the Aideon Desktop app.
 inside the Aideon Desktop shell and projects the time-first digital twin into widgets such as
 graph, catalogue, matrix, and timeline views.
 
-The primary export is `PraxisWorkspaceSurface`, a chrome-free surface intended to mount inside the
-Aideon Desktop shell (toolbar/navigation/inspector live in the Aideon layer).
+Praxis exposes module components (`PraxisWorkspaceNavigation`, `PraxisWorkspaceToolbar`,
+`PraxisWorkspaceContent`, `PraxisWorkspaceInspector`) that the Aideon Desktop shell renders via the
+workspace module contract. `PraxisWorkspaceSurface` remains a chrome-free surface for standalone
+embedding during tests or previews.
 
 ## Internal structure
 
-- React application entry that mounts the workspace surface inside the Tauri window.
 - Workspace composition (templates, widgets, time panel) and UI state (selection, time cursor).
 - State management for selection, filters, time cursor, and active template.
 - Integration points to Aideon Design System blocks and React Flow-based canvas primitives.
-- Surface component (`PraxisWorkspaceSurface`) renders only the workspace content; host shells provide
-  outer chrome (toolbar/sidebar/properties).
+- `PraxisWorkspaceProvider` owns shared state once; Navigation/Toolbar/Content/Inspector consume the
+  provider so state is not duplicated across slots.
 - Praxis navigation follows shadcn sidebar-08 as the base layout (inset sidebar + header layout),
   with nested rail behavior (sidebar-09), a team/workspace switcher, favorites, a collapsible file
   tree for scenarios (sidebar-11), and a right-side action popover (sidebar-10). The footer mirrors
@@ -25,8 +26,7 @@ Aideon Desktop shell (toolbar/navigation/inspector live in the Aideon layer).
 ## Selection contract
 
 - `PraxisWorkspaceSurface` accepts an optional `onSelectionChange` callback. The surface emits the
-  current `SelectionState` whenever it changes so host shells (e.g., Aideon Desktop) can render
-  properties panels.
+  current `SelectionState` whenever it changes so host shells or harnesses can observe selections.
 
 ## Time-first canvas behaviour
 

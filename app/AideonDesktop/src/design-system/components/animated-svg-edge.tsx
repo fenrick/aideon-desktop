@@ -66,7 +66,16 @@ export function AnimatedSvgEdge({
     repeat: "indefinite",
     shape: "circle",
   },
-  ...delegated
+  markerStart,
+  markerEnd,
+  style,
+  label,
+  labelStyle,
+  labelShowBg,
+  labelBgStyle,
+  labelBgPadding,
+  labelBgBorderRadius,
+  interactionWidth,
 }: EdgeProps<AnimatedSvgEdge>) {
   const Shape = shapes[data.shape];
 
@@ -89,7 +98,20 @@ export function AnimatedSvgEdge({
 
   return (
     <>
-      <BaseEdge id={id} path={path} {...delegated} />
+      <BaseEdge
+        id={id}
+        path={path}
+        markerStart={markerStart}
+        markerEnd={markerEnd}
+        style={style}
+        label={label}
+        labelStyle={labelStyle}
+        labelShowBg={labelShowBg}
+        labelBgStyle={labelBgStyle}
+        labelBgPadding={labelBgPadding}
+        labelBgBorderRadius={labelBgBorderRadius}
+        interactionWidth={interactionWidth}
+      />
       <Shape animateMotionProps={animateMotionProps} />
     </>
   );

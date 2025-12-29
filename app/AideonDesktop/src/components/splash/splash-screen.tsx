@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import Image from 'next/image';
 
 import styles from './splash-screen.module.css';
 
@@ -34,7 +35,14 @@ export function SplashScreen({
 
   return (
     <div className={styles.splash}>
-      <img src="/splash.png" className={styles.bg} alt="" />
+      <Image
+        src="/splash.png"
+        alt=""
+        className={styles.bg}
+        fill
+        sizes="100vw"
+        priority
+      />
 
       <div className={styles.right}>
         <h1 className={styles.title}>Aideon&nbsp;Praxis</h1>

@@ -1,5 +1,5 @@
-import React, { type ReactNode, type ComponentProps } from "react";
-import { Panel, type NodeProps, type PanelPosition } from "@xyflow/react";
+import React, { type ReactNode, type ComponentProps, type CSSProperties } from "react";
+import { Panel, type PanelPosition } from "@xyflow/react";
 
 import { BaseNode } from "design-system/components/base-node";
 import { cn } from "design-system/lib/utils";
@@ -27,14 +27,16 @@ export function GroupNodeLabel({
   );
 }
 
-export type GroupNodeProps = Partial<NodeProps> & {
+export type GroupNodeProps = {
   label?: ReactNode;
   position?: PanelPosition;
+  className?: string;
+  style?: CSSProperties;
 };
 
 /* GROUP NODE -------------------------------------------------------------- */
 
-export function GroupNode({ label, position, ...props }: GroupNodeProps) {
+export function GroupNode({ label, position, className, style }: GroupNodeProps) {
   const getLabelClassName = (position?: PanelPosition) => {
     switch (position) {
       case "top-left":
@@ -56,8 +58,8 @@ export function GroupNode({ label, position, ...props }: GroupNodeProps) {
 
   return (
     <BaseNode
-      className="bg-opacity-50 h-full overflow-hidden rounded-sm bg-white"
-      {...props}
+      className={cn("bg-opacity-50 h-full overflow-hidden rounded-sm bg-white", className)}
+      style={style}
     >
       <Panel className="m-0 p-0" position={position}>
         {label && (

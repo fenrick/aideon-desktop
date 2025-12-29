@@ -3,6 +3,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ComponentPropsWithoutRef,
   type ReactNode,
 } from 'react';
@@ -62,8 +63,42 @@ function useOptionalSidebar() {
  * Best-effort platform detection without deprecated `navigator.platform`.
  */
 function isMacPlatform(): boolean {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
   const ua = navigator.userAgent.toLowerCase();
   return ua.includes('mac') || ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod');
+}
+
+/**
+ * No-op cleanup function for `useSyncExternalStore` subscriptions.
+ */
+function noop() {
+  void 0;
+}
+
+/**
+ * No-op subscription for `useSyncExternalStore`.
+ * @returns Unsubscribe callback.
+ */
+function noopSubscribe() {
+  return noop;
+}
+
+/**
+ * Client snapshot accessor for macOS detection.
+ * @returns True when the user agent is macOS.
+ */
+function getIsMacSnapshot() {
+  return isMacPlatform();
+}
+
+/**
+ * Server snapshot accessor for macOS detection.
+ * @returns Always false during SSR.
+ */
+function getServerIsMacSnapshot() {
+  return false;
 }
 
 /**
@@ -80,12 +115,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * Format a typical app shortcut label for display.
- * @param letter - Shortcut letter (e.g., "K").
- * @returns Human-friendly shortcut string (macOS uses symbols).
+ * Stable platform detection for SSR/CSR with no hydration mismatch.
+ * @returns True when running on macOS.
  */
-function shortcutFor(letter: string): string {
-  return isMacPlatform() ? `⌘${letter}` : `Ctrl+${letter}`;
+function useIsMacPlatform(): boolean {
+  return useSyncExternalStore(noopSubscribe, getIsMacSnapshot, getServerIsMacSnapshot);
 }
 
 /**
@@ -106,6 +140,7 @@ function useOptionalTheme() {
  * @param root0.shell - Shell controls when available.
  * @param root0.theme - Theme controls when available.
  * @param root0.workspaceCommands - Workspace-provided commands.
+ * @param root0.shortcutLabelFor - Formatter for shortcut labels.
  * @returns Palette-ready command items.
  */
 function buildShellCommands({
@@ -113,11 +148,13 @@ function buildShellCommands({
   shell,
   theme,
   workspaceCommands,
+  shortcutLabelFor,
 }: {
   readonly sidebar: ReturnType<typeof useOptionalSidebar>;
   readonly shell: ReturnType<typeof useAideonShellControls>;
   readonly theme: ReturnType<typeof useOptionalTheme>;
   readonly workspaceCommands: readonly AideonCommandItem[];
+  readonly shortcutLabelFor: (letter: string) => string;
 }): AideonCommandItem[] {
   const viewCommands: AideonCommandItem[] = [
     ...(sidebar
@@ -126,7 +163,7 @@ function buildShellCommands({
             id: 'toggle-navigation',
             group: 'View',
             label: 'Toggle navigation',
-            shortcut: shortcutFor('B'),
+            shortcut: shortcutLabelFor('B'),
             onSelect: () => {
               sidebar.toggleSidebar();
             },
@@ -139,7 +176,7 @@ function buildShellCommands({
             id: 'toggle-inspector',
             group: 'View',
             label: 'Toggle inspector',
-            shortcut: shortcutFor('I'),
+            shortcut: shortcutLabelFor('I'),
             onSelect: () => {
               shell.toggleInspector();
             },
@@ -253,6 +290,11 @@ export function AideonToolbar({
   className,
   ...properties
 }: AideonToolbarProperties) {
+  const isMac = useIsMacPlatform();
+  const shortcutLabelFor = useCallback(
+    (letter: string) => (isMac ? `⌘${letter}` : `Ctrl+${letter}`),
+    [isMac],
+  );
   const sidebar = useOptionalSidebar();
   const shell = useAideonShellControls();
   const isTauri = isTauriRuntime();
@@ -274,7 +316,13 @@ export function AideonToolbar({
   }, [isTauri]);
 
   const commands = useMemo(() => {
-    const shellCommands = buildShellCommands({ sidebar, shell, theme, workspaceCommands });
+    const shellCommands = buildShellCommands({
+      sidebar,
+      shell,
+      theme,
+      workspaceCommands,
+      shortcutLabelFor,
+    });
     return [
       ...shellCommands,
       {
@@ -298,7 +346,15 @@ export function AideonToolbar({
           ] satisfies AideonCommandItem[])
         : []),
     ] satisfies AideonCommandItem[];
-  }, [isDevelopment, openStyleguide, shell, sidebar, theme, workspaceCommands]);
+  }, [
+    isDevelopment,
+    openStyleguide,
+    shell,
+    sidebar,
+    theme,
+    workspaceCommands,
+    shortcutLabelFor,
+  ]);
 
   useEffect(() => {
     if (isTauri) {
@@ -417,6 +473,7 @@ export function AideonToolbar({
             onOpenStyleguide={() => {
               openStyleguide();
             }}
+            shortcutLabelFor={shortcutLabelFor}
             showDebugItems={isDevelopment}
           />
           {start}
@@ -432,7 +489,7 @@ export function AideonToolbar({
           >
             <CommandIcon className="size-4" />
             Commands
-            <Kbd className="ml-1">{shortcutFor('K')}</Kbd>
+            <Kbd className="ml-1">{shortcutLabelFor('K')}</Kbd>
           </Button>
           <ToolbarSeparator />
           <div className="min-w-0">
@@ -467,10 +524,11 @@ export function AideonToolbar({
                   aria-label="Theme"
                 >
                   {(() => {
-                    if (theme.resolvedTheme === 'dark') {
+                    const currentTheme = theme.theme ?? 'system';
+                    if (currentTheme === 'dark') {
                       return <MoonIcon className="size-4" />;
                     }
-                    if (theme.resolvedTheme === 'light') {
+                    if (currentTheme === 'light') {
                       return <SunIcon className="size-4" />;
                     }
                     return <LaptopIcon className="size-4" />;
@@ -529,16 +587,19 @@ export function AideonToolbar({
  * @param root0.onOpenShortcuts - Opens the keyboard shortcuts dialog.
  * @param root0.onOpenStyleguide
  * @param root0.showDebugItems
+ * @param root0.shortcutLabelFor
  */
 function AppMenu({
   onOpenCommandPalette,
   onOpenShortcuts,
   onOpenStyleguide,
+  shortcutLabelFor,
   showDebugItems = false,
 }: {
   readonly onOpenCommandPalette: () => void;
   readonly onOpenShortcuts: () => void;
   readonly onOpenStyleguide: () => void;
+  readonly shortcutLabelFor: (letter: string) => string;
   readonly showDebugItems?: boolean;
 }) {
   const sidebar = useOptionalSidebar();
@@ -562,7 +623,7 @@ function AppMenu({
             }}
           >
             Command palette{' '}
-            <span className="ml-auto text-xs text-muted-foreground">{shortcutFor('K')}</span>
+            <span className="ml-auto text-xs text-muted-foreground">{shortcutLabelFor('K')}</span>
           </MenubarItem>
           <MenubarItem
             disabled={!sidebar}

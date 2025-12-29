@@ -15,7 +15,12 @@ export const metadata: Metadata = {
  */
 export default function RootLayout({ children }: { readonly children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      // next-themes applies the system class on the client; suppress to avoid SSR/CSR mismatch.
+      // shadcn recommends this for Next App Router + system theme default.
+      suppressHydrationWarning
+    >
       <body>
         <AppProviders>{children}</AppProviders>
       </body>

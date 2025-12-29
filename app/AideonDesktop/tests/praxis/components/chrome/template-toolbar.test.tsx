@@ -7,8 +7,8 @@ import type { CanvasTemplate } from 'praxis/templates';
  * Dynamically import the subject after applying module mocks.
  */
 async function loadTemplateToolbar() {
-  const module = await import('praxis/components/chrome/template-toolbar');
-  return module.TemplateToolbar;
+  const loadedModule = await import('praxis/components/chrome/template-toolbar');
+  return loadedModule.TemplateToolbar;
 }
 
 describe('TemplateToolbar', () => {

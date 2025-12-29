@@ -7,9 +7,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   assetPrefix: process.env.NODE_ENV === 'development' ? `http://${devHost}:1420` : undefined,
 };
 

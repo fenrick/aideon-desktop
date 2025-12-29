@@ -61,13 +61,28 @@ export function AideonShellLayout({
   }, []);
 
   const layoutDefaults = useMemo(() => {
+    const normalize = (contentSize: number, inspectorSize: number) => {
+      const total = contentSize + inspectorSize;
+      if (!Number.isFinite(total) || total <= 0) {
+        return { content: 70, inspector: 30 };
+      }
+      if (Math.abs(total - 100) < 0.1) {
+        return { content: contentSize, inspector: inspectorSize };
+      }
+      const normalizedContent = (contentSize / total) * 100;
+      return {
+        content: Number(normalizedContent.toFixed(2)),
+        inspector: Number((100 - normalizedContent).toFixed(2)),
+      };
+    };
+
     if (!storedLayout || storedLayout.length === 0) {
-      return { content: 60, inspector: 20 };
+      return normalize(70, 30);
     }
     if (storedLayout.length >= 3) {
-      return { content: storedLayout[1], inspector: storedLayout[2] };
+      return normalize(storedLayout[1], storedLayout[2]);
     }
-    return { content: storedLayout[0], inspector: storedLayout[1] ?? 20 };
+    return normalize(storedLayout[0], storedLayout[1] ?? 30);
   }, [storedLayout]);
 
   const inspectorCollapsedFromStorage = useMemo<boolean>(() => {

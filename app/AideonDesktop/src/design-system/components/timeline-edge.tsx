@@ -6,12 +6,42 @@ export interface TimelineEdgeData extends Record<string, unknown> {
 }
 
 export function TimelineEdge(properties: EdgeProps<Edge<TimelineEdgeData, 'timeline'>>) {
-  const { sourceX, sourceY, targetX, targetY, data } = properties;
+  const {
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    data,
+    markerStart,
+    markerEnd,
+    style,
+    label,
+    labelStyle,
+    labelShowBg,
+    labelBgStyle,
+    labelBgPadding,
+    labelBgBorderRadius,
+    interactionWidth,
+  } = properties;
   const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY });
 
   return (
     <>
-      <BaseEdge {...properties} path={path} />
+      <BaseEdge
+        id={id}
+        path={path}
+        markerStart={markerStart}
+        markerEnd={markerEnd}
+        style={style}
+        label={label}
+        labelStyle={labelStyle}
+        labelShowBg={labelShowBg}
+        labelBgStyle={labelBgStyle}
+        labelBgPadding={labelBgPadding}
+        labelBgBorderRadius={labelBgBorderRadius}
+        interactionWidth={interactionWidth}
+      />
       {data?.label ? (
         <EdgeLabelRenderer>
           <div

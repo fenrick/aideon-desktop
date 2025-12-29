@@ -714,6 +714,19 @@ export async function importSnapshotStream(
   }
 }
 
+export const mnemeExportApi = {
+  exportOps: exportOpsStream,
+};
+
+export const mnemeImportApi = {
+  importOps: importOpsStream,
+};
+
+export const mnemeSnapshotApi = {
+  exportSnapshotStream,
+  importSnapshotStream,
+};
+
 /**
  * Upsert validation rules for a partition.
  */

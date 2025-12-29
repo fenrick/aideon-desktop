@@ -29,6 +29,9 @@ import {
   exportOpsStream,
   ingestOps,
   importOpsStream,
+  mnemeExportApi,
+  mnemeImportApi,
+  mnemeSnapshotApi,
   getPartitionHead,
   createScenario,
   deleteScenario,
@@ -658,6 +661,40 @@ describe('mneme-api metamodel bindings', () => {
     expect(invokeMock).toHaveBeenCalledWith('mneme_export_ops_stream', {
       partitionId: 'p-1',
     });
+  });
+
+  it('exposes export/import/snapshot wrappers', async () => {
+    invokeMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ ops_imported: 0, ops_skipped: 0, errors: 0 })
+      .mockResolvedValueOnce([]);
+
+    const records = await mnemeExportApi.exportOps({ partitionId: 'p-1' });
+    const exported: Array<{ recordType: string; data: unknown }> = [];
+    for await (const record of records) {
+      exported.push(record);
+    }
+    expect(exported).toEqual([]);
+
+    async function* importRecords() {
+      yield { recordType: 'op', data: { opId: 'o-1' } };
+    }
+
+    const report = await mnemeImportApi.importOps(
+      { targetPartition: 'p-1' },
+      importRecords(),
+    );
+    expect(report).toEqual({ opsImported: 0, opsSkipped: 0, errors: 0 });
+
+    const snapshotRecords = await mnemeSnapshotApi.exportSnapshotStream({
+      partitionId: 'p-1',
+      asOfAssertedAt: '123',
+    });
+    const snapshotExported: Array<{ recordType: string; data: unknown }> = [];
+    for await (const record of snapshotRecords) {
+      snapshotExported.push(record);
+    }
+    expect(snapshotExported).toEqual([]);
   });
 
   it('ingests ops with byte payload conversion', async () => {

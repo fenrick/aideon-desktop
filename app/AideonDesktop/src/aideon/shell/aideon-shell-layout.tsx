@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ScrollArea } from 'design-system/components/ui/scroll-area';
 import {
@@ -12,7 +12,7 @@ import {
 import { cn } from 'design-system/lib/utilities';
 import { AideonShellControlsProvider } from './shell-controls';
 
-import type { ImperativePanelHandle } from 'react-resizable-panels';
+import type { ImperativePanelGroupHandle, ImperativePanelHandle } from 'react-resizable-panels';
 
 interface AideonShellLayoutProperties {
   readonly navigation: ReactNode;
@@ -32,6 +32,49 @@ interface AideonShellLayoutProperties {
  * @param root0.toolbar
  * @param root0.className
  */
+const DEFAULT_LAYOUT = { content: 70, inspector: 30 };
+
+function normalizeLayout(contentSize: number, inspectorSize: number) {
+  const total = contentSize + inspectorSize;
+  if (!Number.isFinite(total) || total <= 0) {
+    return DEFAULT_LAYOUT;
+  }
+  if (Math.abs(total - 100) < 0.1) {
+    return { content: contentSize, inspector: inspectorSize };
+  }
+  const normalizedContent = (contentSize / total) * 100;
+  return {
+    content: Number(normalizedContent.toFixed(2)),
+    inspector: Number((100 - normalizedContent).toFixed(2)),
+  };
+}
+
+function readStoredLayout(storage: Storage) {
+  try {
+    const raw = storage.getItem('aideon-shell-panels');
+    if (!raw) {
+      return;
+    }
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed) && parsed.every((value) => typeof value === 'number')) {
+      if (parsed.length >= 3) {
+        return normalizeLayout(parsed[1], parsed[2]);
+      }
+      return normalizeLayout(parsed[0], parsed[1] ?? DEFAULT_LAYOUT.inspector);
+    }
+  } catch {
+    return;
+  }
+}
+
+function readInspectorCollapsed(storage: Storage) {
+  try {
+    return storage.getItem('aideon-shell-inspector-collapsed') === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function AideonShellLayout({
   navigation,
   content,
@@ -40,64 +83,10 @@ export function AideonShellLayout({
   className,
 }: AideonShellLayoutProperties) {
   const inspectorPanelReference = useRef<ImperativePanelHandle>(null);
+  const panelGroupReference = useRef<ImperativePanelGroupHandle>(null);
+  const layoutInitialized = useRef(false);
 
-  const storedLayout = useMemo<number[] | undefined>(() => {
-    const storage = (globalThis as unknown as { localStorage?: Storage }).localStorage;
-    if (!storage || typeof storage.getItem !== 'function') {
-      return;
-    }
-    const raw = storage.getItem('aideon-shell-panels');
-    if (!raw) {
-      return;
-    }
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (Array.isArray(parsed) && parsed.every((value) => typeof value === 'number')) {
-        return parsed;
-      }
-    } catch {
-      return;
-    }
-  }, []);
-
-  const layoutDefaults = useMemo(() => {
-    const normalize = (contentSize: number, inspectorSize: number) => {
-      const total = contentSize + inspectorSize;
-      if (!Number.isFinite(total) || total <= 0) {
-        return { content: 70, inspector: 30 };
-      }
-      if (Math.abs(total - 100) < 0.1) {
-        return { content: contentSize, inspector: inspectorSize };
-      }
-      const normalizedContent = (contentSize / total) * 100;
-      return {
-        content: Number(normalizedContent.toFixed(2)),
-        inspector: Number((100 - normalizedContent).toFixed(2)),
-      };
-    };
-
-    if (!storedLayout || storedLayout.length === 0) {
-      return normalize(70, 30);
-    }
-    if (storedLayout.length >= 3) {
-      return normalize(storedLayout[1], storedLayout[2]);
-    }
-    return normalize(storedLayout[0], storedLayout[1] ?? 30);
-  }, [storedLayout]);
-
-  const inspectorCollapsedFromStorage = useMemo<boolean>(() => {
-    const storage = (globalThis as unknown as { localStorage?: Storage }).localStorage;
-    if (!storage || typeof storage.getItem !== 'function') {
-      return false;
-    }
-    try {
-      return storage.getItem('aideon-shell-inspector-collapsed') === '1';
-    } catch {
-      return false;
-    }
-  }, []);
-
-  const [inspectorCollapsed, setInspectorCollapsed] = useState(inspectorCollapsedFromStorage);
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
 
   const persistInspectorCollapsed = useCallback((next: boolean) => {
     try {
@@ -136,6 +125,28 @@ export function AideonShellLayout({
     });
   }, [inspectorCollapsed]);
 
+  useEffect(() => {
+    const storage = (globalThis as unknown as { localStorage?: Storage }).localStorage;
+    if (!storage || typeof storage.getItem !== 'function') {
+      layoutInitialized.current = true;
+      return;
+    }
+
+    const storedLayout = readStoredLayout(storage);
+    if (storedLayout) {
+      queueMicrotask(() => {
+        panelGroupReference.current?.setLayout([storedLayout.content, storedLayout.inspector]);
+      });
+    }
+
+    const storedCollapsed = readInspectorCollapsed(storage);
+    if (storedCollapsed) {
+      setInspectorCollapsed(true);
+    }
+
+    layoutInitialized.current = true;
+  }, []);
+
   return (
     <SidebarProvider>
       <AideonShellControlsProvider value={{ inspectorCollapsed, toggleInspector }}>
@@ -151,9 +162,13 @@ export function AideonShellLayout({
               </header>
             ) : undefined}
             <ResizablePanelGroup
+              ref={panelGroupReference}
               direction="horizontal"
               className="min-h-0 flex-1"
               onLayout={(sizes) => {
+                if (!layoutInitialized.current) {
+                  return;
+                }
                 try {
                   const storage = (globalThis as unknown as { localStorage?: Storage })
                     .localStorage;
@@ -166,7 +181,7 @@ export function AideonShellLayout({
               }}
             >
               <ResizablePanel
-                defaultSize={layoutDefaults.content}
+                defaultSize={DEFAULT_LAYOUT.content}
                 minSize={40}
                 className="min-w-[360px]"
                 data-testid="aideon-shell-panel-content"
@@ -180,7 +195,7 @@ export function AideonShellLayout({
 
               <ResizablePanel
                 ref={inspectorPanelReference}
-                defaultSize={layoutDefaults.inspector}
+                defaultSize={DEFAULT_LAYOUT.inspector}
                 minSize={16}
                 collapsible
                 collapsedSize={0}

@@ -14,7 +14,8 @@ use aideon_praxis_facade::mneme::{
     RunWorkerInput, JobSummary, DiagnosticsApi, IntegrityHead, SchemaHead, SchemaManifest,
     ExplainResolutionInput, ExplainResolutionResult, ExplainTraversalInput, ExplainTraversalResult,
     ExportOptions, ExportRecord, ImportOptions, ImportReport, MnemeExportApi, MnemeImportApi,
-    MnemeSnapshotApi, SnapshotOptions,
+    MnemeSnapshotApi, SnapshotOptions, ValidationRulesApi, ValidationRule, ComputedRulesApi,
+    ComputedRule, ComputedCacheApi, ComputedCacheEntry, ListComputedCacheInput,
 };
 use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
 use log::{debug, error, info};
@@ -790,6 +791,122 @@ pub async fn mneme_import_snapshot_stream(
 }
 
 #[tauri::command]
+pub async fn mneme_upsert_validation_rules(
+    state: State<'_, WorkerState>,
+    payload: UpsertValidationRulesPayload,
+) -> Result<(), HostError> {
+    let store = state.mneme();
+    let asserted_at = parse_hlc(&payload.asserted_at)?;
+    store
+        .upsert_validation_rules(
+            payload.partition_id,
+            payload.actor_id,
+            asserted_at,
+            payload.rules,
+        )
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_list_validation_rules(
+    state: State<'_, WorkerState>,
+    payload: ListValidationRulesPayload,
+) -> Result<Vec<ValidationRule>, HostError> {
+    let store = state.mneme();
+    store
+        .list_validation_rules(payload.partition_id)
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_upsert_computed_rules(
+    state: State<'_, WorkerState>,
+    payload: UpsertComputedRulesPayload,
+) -> Result<(), HostError> {
+    let store = state.mneme();
+    let asserted_at = parse_hlc(&payload.asserted_at)?;
+    store
+        .upsert_computed_rules(
+            payload.partition_id,
+            payload.actor_id,
+            asserted_at,
+            payload.rules,
+        )
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_list_computed_rules(
+    state: State<'_, WorkerState>,
+    payload: ListComputedRulesPayload,
+) -> Result<Vec<ComputedRule>, HostError> {
+    let store = state.mneme();
+    store
+        .list_computed_rules(payload.partition_id)
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_upsert_computed_cache(
+    state: State<'_, WorkerState>,
+    payload: UpsertComputedCachePayload,
+) -> Result<(), HostError> {
+    let store = state.mneme();
+    let entries = payload
+        .entries
+        .into_iter()
+        .map(|entry| {
+            let valid_from = parse_valid_time(&entry.valid_from)?.0;
+            let valid_to = entry
+                .valid_to
+                .as_deref()
+                .map(parse_valid_time)
+                .transpose()?
+                .map(|time| time.0);
+            let computed_asserted_at = parse_hlc(&entry.computed_asserted_at)?;
+            Ok(ComputedCacheEntry {
+                entity_id: entry.entity_id,
+                field_id: entry.field_id,
+                valid_from,
+                valid_to,
+                value: entry.value,
+                rule_version_hash: entry.rule_version_hash,
+                computed_asserted_at,
+            })
+        })
+        .collect::<Result<Vec<_>, HostError>>()?;
+    store
+        .upsert_computed_cache(payload.partition_id, entries)
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_list_computed_cache(
+    state: State<'_, WorkerState>,
+    payload: ListComputedCachePayload,
+) -> Result<Vec<ComputedCacheEntry>, HostError> {
+    let store = state.mneme();
+    let at_valid_time = payload
+        .at_valid_time
+        .as_deref()
+        .map(parse_valid_time)
+        .transpose()?;
+    let input = ListComputedCacheInput {
+        partition: payload.partition_id,
+        entity_id: payload.entity_id,
+        field_id: payload.field_id,
+        at_valid_time,
+        limit: payload.limit.unwrap_or(100),
+    };
+    store.list_computed_cache(input).await.map_err(host_error)
+}
+
+#[tauri::command]
 pub async fn mneme_trigger_rebuild_effective_schema(
     state: State<'_, WorkerState>,
     payload: TriggerProcessingPayload,
@@ -1452,6 +1569,65 @@ pub struct ImportSnapshotPayload {
     pub remap_actor_ids: Option<HashMap<ActorId, ActorId>>,
     pub strict_schema: Option<bool>,
     pub records: Vec<ExportRecord>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpsertValidationRulesPayload {
+    pub partition_id: PartitionId,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub rules: Vec<ValidationRule>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListValidationRulesPayload {
+    pub partition_id: PartitionId,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpsertComputedRulesPayload {
+    pub partition_id: PartitionId,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub rules: Vec<ComputedRule>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListComputedRulesPayload {
+    pub partition_id: PartitionId,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComputedCacheEntryPayload {
+    pub entity_id: aideon_praxis_facade::mneme::Id,
+    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub valid_from: String,
+    pub valid_to: Option<String>,
+    pub value: Value,
+    pub rule_version_hash: String,
+    pub computed_asserted_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpsertComputedCachePayload {
+    pub partition_id: PartitionId,
+    pub entries: Vec<ComputedCacheEntryPayload>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListComputedCachePayload {
+    pub partition_id: PartitionId,
+    pub entity_id: Option<aideon_praxis_facade::mneme::Id>,
+    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub at_valid_time: Option<String>,
+    pub limit: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -27,6 +27,13 @@ import type {
   GraphEdgeTypeCount,
   IngestOpsInput,
   JobSummary,
+  ValidationRule,
+  UpsertValidationRulesInput,
+  ComputedRule,
+  UpsertComputedRulesInput,
+  ComputedCacheEntry,
+  UpsertComputedCacheInput,
+  ListComputedCacheInput,
   ListEntitiesInput,
   ListEntitiesResultItem,
   MetamodelBatch,
@@ -103,6 +110,12 @@ const COMMANDS = {
   importOpsStream: 'mneme_import_ops_stream',
   exportSnapshotStream: 'mneme_export_snapshot_stream',
   importSnapshotStream: 'mneme_import_snapshot_stream',
+  upsertValidationRules: 'mneme_upsert_validation_rules',
+  listValidationRules: 'mneme_list_validation_rules',
+  upsertComputedRules: 'mneme_upsert_computed_rules',
+  listComputedRules: 'mneme_list_computed_rules',
+  upsertComputedCache: 'mneme_upsert_computed_cache',
+  listComputedCache: 'mneme_list_computed_cache',
   triggerRebuildEffectiveSchema: 'mneme_trigger_rebuild_effective_schema',
   triggerRefreshIntegrity: 'mneme_trigger_refresh_integrity',
   triggerRefreshAnalyticsProjections: 'mneme_trigger_refresh_analytics_projections',
@@ -701,6 +714,116 @@ export async function importSnapshotStream(
   }
 }
 
+/**
+ * Upsert validation rules for a partition.
+ */
+export async function upsertValidationRules(input: UpsertValidationRulesInput): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+  try {
+    await invoke<void>(COMMANDS.upsertValidationRules, {
+      ...input,
+      rules: input.rules.map(toRustValidationRule),
+    });
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.upsertValidationRules}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * List validation rules for a partition.
+ */
+export async function listValidationRules(partitionId: string): Promise<ValidationRule[]> {
+  if (!isTauri()) {
+    return [];
+  }
+  try {
+    const raw = await invoke<RustValidationRule[]>(COMMANDS.listValidationRules, { partitionId });
+    return raw.map(fromRustValidationRule);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.listValidationRules}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Upsert computed rules for a partition.
+ */
+export async function upsertComputedRules(input: UpsertComputedRulesInput): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+  try {
+    await invoke<void>(COMMANDS.upsertComputedRules, {
+      ...input,
+      rules: input.rules.map(toRustComputedRule),
+    });
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.upsertComputedRules}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * List computed rules for a partition.
+ */
+export async function listComputedRules(partitionId: string): Promise<ComputedRule[]> {
+  if (!isTauri()) {
+    return [];
+  }
+  try {
+    const raw = await invoke<RustComputedRule[]>(COMMANDS.listComputedRules, { partitionId });
+    return raw.map(fromRustComputedRule);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.listComputedRules}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Upsert computed cache entries for a partition.
+ */
+export async function upsertComputedCache(input: UpsertComputedCacheInput): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+  try {
+    await invoke<void>(COMMANDS.upsertComputedCache, {
+      partitionId: input.partitionId,
+      entries: input.entries.map(toRustComputedCacheEntry),
+    });
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.upsertComputedCache}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * List computed cache entries.
+ */
+export async function listComputedCache(
+  input: ListComputedCacheInput,
+): Promise<ComputedCacheEntry[]> {
+  if (!isTauri()) {
+    return [];
+  }
+  try {
+    const raw = await invoke<RustComputedCacheEntry[]>(COMMANDS.listComputedCache, input);
+    return raw.map(fromRustComputedCacheEntry);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.listComputedCache}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
 export async function triggerRebuildEffectiveSchema(
   input: TriggerProcessingInput,
 ): Promise<void> {
@@ -1158,6 +1281,43 @@ interface RustImportReport {
   errors: number;
 }
 
+interface RustValidationRule {
+  rule_id: string;
+  scope_kind: number;
+  scope_id?: string | null;
+  severity: number;
+  template_kind: string;
+  params: unknown;
+}
+
+interface RustComputedRule {
+  rule_id: string;
+  target_type_id?: string | null;
+  output_field_id?: string | null;
+  template_kind: string;
+  params: unknown;
+}
+
+interface RustComputedCacheEntry {
+  entity_id: string;
+  field_id: string;
+  valid_from: number;
+  valid_to?: number | null;
+  value: RustValue;
+  rule_version_hash: string;
+  computed_asserted_at: number;
+}
+
+interface RustComputedCacheEntryPayload {
+  entity_id: string;
+  field_id: string;
+  valid_from: string;
+  valid_to?: string | null;
+  value: RustValue;
+  rule_version_hash: string;
+  computed_asserted_at: string;
+}
+
 interface RustJobSummary {
   partition: string;
   job_id: string;
@@ -1536,6 +1696,74 @@ function fromRustImportReport(report: RustImportReport): ImportReport {
     opsImported: report.ops_imported,
     opsSkipped: report.ops_skipped,
     errors: report.errors,
+  };
+}
+
+function fromRustValidationRule(rule: RustValidationRule): ValidationRule {
+  return {
+    ruleId: rule.rule_id,
+    scopeKind: rule.scope_kind,
+    scopeId: rule.scope_id ?? undefined,
+    severity: rule.severity,
+    templateKind: rule.template_kind,
+    params: rule.params,
+  };
+}
+
+function toRustValidationRule(rule: ValidationRule): RustValidationRule {
+  return {
+    rule_id: rule.ruleId,
+    scope_kind: rule.scopeKind,
+    scope_id: rule.scopeId ?? null,
+    severity: rule.severity,
+    template_kind: rule.templateKind,
+    params: rule.params,
+  };
+}
+
+function fromRustComputedRule(rule: RustComputedRule): ComputedRule {
+  return {
+    ruleId: rule.rule_id,
+    targetTypeId: rule.target_type_id ?? undefined,
+    outputFieldId: rule.output_field_id ?? undefined,
+    templateKind: rule.template_kind,
+    params: rule.params,
+  };
+}
+
+function toRustComputedRule(rule: ComputedRule): RustComputedRule {
+  return {
+    rule_id: rule.ruleId,
+    target_type_id: rule.targetTypeId ?? null,
+    output_field_id: rule.outputFieldId ?? null,
+    template_kind: rule.templateKind,
+    params: rule.params,
+  };
+}
+
+function fromRustComputedCacheEntry(entry: RustComputedCacheEntry): ComputedCacheEntry {
+  return {
+    entityId: entry.entity_id,
+    fieldId: entry.field_id,
+    validFrom: fromValidTimeMicros(entry.valid_from) ?? '',
+    validTo: fromValidTimeMicros(entry.valid_to),
+    value: fromRustValue(entry.value),
+    ruleVersionHash: entry.rule_version_hash,
+    computedAssertedAt: hlcToString(entry.computed_asserted_at),
+  };
+}
+
+function toRustComputedCacheEntry(
+  entry: ComputedCacheEntry,
+): RustComputedCacheEntryPayload {
+  return {
+    entity_id: entry.entityId,
+    field_id: entry.fieldId,
+    valid_from: entry.validFrom,
+    valid_to: entry.validTo ?? null,
+    value: toRustValue(entry.value),
+    rule_version_hash: entry.ruleVersionHash,
+    computed_asserted_at: entry.computedAssertedAt,
   };
 }
 

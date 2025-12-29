@@ -34,6 +34,12 @@ import {
   deleteScenario,
   exportSnapshotStream,
   importSnapshotStream,
+  upsertValidationRules,
+  listValidationRules,
+  upsertComputedRules,
+  listComputedRules,
+  upsertComputedCache,
+  listComputedCache,
   listJobs,
   runProcessingWorker,
   triggerCompaction,
@@ -749,6 +755,193 @@ describe('mneme-api metamodel bindings', () => {
       targetPartition: 'p-1',
       allowPartitionCreate: false,
       records: [{ record_type: 'header', data: { snap: true } }],
+    });
+  });
+
+  it('upserts and lists validation rules', async () => {
+    invokeMock
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce([
+        {
+          rule_id: 'r-1',
+          scope_kind: 2,
+          scope_id: 't-1',
+          severity: 1,
+          template_kind: 'required',
+          params: { field: 'name' },
+        },
+      ]);
+
+    await upsertValidationRules({
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      rules: [
+        {
+          ruleId: 'r-1',
+          scopeKind: 2,
+          scopeId: 't-1',
+          severity: 1,
+          templateKind: 'required',
+          params: { field: 'name' },
+        },
+      ],
+    });
+
+    const rules = await listValidationRules('p-1');
+
+    expect(rules).toEqual([
+      {
+        ruleId: 'r-1',
+        scopeKind: 2,
+        scopeId: 't-1',
+        severity: 1,
+        templateKind: 'required',
+        params: { field: 'name' },
+      },
+    ]);
+    expect(invokeMock).toHaveBeenCalledWith('mneme_upsert_validation_rules', {
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      rules: [
+        {
+          rule_id: 'r-1',
+          scope_kind: 2,
+          scope_id: 't-1',
+          severity: 1,
+          template_kind: 'required',
+          params: { field: 'name' },
+        },
+      ],
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_list_validation_rules', {
+      partitionId: 'p-1',
+    });
+  });
+
+  it('upserts and lists computed rules', async () => {
+    invokeMock
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce([
+        {
+          rule_id: 'c-1',
+          target_type_id: 't-1',
+          output_field_id: 'f-1',
+          template_kind: 'sum',
+          params: { fields: ['f-2'] },
+        },
+      ]);
+
+    await upsertComputedRules({
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '555',
+      rules: [
+        {
+          ruleId: 'c-1',
+          targetTypeId: 't-1',
+          outputFieldId: 'f-1',
+          templateKind: 'sum',
+          params: { fields: ['f-2'] },
+        },
+      ],
+    });
+
+    const rules = await listComputedRules('p-1');
+
+    expect(rules).toEqual([
+      {
+        ruleId: 'c-1',
+        targetTypeId: 't-1',
+        outputFieldId: 'f-1',
+        templateKind: 'sum',
+        params: { fields: ['f-2'] },
+      },
+    ]);
+    expect(invokeMock).toHaveBeenCalledWith('mneme_upsert_computed_rules', {
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '555',
+      rules: [
+        {
+          rule_id: 'c-1',
+          target_type_id: 't-1',
+          output_field_id: 'f-1',
+          template_kind: 'sum',
+          params: { fields: ['f-2'] },
+        },
+      ],
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_list_computed_rules', {
+      partitionId: 'p-1',
+    });
+  });
+
+  it('upserts and lists computed cache entries', async () => {
+    invokeMock
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce([
+        {
+          entity_id: 'n-1',
+          field_id: 'f-1',
+          valid_from: 1_000_000,
+          valid_to: null,
+          value: { Str: 'value' },
+          rule_version_hash: 'hash-1',
+          computed_asserted_at: 321,
+        },
+      ]);
+
+    await upsertComputedCache({
+      partitionId: 'p-1',
+      entries: [
+        {
+          entityId: 'n-1',
+          fieldId: 'f-1',
+          validFrom: '2024-01-01T00:00:00.000Z',
+          value: { t: 'str', v: 'value' },
+          ruleVersionHash: 'hash-1',
+          computedAssertedAt: '321',
+        },
+      ],
+    });
+
+    const entries = await listComputedCache({
+      partitionId: 'p-1',
+      fieldId: 'f-1',
+      limit: 25,
+    });
+
+    expect(entries).toEqual([
+      {
+        entityId: 'n-1',
+        fieldId: 'f-1',
+        validFrom: '1970-01-01T00:00:01.000Z',
+        validTo: undefined,
+        value: { t: 'str', v: 'value' },
+        ruleVersionHash: 'hash-1',
+        computedAssertedAt: '321',
+      },
+    ]);
+    expect(invokeMock).toHaveBeenCalledWith('mneme_upsert_computed_cache', {
+      partitionId: 'p-1',
+      entries: [
+        {
+          entity_id: 'n-1',
+          field_id: 'f-1',
+          valid_from: '2024-01-01T00:00:00.000Z',
+          valid_to: null,
+          value: { Str: 'value' },
+          rule_version_hash: 'hash-1',
+          computed_asserted_at: '321',
+        },
+      ],
+    });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_list_computed_cache', {
+      partitionId: 'p-1',
+      fieldId: 'f-1',
+      limit: 25,
     });
   });
 

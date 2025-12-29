@@ -377,6 +377,60 @@ export interface SnapshotOptions {
   includeEntities?: boolean;
 }
 
+export interface ValidationRule {
+  ruleId: string;
+  scopeKind: number;
+  scopeId?: string;
+  severity: number;
+  templateKind: string;
+  params: unknown;
+}
+
+export interface UpsertValidationRulesInput {
+  partitionId: string;
+  actorId: string;
+  assertedAt: AssertedTime;
+  rules: ValidationRule[];
+}
+
+export interface ComputedRule {
+  ruleId: string;
+  targetTypeId?: string;
+  outputFieldId?: string;
+  templateKind: string;
+  params: unknown;
+}
+
+export interface UpsertComputedRulesInput {
+  partitionId: string;
+  actorId: string;
+  assertedAt: AssertedTime;
+  rules: ComputedRule[];
+}
+
+export interface ComputedCacheEntry {
+  entityId: string;
+  fieldId: string;
+  validFrom: ValidTime;
+  validTo?: ValidTime;
+  value: Value;
+  ruleVersionHash: string;
+  computedAssertedAt: AssertedTime;
+}
+
+export interface UpsertComputedCacheInput {
+  partitionId: string;
+  entries: ComputedCacheEntry[];
+}
+
+export interface ListComputedCacheInput {
+  partitionId: string;
+  entityId?: string;
+  fieldId: string;
+  atValidTime?: ValidTime;
+  limit?: number;
+}
+
 export interface PartitionHeadResult {
   head: AssertedTime;
 }

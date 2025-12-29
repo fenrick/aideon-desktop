@@ -1,34 +1,42 @@
 import { invoke } from '@tauri-apps/api/core';
 import type {
-  ActorId,
   AssertedTime,
   ClearPropertyIntervalInput,
+  CounterUpdateInput,
   CreateEdgeInput,
   CreateNodeInput,
-  CounterUpdateInput,
-  EdgeTypeRuleDef,
-  FieldId,
-  FieldDef,
+  EdgeTypeRuleDefinition,
+  FieldDefinition,
   FieldFilter,
+  GetGraphDegreeStatsInput,
+  GetGraphEdgeTypeCountsInput,
+  GetPageRankScoresInput,
+  GetProjectionEdgesInput,
+  GraphDegreeStat,
+  GraphEdgeTypeCount,
   ListEntitiesInput,
   ListEntitiesResultItem,
+  MetamodelBatch,
   OrSetUpdateInput,
+  PageRankRunParams,
+  PageRankRunResult,
+  PageRankScore,
+  PageRankSeed,
+  ProjectionEdge,
   ReadEntityAtTimeInput,
   ReadEntityAtTimeResult,
   ReadValue,
-  SetPropertyIntervalInput,
+  SchemaCompileResult,
   SetEdgeExistenceIntervalInput,
+  SetPropertyIntervalInput,
+  StorePageRankRunInput,
+  TombstoneEntityInput,
   TraverseAtTimeInput,
   TraverseEdgeItem,
+  TypeDefinition,
+  TypeFieldDefinition,
+  ValidTime,
   Value,
-  MetamodelBatch,
-  OpId,
-  PartitionId,
-  SchemaCompileResult,
-  TombstoneEntityInput,
-  TypeDef,
-  TypeFieldDef,
-  TypeId,
 } from 'dtos';
 
 import { isTauri } from './platform';
@@ -49,37 +57,46 @@ const COMMANDS = {
   readEntityAtTime: 'mneme_read_entity_at_time',
   traverseAtTime: 'mneme_traverse_at_time',
   listEntities: 'mneme_list_entities',
+  getProjectionEdges: 'mneme_get_projection_edges',
+  getGraphDegreeStats: 'mneme_get_graph_degree_stats',
+  getGraphEdgeTypeCounts: 'mneme_get_graph_edge_type_counts',
+  storePageRankRun: 'mneme_store_pagerank_scores',
+  getPageRankScores: 'mneme_get_pagerank_scores',
 } as const;
 
-function toInvokeArgs<T extends object>(value: T): Record<string, unknown> {
+/**
+ * Coerce command payloads into the invoke arguments shape.
+ * @param value - Payload to pass to the host.
+ */
+function toInvokeArguments(value: object): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
 export interface UpsertMetamodelBatchInput {
-  partitionId: PartitionId;
-  actorId: ActorId;
+  partitionId: string;
+  actorId: string;
   assertedAt: AssertedTime;
   batch: MetamodelBatch;
   scenarioId?: string;
 }
 
 export interface CompileEffectiveSchemaInput {
-  partitionId: PartitionId;
-  actorId: ActorId;
+  partitionId: string;
+  actorId: string;
   assertedAt: AssertedTime;
-  typeId: TypeId;
+  typeId: string;
   scenarioId?: string;
 }
 
 export interface MnemeOpResult {
-  opId: OpId;
+  opId: string;
 }
 
 export interface EffectiveSchema {
-  typeId: TypeId;
+  typeId: string;
   appliesTo: 'Node' | 'Edge';
-  fields: Array<{
-    fieldId: FieldId;
+  fields: {
+    fieldId: string;
     valueType: 'str' | 'i64' | 'f64' | 'bool' | 'time' | 'ref' | 'blob' | 'json';
     cardinality: 'single' | 'multi';
     mergePolicy: 'LWW' | 'MV' | 'OR_SET' | 'COUNTER' | 'TEXT';
@@ -87,9 +104,13 @@ export interface EffectiveSchema {
     defaultValue?: unknown;
     indexed: boolean;
     disallowOverlap?: boolean;
-  }>;
+  }[];
 }
 
+/**
+ * Upsert metamodel changes into the host.
+ * @param input - Batch payload.
+ */
 export async function upsertMetamodelBatch(input: UpsertMetamodelBatchInput): Promise<MnemeOpResult> {
   if (!isTauri()) {
     return { opId: 'mock-op' };
@@ -109,6 +130,10 @@ export async function upsertMetamodelBatch(input: UpsertMetamodelBatchInput): Pr
   }
 }
 
+/**
+ * Compile the effective schema for a type.
+ * @param input - Compile request payload.
+ */
 export async function compileEffectiveSchema(
   input: CompileEffectiveSchemaInput,
 ): Promise<SchemaCompileResult> {
@@ -118,7 +143,7 @@ export async function compileEffectiveSchema(
   try {
     return await invoke<SchemaCompileResult>(
       COMMANDS.compileEffectiveSchema,
-      toInvokeArgs(input),
+      toInvokeArguments(input),
     );
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.compileEffectiveSchema}' failed: ${String(error)}`, {
@@ -127,12 +152,16 @@ export async function compileEffectiveSchema(
   }
 }
 
+/**
+ * Create a node entity.
+ * @param input - Create request payload.
+ */
 export async function createNode(input: CreateNodeInput): Promise<MnemeOpResult> {
   if (!isTauri()) {
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.createNode, toInvokeArgs(input));
+    return await invoke<MnemeOpResult>(COMMANDS.createNode, toInvokeArguments(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.createNode}' failed: ${String(error)}`, {
       cause: error,
@@ -140,12 +169,16 @@ export async function createNode(input: CreateNodeInput): Promise<MnemeOpResult>
   }
 }
 
+/**
+ * Create an edge entity.
+ * @param input - Create request payload.
+ */
 export async function createEdge(input: CreateEdgeInput): Promise<MnemeOpResult> {
   if (!isTauri()) {
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.createEdge, toInvokeArgs(input));
+    return await invoke<MnemeOpResult>(COMMANDS.createEdge, toInvokeArguments(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.createEdge}' failed: ${String(error)}`, {
       cause: error,
@@ -153,6 +186,10 @@ export async function createEdge(input: CreateEdgeInput): Promise<MnemeOpResult>
   }
 }
 
+/**
+ * Update the existence interval for an edge.
+ * @param input - Update payload.
+ */
 export async function setEdgeExistenceInterval(
   input: SetEdgeExistenceIntervalInput,
 ): Promise<MnemeOpResult> {
@@ -162,7 +199,7 @@ export async function setEdgeExistenceInterval(
   try {
     return await invoke<MnemeOpResult>(
       COMMANDS.setEdgeExistenceInterval,
-      toInvokeArgs(input),
+      toInvokeArguments(input),
     );
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.setEdgeExistenceInterval}' failed: ${String(error)}`, {
@@ -171,12 +208,16 @@ export async function setEdgeExistenceInterval(
   }
 }
 
+/**
+ * Tombstone an entity.
+ * @param input - Tombstone payload.
+ */
 export async function tombstoneEntity(input: TombstoneEntityInput): Promise<MnemeOpResult> {
   if (!isTauri()) {
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.tombstoneEntity, toInvokeArgs(input));
+    return await invoke<MnemeOpResult>(COMMANDS.tombstoneEntity, toInvokeArguments(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.tombstoneEntity}' failed: ${String(error)}`, {
       cause: error,
@@ -184,6 +225,10 @@ export async function tombstoneEntity(input: TombstoneEntityInput): Promise<Mnem
   }
 }
 
+/**
+ * Set a property interval on an entity.
+ * @param input - Update payload.
+ */
 export async function setPropertyInterval(input: SetPropertyIntervalInput): Promise<MnemeOpResult> {
   if (!isTauri()) {
     return { opId: 'mock-op' };
@@ -200,6 +245,10 @@ export async function setPropertyInterval(input: SetPropertyIntervalInput): Prom
   }
 }
 
+/**
+ * Clear a property interval on an entity.
+ * @param input - Clear payload.
+ */
 export async function clearPropertyInterval(
   input: ClearPropertyIntervalInput,
 ): Promise<MnemeOpResult> {
@@ -209,7 +258,7 @@ export async function clearPropertyInterval(
   try {
     return await invoke<MnemeOpResult>(
       COMMANDS.clearPropertyInterval,
-      toInvokeArgs(input),
+      toInvokeArguments(input),
     );
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.clearPropertyInterval}' failed: ${String(error)}`, {
@@ -218,6 +267,10 @@ export async function clearPropertyInterval(
   }
 }
 
+/**
+ * Update an OR-Set value.
+ * @param input - Update payload.
+ */
 export async function orSetUpdate(input: OrSetUpdateInput): Promise<MnemeOpResult> {
   if (!isTauri()) {
     return { opId: 'mock-op' };
@@ -234,12 +287,16 @@ export async function orSetUpdate(input: OrSetUpdateInput): Promise<MnemeOpResul
   }
 }
 
+/**
+ * Apply a counter update.
+ * @param input - Update payload.
+ */
 export async function counterUpdate(input: CounterUpdateInput): Promise<MnemeOpResult> {
   if (!isTauri()) {
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.counterUpdate, toInvokeArgs(input));
+    return await invoke<MnemeOpResult>(COMMANDS.counterUpdate, toInvokeArguments(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.counterUpdate}' failed: ${String(error)}`, {
       cause: error,
@@ -247,6 +304,10 @@ export async function counterUpdate(input: CounterUpdateInput): Promise<MnemeOpR
   }
 }
 
+/**
+ * Read an entity state at a given time.
+ * @param input - Read payload.
+ */
 export async function readEntityAtTime(
   input: ReadEntityAtTimeInput,
 ): Promise<ReadEntityAtTimeResult> {
@@ -268,6 +329,10 @@ export async function readEntityAtTime(
   }
 }
 
+/**
+ * Traverse edges at a given time.
+ * @param input - Traverse payload.
+ */
 export async function traverseAtTime(
   input: TraverseAtTimeInput,
 ): Promise<TraverseEdgeItem[]> {
@@ -289,6 +354,10 @@ export async function traverseAtTime(
   }
 }
 
+/**
+ * List entities at a given time.
+ * @param input - List payload.
+ */
 export async function listEntities(
   input: ListEntitiesInput,
 ): Promise<ListEntitiesResultItem[]> {
@@ -312,19 +381,120 @@ export async function listEntities(
   }
 }
 
-export async function getEffectiveSchema(
-  partitionId: PartitionId,
-  typeId: TypeId,
-): Promise<EffectiveSchema | null> {
+/**
+ * Fetch projection edges for analytics.
+ */
+export async function getProjectionEdges(
+  input: GetProjectionEdgesInput,
+): Promise<ProjectionEdge[]> {
   if (!isTauri()) {
-    return null;
+    return [];
+  }
+  try {
+    const raw = await invoke<RustProjectionEdge[]>(COMMANDS.getProjectionEdges, input);
+    return raw.map(fromRustProjectionEdge);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.getProjectionEdges}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Fetch graph degree stats.
+ */
+export async function getGraphDegreeStats(
+  input: GetGraphDegreeStatsInput,
+): Promise<GraphDegreeStat[]> {
+  if (!isTauri()) {
+    return [];
+  }
+  try {
+    const raw = await invoke<RustGraphDegreeStat[]>(COMMANDS.getGraphDegreeStats, input);
+    return raw.map(fromRustGraphDegreeStat);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.getGraphDegreeStats}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Fetch edge type counts.
+ */
+export async function getGraphEdgeTypeCounts(
+  input: GetGraphEdgeTypeCountsInput,
+): Promise<GraphEdgeTypeCount[]> {
+  if (!isTauri()) {
+    return [];
+  }
+  try {
+    const raw = await invoke<RustGraphEdgeTypeCount[]>(COMMANDS.getGraphEdgeTypeCounts, input);
+    return raw.map(fromRustGraphEdgeTypeCount);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.getGraphEdgeTypeCounts}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Store PageRank scores in Mneme.
+ */
+export async function storePageRankRun(
+  input: StorePageRankRunInput,
+): Promise<PageRankRunResult> {
+  if (!isTauri()) {
+    return { runId: 'mock-run' };
+  }
+  try {
+    return await invoke<PageRankRunResult>(COMMANDS.storePageRankRun, {
+      ...input,
+      params: toRustPageRankParams(input.params),
+    });
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.storePageRankRun}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Fetch PageRank scores.
+ */
+export async function getPageRankScores(
+  input: GetPageRankScoresInput,
+): Promise<PageRankScore[]> {
+  if (!isTauri()) {
+    return [];
+  }
+  try {
+    return await invoke<PageRankScore[]>(COMMANDS.getPageRankScores, input);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.getPageRankScores}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Fetch the effective schema for a type.
+ * @param partitionId - Target partition id.
+ * @param typeId - Type identifier to resolve.
+ */
+export async function getEffectiveSchema(
+  partitionId: string,
+  typeId: string,
+): Promise<EffectiveSchema | undefined> {
+  if (!isTauri()) {
+    return undefined;
   }
   try {
     const raw = await invoke<RustEffectiveSchema | null>(COMMANDS.getEffectiveSchema, {
       partitionId,
       typeId,
     });
-    return raw ? fromRustEffectiveSchema(raw) : null;
+    return raw ? fromRustEffectiveSchema(raw) : undefined;
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.getEffectiveSchema}' failed: ${String(error)}`, {
       cause: error,
@@ -332,10 +502,15 @@ export async function getEffectiveSchema(
   }
 }
 
+/**
+ * List edge type rules for the partition.
+ * @param partitionId - Target partition id.
+ * @param edgeTypeId - Optional edge type filter.
+ */
 export async function listEdgeTypeRules(
-  partitionId: PartitionId,
-  edgeTypeId?: TypeId,
-): Promise<EdgeTypeRuleDef[]> {
+  partitionId: string,
+  edgeTypeId?: string,
+): Promise<EdgeTypeRuleDefinition[]> {
   if (!isTauri()) {
     return [];
   }
@@ -344,7 +519,7 @@ export async function listEdgeTypeRules(
       partitionId,
       edgeTypeId,
     });
-    return raw.map(fromRustEdgeTypeRule);
+    return raw.map((rule) => fromRustEdgeTypeRule(rule));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.listEdgeTypeRules}' failed: ${String(error)}`, {
       cause: error,
@@ -355,16 +530,16 @@ export async function listEdgeTypeRules(
 type RustValueType = 'Str' | 'I64' | 'F64' | 'Bool' | 'Time' | 'Ref' | 'Blob' | 'Json';
 type RustMergePolicy = 'Lww' | 'Mv' | 'OrSet' | 'Counter' | 'Text';
 
-interface RustTypeDef {
-  type_id: TypeId;
+interface RustTypeDefinition {
+  type_id: string;
   applies_to: 'Node' | 'Edge';
   label: string;
   is_abstract: boolean;
-  parent_type_id?: TypeId;
+  parent_type_id?: string;
 }
 
-interface RustFieldDef {
-  field_id: FieldId;
+interface RustFieldDefinition {
+  field_id: string;
   label: string;
   value_type: RustValueType;
   cardinality_multi: boolean;
@@ -372,9 +547,9 @@ interface RustFieldDef {
   is_indexed: boolean;
 }
 
-interface RustTypeFieldDef {
-  type_id: TypeId;
-  field_id: FieldId;
+interface RustTypeFieldDefinition {
+  type_id: string;
+  field_id: string;
   is_required: boolean;
   default_value?: unknown;
   override_default?: boolean;
@@ -382,23 +557,23 @@ interface RustTypeFieldDef {
 }
 
 interface RustEdgeTypeRule {
-  edge_type_id: TypeId;
-  allowed_src_type_ids: TypeId[];
-  allowed_dst_type_ids: TypeId[];
-  semantic_direction?: string | null;
+  edge_type_id: string;
+  allowed_src_type_ids: string[];
+  allowed_dst_type_ids: string[];
+  semantic_direction?: string;
 }
 
 interface RustMetamodelBatch {
-  types: RustTypeDef[];
-  fields: RustFieldDef[];
-  type_fields: RustTypeFieldDef[];
+  types: RustTypeDefinition[];
+  fields: RustFieldDefinition[];
+  type_fields: RustTypeFieldDefinition[];
   edge_type_rules: RustEdgeTypeRule[];
-  metamodel_version?: string | null;
-  metamodel_source?: string | null;
+  metamodel_version?: string;
+  metamodel_source?: string;
 }
 
 interface RustEffectiveSchemaField {
-  field_id: FieldId;
+  field_id: string;
   value_type: RustValueType;
   cardinality_multi: boolean;
   merge_policy: RustMergePolicy;
@@ -409,30 +584,64 @@ interface RustEffectiveSchemaField {
 }
 
 interface RustEffectiveSchema {
-  type_id: TypeId;
+  type_id: string;
   applies_to: 'Node' | 'Edge';
   fields: RustEffectiveSchemaField[];
 }
 
 interface RustReadEntityAtTimeResult {
-  entity_id: TypeId;
+  entity_id: string;
   kind: 'Node' | 'Edge';
-  type_id?: TypeId;
+  type_id?: string;
   is_deleted: boolean;
-  properties: Record<FieldId, RustReadValue>;
+  properties: Record<string, RustReadValue>;
 }
 
 interface RustTraverseEdgeItem {
-  edge_id: TypeId;
-  src_id: TypeId;
-  dst_id: TypeId;
-  type_id?: TypeId;
+  edge_id: string;
+  src_id: string;
+  dst_id: string;
+  type_id?: string;
 }
 
 interface RustListEntitiesResultItem {
-  entity_id: TypeId;
+  entity_id: string;
   kind: 'Node' | 'Edge';
-  type_id?: TypeId;
+  type_id?: string;
+}
+
+interface RustProjectionEdge {
+  edge_id: string;
+  src_id: string;
+  dst_id: string;
+  edge_type_id?: string;
+  weight: number;
+}
+
+interface RustGraphDegreeStat {
+  entity_id: string;
+  out_degree: number;
+  in_degree: number;
+  as_of_valid_time?: number | null;
+  computed_asserted_at: number;
+}
+
+interface RustGraphEdgeTypeCount {
+  edge_type_id?: string | null;
+  count: number;
+  computed_asserted_at: number;
+}
+
+interface RustPageRankSeed {
+  id: string;
+  weight: number;
+}
+
+interface RustPageRankParams {
+  damping: number;
+  maxIters: number;
+  tol: number;
+  personalisedSeed?: RustPageRankSeed[];
 }
 
 type RustValue =
@@ -472,68 +681,106 @@ const MERGE_POLICY_MAP: Record<
   TEXT: 'Text',
 };
 
+/**
+ * Normalize value types to the Rust enum representation.
+ * @param valueType - Value type in either Rust or API form.
+ */
 function toRustValueType(valueType: RustValueType | EffectiveSchema['fields'][number]['valueType']) {
-  return VALUE_TYPE_MAP[valueType as EffectiveSchema['fields'][number]['valueType']] ?? valueType;
+  if (valueType in VALUE_TYPE_MAP) {
+    return VALUE_TYPE_MAP[valueType as EffectiveSchema['fields'][number]['valueType']];
+  }
+  return valueType;
 }
 
+/**
+ * Normalize merge policies to the Rust enum representation.
+ * @param mergePolicy - Merge policy in either Rust or API form.
+ */
 function toRustMergePolicy(
   mergePolicy: RustMergePolicy | EffectiveSchema['fields'][number]['mergePolicy'],
 ) {
-  return MERGE_POLICY_MAP[mergePolicy as EffectiveSchema['fields'][number]['mergePolicy']] ?? mergePolicy;
+  if (mergePolicy in MERGE_POLICY_MAP) {
+    return MERGE_POLICY_MAP[mergePolicy as EffectiveSchema['fields'][number]['mergePolicy']];
+  }
+  return mergePolicy;
 }
 
-function toRustType(def: TypeDef): RustTypeDef {
+/**
+ * Convert a TypeDefinition into the Rust representation.
+ * @param definition - Type definition to convert.
+ */
+function toRustType(definition: TypeDefinition): RustTypeDefinition {
   return {
-    type_id: def.typeId,
-    applies_to: def.appliesTo,
-    label: def.label,
-    is_abstract: def.isAbstract,
-    parent_type_id: def.parentTypeId,
+    type_id: definition.typeId,
+    applies_to: definition.appliesTo,
+    label: definition.label,
+    is_abstract: definition.isAbstract,
+    parent_type_id: definition.parentTypeId,
   };
 }
 
-function toRustField(def: FieldDef): RustFieldDef {
+/**
+ * Convert a FieldDefinition into the Rust representation.
+ * @param definition - Field definition to convert.
+ */
+function toRustField(definition: FieldDefinition): RustFieldDefinition {
   return {
-    field_id: def.fieldId,
-    label: def.label,
-    value_type: toRustValueType(def.valueType),
-    cardinality_multi: def.cardinality === 'multi',
-    merge_policy: toRustMergePolicy(def.mergePolicy),
-    is_indexed: def.indexed,
+    field_id: definition.fieldId,
+    label: definition.label,
+    value_type: toRustValueType(definition.valueType),
+    cardinality_multi: definition.cardinality === 'multi',
+    merge_policy: toRustMergePolicy(definition.mergePolicy),
+    is_indexed: definition.indexed,
   };
 }
 
-function toRustTypeField(def: TypeFieldDef): RustTypeFieldDef {
+/**
+ * Convert a TypeFieldDefinition into the Rust representation.
+ * @param definition - Type field definition to convert.
+ */
+function toRustTypeField(definition: TypeFieldDefinition): RustTypeFieldDefinition {
   return {
-    type_id: def.typeId,
-    field_id: def.fieldId,
-    is_required: def.required,
-    default_value: def.defaultValue,
-    override_default: def.overrideDefault,
-    tighten_required: def.tightenRequired,
+    type_id: definition.typeId,
+    field_id: definition.fieldId,
+    is_required: definition.required,
+    default_value: definition.defaultValue,
+    override_default: definition.overrideDefault,
+    tighten_required: definition.tightenRequired,
   };
 }
 
-function toRustEdgeTypeRule(def: EdgeTypeRuleDef): RustEdgeTypeRule {
+/**
+ * Convert an EdgeTypeRuleDefinition into the Rust representation.
+ * @param definition - Edge type rule definition to convert.
+ */
+function toRustEdgeTypeRule(definition: EdgeTypeRuleDefinition): RustEdgeTypeRule {
   return {
-    edge_type_id: def.edgeTypeId,
-    semantic_direction: def.semanticDirection,
-    allowed_src_type_ids: def.allowedSrcTypeIds ?? [],
-    allowed_dst_type_ids: def.allowedDstTypeIds ?? [],
+    edge_type_id: definition.edgeTypeId,
+    semantic_direction: definition.semanticDirection,
+    allowed_src_type_ids: definition.allowedSrcTypeIds ?? [],
+    allowed_dst_type_ids: definition.allowedDstTypeIds ?? [],
   };
 }
 
+/**
+ * Convert the metamodel batch into Rust-friendly payloads.
+ * @param batch - Batch to convert.
+ */
 function toRustMetamodelBatch(batch: MetamodelBatch): RustMetamodelBatch {
   return {
-    types: batch.types.map(toRustType),
-    fields: batch.fields.map(toRustField),
-    type_fields: batch.typeFields.map(toRustTypeField),
-    edge_type_rules: (batch.edgeTypeRules ?? []).map(toRustEdgeTypeRule),
+    types: batch.types.map((typeDef) => toRustType(typeDef)),
+    fields: batch.fields.map((fieldDef) => toRustField(fieldDef)),
+    type_fields: batch.typeFields.map((typeField) => toRustTypeField(typeField)),
+    edge_type_rules: (batch.edgeTypeRules ?? []).map((rule) => toRustEdgeTypeRule(rule)),
     metamodel_version: undefined,
     metamodel_source: undefined,
   };
 }
 
+/**
+ * Convert a field filter into the Rust wire format.
+ * @param filter - Filter input to convert.
+ */
 function toRustFieldFilter(filter: FieldFilter) {
   return {
     fieldId: filter.fieldId,
@@ -542,44 +789,84 @@ function toRustFieldFilter(filter: FieldFilter) {
   };
 }
 
+/**
+ * Convert a value payload into the Rust wire format.
+ * @param value - Value to convert.
+ */
 function toRustValue(value: Value): RustValue {
   switch (value.t) {
-    case 'str':
+    case 'str': {
       return { Str: value.v };
-    case 'i64': {
-      const num = Number(value.v);
-      if (!Number.isSafeInteger(num)) {
-        throw new Error('Value.i64 exceeds safe integer range for IPC transport.');
-      }
-      return { I64: num };
     }
-    case 'f64':
+    case 'i64': {
+      const numberValue = Number(value.v);
+      if (!Number.isSafeInteger(numberValue)) {
+        throw new TypeError('Value.i64 exceeds safe integer range for IPC transport.');
+      }
+      return { I64: numberValue };
+    }
+    case 'f64': {
       return { F64: value.v };
-    case 'bool':
+    }
+    case 'bool': {
       return { Bool: value.v };
-    case 'time':
+    }
+    case 'time': {
       return { Time: toValidTimeMicros(value.v) };
-    case 'ref':
+    }
+    case 'ref': {
       return { Ref: value.v };
-    case 'blob':
+    }
+    case 'blob': {
       return { Blob: value.v };
-    case 'json':
+    }
+    case 'json': {
       return { Json: value.v };
+    }
     default: {
       const _exhaustive: never = value;
-      throw new Error(`Unsupported value type: ${String(_exhaustive)}`);
+      throw new TypeError(`Unsupported value type: ${String(_exhaustive)}`);
     }
   }
 }
 
-function toValidTimeMicros(value: string): number {
+/**
+ * Convert an ISO timestamp to microseconds.
+ * @param value - ISO-8601 timestamp.
+ */
+function toValidTimeMicros(value: ValidTime): number {
   const parsed = Date.parse(value);
   if (Number.isNaN(parsed)) {
-    throw new Error(`Invalid ISO-8601 timestamp: ${value}`);
+    throw new TypeError(`Invalid ISO-8601 timestamp: ${value}`);
   }
   return parsed * 1000;
 }
 
+function fromValidTimeMicros(value?: number | null): ValidTime | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  return new Date(value / 1000).toISOString() as ValidTime;
+}
+
+function hlcToString(value: number): AssertedTime {
+  return `${value}` as AssertedTime;
+}
+
+function toRustPageRankParams(params: PageRankRunParams): RustPageRankParams {
+  return {
+    ...params,
+    personalisedSeed: params.personalisedSeed?.map((seed) => ({
+      id: seed.id,
+      weight: seed.w,
+    })),
+  };
+}
+
+/**
+ * Convert a Rust value into the API representation.
+ * @param value - Rust value to convert.
+ */
 function fromRustValue(value: RustValue): Value {
   if ('Str' in value) {
     return { t: 'str', v: value.Str };
@@ -606,11 +893,15 @@ function fromRustValue(value: RustValue): Value {
   if ('Json' in value) {
     return { t: 'json', v: value.Json };
   }
-  throw new Error('Unsupported Rust value variant');
+  throw new TypeError('Unsupported Rust value variant');
 }
 
+/**
+ * Convert a Rust read result into the API representation.
+ * @param raw - Rust payload.
+ */
 function fromRustReadEntityAtTime(raw: RustReadEntityAtTimeResult): ReadEntityAtTimeResult {
-  const properties: Record<FieldId, ReadValue> = {};
+  const properties: Record<string, ReadValue> = {};
   Object.entries(raw.properties).forEach(([fieldId, value]) => {
     properties[fieldId] = toReadValue(value);
   });
@@ -623,19 +914,51 @@ function fromRustReadEntityAtTime(raw: RustReadEntityAtTimeResult): ReadEntityAt
   };
 }
 
+/**
+ * Convert a Rust read value into the API representation.
+ * @param value - Rust read value to convert.
+ */
 function toReadValue(value: RustReadValue): ReadValue {
   if ('Single' in value) {
     return { k: 'single', v: fromRustValue(value.Single) };
   }
   if ('Multi' in value) {
-    return { k: 'multi', v: value.Multi.map(fromRustValue) };
+    return { k: 'multi', v: value.Multi.map((item) => fromRustValue(item)) };
   }
   return {
     k: 'multi_limited',
     v: {
-      values: value.MultiLimited.values.map(fromRustValue),
+      values: value.MultiLimited.values.map((item) => fromRustValue(item)),
       moreAvailable: value.MultiLimited.more_available,
     },
+  };
+}
+
+function fromRustProjectionEdge(edge: RustProjectionEdge): ProjectionEdge {
+  return {
+    edgeId: edge.edge_id,
+    srcId: edge.src_id,
+    dstId: edge.dst_id,
+    edgeTypeId: edge.edge_type_id ?? undefined,
+    weight: edge.weight,
+  };
+}
+
+function fromRustGraphDegreeStat(stat: RustGraphDegreeStat): GraphDegreeStat {
+  return {
+    entityId: stat.entity_id,
+    outDegree: stat.out_degree,
+    inDegree: stat.in_degree,
+    asOfValidTime: fromValidTimeMicros(stat.as_of_valid_time),
+    computedAssertedAt: hlcToString(stat.computed_asserted_at),
+  };
+}
+
+function fromRustGraphEdgeTypeCount(count: RustGraphEdgeTypeCount): GraphEdgeTypeCount {
+  return {
+    edgeTypeId: count.edge_type_id ?? undefined,
+    count: count.count,
+    computedAssertedAt: hlcToString(count.computed_asserted_at),
   };
 }
 
@@ -659,6 +982,10 @@ const MERGE_POLICY_FROM_RUST: Record<RustMergePolicy, EffectiveSchema['fields'][
     Text: 'TEXT',
   };
 
+/**
+ * Convert a Rust effective schema into the API representation.
+ * @param schema - Rust schema payload.
+ */
 function fromRustEffectiveSchema(schema: RustEffectiveSchema): EffectiveSchema {
   return {
     typeId: schema.type_id,
@@ -676,7 +1003,11 @@ function fromRustEffectiveSchema(schema: RustEffectiveSchema): EffectiveSchema {
   };
 }
 
-function fromRustEdgeTypeRule(rule: RustEdgeTypeRule): EdgeTypeRuleDef {
+/**
+ * Convert a Rust edge type rule into the API representation.
+ * @param rule - Rust edge type rule.
+ */
+function fromRustEdgeTypeRule(rule: RustEdgeTypeRule): EdgeTypeRuleDefinition {
   return {
     edgeTypeId: rule.edge_type_id,
     semanticDirection: rule.semantic_direction ?? '',

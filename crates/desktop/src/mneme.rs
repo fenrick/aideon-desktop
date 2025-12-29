@@ -1,12 +1,14 @@
 //! Host-side Mneme commands bridging renderer IPC calls to the Mneme store.
 
 use aideon_praxis_facade::mneme::{
-    ClearPropIntervalInput, CompareOp, CounterUpdateInput, CreateEdgeInput, CreateNodeInput,
-    Direction, EdgeTypeRule, EntityKind, FieldFilter, GraphReadApi, GraphWriteApi, ListEntitiesInput,
-    ListEntitiesResultItem, MetamodelApi, MetamodelBatch, MnemeError, OpId, OrSetUpdateInput,
-    PartitionId, PropertyWriteApi, ReadEntityAtTimeInput, ReadEntityAtTimeResult, SchemaVersion,
+    AnalyticsApi, AnalyticsResultsApi, ClearPropIntervalInput, CompareOp, CounterUpdateInput,
+    CreateEdgeInput, CreateNodeInput, Direction, EdgeTypeRule, EntityKind, FieldFilter,
+    GetGraphDegreeStatsInput, GetGraphEdgeTypeCountsInput, GetProjectionEdgesInput, GraphDegreeStat,
+    GraphEdgeTypeCount, GraphReadApi, GraphWriteApi, ListEntitiesInput, ListEntitiesResultItem,
+    MetamodelApi, MetamodelBatch, MnemeError, OpId, OrSetUpdateInput, PageRankRunSpec, PartitionId,
+    PropertyWriteApi, ReadEntityAtTimeInput, ReadEntityAtTimeResult, SchemaVersion,
     SetEdgeExistenceIntervalInput, SetOp, SetPropIntervalInput, TraverseAtTimeInput,
-    TraverseEdgeItem, ValidTime, Value,
+    TraverseEdgeItem, ValidTime, Value, ProjectionEdge,
 };
 use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
 use log::{debug, error, info};
@@ -398,6 +400,132 @@ pub async fn mneme_list_entities(
 }
 
 #[tauri::command]
+pub async fn mneme_get_projection_edges(
+    state: State<'_, WorkerState>,
+    payload: GetProjectionEdgesPayload,
+) -> Result<Vec<ProjectionEdge>, HostError> {
+    let store = state.mneme();
+    let as_of = payload
+        .as_of_asserted_at
+        .as_deref()
+        .map(parse_hlc)
+        .transpose()?;
+    let at_valid_time = match payload.at {
+        Some(value) => Some(parse_valid_time(&value)?),
+        None => None,
+    };
+    store
+        .get_projection_edges(GetProjectionEdgesInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            security_context: None,
+            at_valid_time,
+            as_of_asserted_at: as_of,
+            edge_type_filter: payload.edge_type_filter,
+            limit: payload.limit,
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_get_graph_degree_stats(
+    state: State<'_, WorkerState>,
+    payload: GetGraphDegreeStatsPayload,
+) -> Result<Vec<GraphDegreeStat>, HostError> {
+    let store = state.mneme();
+    let as_of_valid_time = match payload.as_of_valid_time {
+        Some(value) => Some(parse_valid_time(&value)?),
+        None => None,
+    };
+    store
+        .get_graph_degree_stats(GetGraphDegreeStatsInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            as_of_valid_time,
+            entity_ids: payload.entity_ids,
+            limit: payload.limit,
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_get_graph_edge_type_counts(
+    state: State<'_, WorkerState>,
+    payload: GetGraphEdgeTypeCountsPayload,
+) -> Result<Vec<GraphEdgeTypeCount>, HostError> {
+    let store = state.mneme();
+    store
+        .get_graph_edge_type_counts(GetGraphEdgeTypeCountsInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            edge_type_ids: payload.edge_type_ids,
+            limit: payload.limit,
+        })
+        .await
+        .map_err(host_error)
+}
+
+#[tauri::command]
+pub async fn mneme_store_pagerank_scores(
+    state: State<'_, WorkerState>,
+    payload: StorePageRankScoresPayload,
+) -> Result<PageRankRunResult, HostError> {
+    let store = state.mneme();
+    let as_of_valid_time = match payload.as_of_valid_time {
+        Some(value) => Some(parse_valid_time(&value)?),
+        None => None,
+    };
+    let as_of_asserted_at = payload
+        .as_of_asserted_at
+        .as_deref()
+        .map(parse_hlc)
+        .transpose()?;
+    let run_id = store
+        .store_pagerank_scores(
+            payload.partition_id,
+            payload.actor_id,
+            parse_hlc(&payload.asserted_at)?,
+            as_of_valid_time,
+            as_of_asserted_at,
+            PageRankRunSpec {
+                damping: payload.params.damping,
+                max_iters: payload.params.max_iters,
+                tol: payload.params.tol,
+                personalised_seed: payload
+                    .params
+                    .personalised_seed
+                    .map(|entries| entries.into_iter().map(|seed| (seed.id, seed.weight)).collect()),
+            },
+            payload
+                .scores
+                .into_iter()
+                .map(|score| (score.id, score.score))
+                .collect(),
+        )
+        .await
+        .map_err(host_error)?;
+    Ok(PageRankRunResult { run_id })
+}
+
+#[tauri::command]
+pub async fn mneme_get_pagerank_scores(
+    state: State<'_, WorkerState>,
+    payload: GetPageRankScoresPayload,
+) -> Result<Vec<PageRankScoreItem>, HostError> {
+    let store = state.mneme();
+    let scores = store
+        .get_pagerank_scores(payload.partition_id, payload.run_id, payload.top_n)
+        .await
+        .map_err(host_error)?;
+    Ok(scores
+        .into_iter()
+        .map(|(id, score)| PageRankScoreItem { id, score })
+        .collect())
+}
+
+#[tauri::command]
 pub async fn mneme_get_effective_schema(
     state: State<'_, WorkerState>,
     partition_id: PartitionId,
@@ -629,6 +757,93 @@ pub struct ListEntitiesFilterPayload {
     pub field_id: aideon_praxis_facade::mneme::Id,
     pub op: CompareOp,
     pub value: Value,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetProjectionEdgesPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub at: Option<String>,
+    pub as_of_asserted_at: Option<String>,
+    pub edge_type_filter: Option<Vec<aideon_praxis_facade::mneme::Id>>,
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetGraphDegreeStatsPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub as_of_valid_time: Option<String>,
+    pub entity_ids: Option<Vec<aideon_praxis_facade::mneme::Id>>,
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetGraphEdgeTypeCountsPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub edge_type_ids: Option<Vec<aideon_praxis_facade::mneme::Id>>,
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StorePageRankScoresPayload {
+    pub partition_id: PartitionId,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub as_of_valid_time: Option<String>,
+    pub as_of_asserted_at: Option<String>,
+    pub params: PageRankParamsPayload,
+    pub scores: Vec<PageRankScorePayload>,
+    pub scenario_id: Option<ScenarioId>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PageRankParamsPayload {
+    pub damping: f64,
+    pub max_iters: u32,
+    pub tol: f64,
+    pub personalised_seed: Option<Vec<PageRankSeedPayload>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PageRankSeedPayload {
+    pub id: aideon_praxis_facade::mneme::Id,
+    pub weight: f64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PageRankScorePayload {
+    pub id: aideon_praxis_facade::mneme::Id,
+    pub score: f64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetPageRankScoresPayload {
+    pub partition_id: PartitionId,
+    pub run_id: aideon_praxis_facade::mneme::Id,
+    pub top_n: u32,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PageRankRunResult {
+    pub run_id: aideon_praxis_facade::mneme::Id,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PageRankScoreItem {
+    pub id: aideon_praxis_facade::mneme::Id,
+    pub score: f64,
 }
 
 #[cfg(test)]

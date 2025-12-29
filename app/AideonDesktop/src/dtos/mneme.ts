@@ -227,3 +227,88 @@ export interface ListEntitiesResultItem {
   kind: 'Node' | 'Edge';
   typeId?: string;
 }
+
+export interface ProjectionEdge {
+  edgeId: string;
+  srcId: string;
+  dstId: string;
+  edgeTypeId?: string;
+  weight: number;
+}
+
+export interface GetProjectionEdgesInput {
+  partitionId: string;
+  at?: ValidTime;
+  asOfAssertedAt?: AssertedTime;
+  edgeTypeFilter?: string[];
+  limit?: number;
+  scenarioId?: string;
+}
+
+export interface GraphDegreeStat {
+  entityId: string;
+  outDegree: number;
+  inDegree: number;
+  asOfValidTime?: ValidTime;
+  computedAssertedAt: AssertedTime;
+}
+
+export interface GetGraphDegreeStatsInput {
+  partitionId: string;
+  asOfValidTime?: ValidTime;
+  entityIds?: string[];
+  limit?: number;
+  scenarioId?: string;
+}
+
+export interface GraphEdgeTypeCount {
+  edgeTypeId?: string;
+  count: number;
+  computedAssertedAt: AssertedTime;
+}
+
+export interface GetGraphEdgeTypeCountsInput {
+  partitionId: string;
+  edgeTypeIds?: string[];
+  limit?: number;
+  scenarioId?: string;
+}
+
+export interface PageRankSeed {
+  id: string;
+  w: number;
+}
+
+export interface PageRankRunParams {
+  damping: number;
+  maxIters: number;
+  tol: number;
+  personalisedSeed?: PageRankSeed[];
+}
+
+export interface PageRankScore {
+  id: string;
+  score: number;
+}
+
+export interface StorePageRankRunInput {
+  partitionId: string;
+  actorId: string;
+  assertedAt: AssertedTime;
+  asOfValidTime?: ValidTime;
+  asOfAssertedAt?: AssertedTime;
+  params: PageRankRunParams;
+  scores: PageRankScore[];
+  scenarioId?: string;
+}
+
+export interface PageRankRunResult {
+  runId: string;
+}
+
+export interface GetPageRankScoresInput {
+  partitionId: string;
+  runId: string;
+  topN: number;
+  scenarioId?: string;
+}

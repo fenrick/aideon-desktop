@@ -18,6 +18,11 @@ import {
   clearPropertyInterval,
   setEdgeExistenceInterval,
   listEntities,
+  getProjectionEdges,
+  getGraphDegreeStats,
+  getGraphEdgeTypeCounts,
+  storePageRankRun,
+  getPageRankScores,
   readEntityAtTime,
   traverseAtTime,
   tombstoneEntity,
@@ -481,5 +486,96 @@ describe('mneme-api metamodel bindings', () => {
       limit: 5,
     });
     expect(results).toEqual([{ entityId: 'n-1', kind: 'Node', typeId: 't-1' }]);
+  });
+
+  it('maps projection edges from rust to ts', async () => {
+    invokeMock.mockResolvedValue([
+      {
+        edge_id: 'e-1',
+        src_id: 'n-1',
+        dst_id: 'n-2',
+        edge_type_id: 't-1',
+        weight: 0.8,
+      },
+    ]);
+
+    const edges = await getProjectionEdges({ partitionId: 'p-1' });
+
+    expect(edges).toEqual([
+      { edgeId: 'e-1', srcId: 'n-1', dstId: 'n-2', edgeTypeId: 't-1', weight: 0.8 },
+    ]);
+  });
+
+  it('maps degree stats from rust to ts', async () => {
+    invokeMock.mockResolvedValue([
+      {
+        entity_id: 'n-1',
+        out_degree: 2,
+        in_degree: 1,
+        as_of_valid_time: 1735689600000000,
+        computed_asserted_at: 555,
+      },
+    ]);
+
+    const stats = await getGraphDegreeStats({ partitionId: 'p-1' });
+
+    expect(stats[0]).toMatchObject({
+      entityId: 'n-1',
+      outDegree: 2,
+      inDegree: 1,
+      computedAssertedAt: '555',
+    });
+    expect(stats[0]?.asOfValidTime).toBe('2025-01-01T00:00:00.000Z');
+  });
+
+  it('maps edge type counts from rust to ts', async () => {
+    invokeMock.mockResolvedValue([
+      { edge_type_id: 't-1', count: 4, computed_asserted_at: 777 },
+    ]);
+
+    const counts = await getGraphEdgeTypeCounts({ partitionId: 'p-1' });
+
+    expect(counts).toEqual([
+      { edgeTypeId: 't-1', count: 4, computedAssertedAt: '777' },
+    ]);
+  });
+
+  it('stores pagerank runs with seed conversion', async () => {
+    invokeMock.mockResolvedValue({ runId: 'r-1' });
+
+    const result = await storePageRankRun({
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      params: {
+        damping: 0.85,
+        maxIters: 20,
+        tol: 0.0001,
+        personalisedSeed: [{ id: 'n-1', w: 0.5 }],
+      },
+      scores: [{ id: 'n-1', score: 1.0 }],
+    });
+
+    expect(result.runId).toBe('r-1');
+    expect(invokeMock).toHaveBeenCalledWith('mneme_store_pagerank_scores', {
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      params: {
+        damping: 0.85,
+        maxIters: 20,
+        tol: 0.0001,
+        personalisedSeed: [{ id: 'n-1', weight: 0.5 }],
+      },
+      scores: [{ id: 'n-1', score: 1.0 }],
+    });
+  });
+
+  it('returns pagerank scores', async () => {
+    invokeMock.mockResolvedValue([{ id: 'n-1', score: 0.9 }]);
+
+    const scores = await getPageRankScores({ partitionId: 'p-1', runId: 'r-1', topN: 3 });
+
+    expect(scores).toEqual([{ id: 'n-1', score: 0.9 }]);
   });
 });

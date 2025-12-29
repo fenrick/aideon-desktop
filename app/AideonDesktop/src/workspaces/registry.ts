@@ -1,21 +1,8 @@
 import type { WorkspaceModule } from './types';
-import {
-  PraxisWorkspaceContent,
-  PraxisWorkspaceInspector,
-  PraxisWorkspaceNavigation,
-  PraxisWorkspaceToolbar,
-} from './praxis/workspace';
+import { PRAXIS_WORKSPACE } from './praxis/module';
 
 export const WORKSPACES: WorkspaceModule[] = [
-  {
-    id: 'praxis',
-    label: 'Praxis',
-    enabled: true,
-    Navigation: PraxisWorkspaceNavigation,
-    Toolbar: PraxisWorkspaceToolbar,
-    Content: PraxisWorkspaceContent,
-    Inspector: PraxisWorkspaceInspector,
-  },
+  PRAXIS_WORKSPACE,
   {
     id: 'metis',
     label: 'Metis',

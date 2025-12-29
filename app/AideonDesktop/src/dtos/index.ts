@@ -29,3 +29,24 @@ export type {
 
 export type { WorkerHealth } from './health';
 export type { PlanEvent, PlanEventEffect, PlanEventSource } from './plan-event';
+export type {
+  ActorId,
+  AssertedTime,
+  EdgeTypeRuleDef,
+  EntityId,
+  FieldDef,
+  FieldId,
+  Id,
+  Layer,
+  MetamodelBatch,
+  OpId,
+  PartitionId,
+  ReadValue,
+  ScenarioId,
+  SchemaCompileResult,
+  TypeDef,
+  TypeFieldDef,
+  TypeId,
+  ValidTime,
+  Value,
+} from './mneme';

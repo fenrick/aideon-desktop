@@ -7,11 +7,16 @@ import type {
   EdgeTypeRuleDef,
   FieldId,
   FieldDef,
+  Value,
   MetamodelBatch,
   OpId,
   PartitionId,
   SchemaCompileResult,
   SetEdgeExistenceIntervalInput,
+  SetPropertyIntervalInput,
+  ClearPropertyIntervalInput,
+  OrSetUpdateInput,
+  CounterUpdateInput,
   TombstoneEntityInput,
   TypeDef,
   TypeFieldDef,
@@ -29,6 +34,10 @@ const COMMANDS = {
   createEdge: 'mneme_create_edge',
   setEdgeExistenceInterval: 'mneme_set_edge_existence_interval',
   tombstoneEntity: 'mneme_tombstone_entity',
+  setPropertyInterval: 'mneme_set_property_interval',
+  clearPropertyInterval: 'mneme_clear_property_interval',
+  orSetUpdate: 'mneme_or_set_update',
+  counterUpdate: 'mneme_counter_update',
 } as const;
 
 export interface UpsertMetamodelBatchInput {
@@ -154,6 +163,66 @@ export async function tombstoneEntity(input: TombstoneEntityInput): Promise<Mnem
   }
 }
 
+export async function setPropertyInterval(input: SetPropertyIntervalInput): Promise<MnemeOpResult> {
+  if (!isTauri()) {
+    return { opId: 'mock-op' };
+  }
+  try {
+    return await invoke<MnemeOpResult>(COMMANDS.setPropertyInterval, {
+      ...input,
+      value: toRustValue(input.value),
+    });
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.setPropertyInterval}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function clearPropertyInterval(
+  input: ClearPropertyIntervalInput,
+): Promise<MnemeOpResult> {
+  if (!isTauri()) {
+    return { opId: 'mock-op' };
+  }
+  try {
+    return await invoke<MnemeOpResult>(COMMANDS.clearPropertyInterval, input);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.clearPropertyInterval}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function orSetUpdate(input: OrSetUpdateInput): Promise<MnemeOpResult> {
+  if (!isTauri()) {
+    return { opId: 'mock-op' };
+  }
+  try {
+    return await invoke<MnemeOpResult>(COMMANDS.orSetUpdate, {
+      ...input,
+      element: toRustValue(input.element),
+    });
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.orSetUpdate}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
+export async function counterUpdate(input: CounterUpdateInput): Promise<MnemeOpResult> {
+  if (!isTauri()) {
+    return { opId: 'mock-op' };
+  }
+  try {
+    return await invoke<MnemeOpResult>(COMMANDS.counterUpdate, input);
+  } catch (error) {
+    throw new Error(`Host command '${COMMANDS.counterUpdate}' failed: ${String(error)}`, {
+      cause: error,
+    });
+  }
+}
+
 export async function getEffectiveSchema(
   partitionId: PartitionId,
   typeId: TypeId,
@@ -256,6 +325,16 @@ interface RustEffectiveSchema {
   fields: RustEffectiveSchemaField[];
 }
 
+type RustValue =
+  | { Str: string }
+  | { I64: number }
+  | { F64: number }
+  | { Bool: boolean }
+  | { Time: number }
+  | { Ref: string }
+  | { Blob: Uint8Array }
+  | { Json: unknown };
+
 const VALUE_TYPE_MAP: Record<EffectiveSchema['fields'][number]['valueType'], RustValueType> = {
   str: 'Str',
   i64: 'I64',
@@ -338,6 +417,44 @@ function toRustMetamodelBatch(batch: MetamodelBatch): RustMetamodelBatch {
     metamodel_version: undefined,
     metamodel_source: undefined,
   };
+}
+
+function toRustValue(value: Value): RustValue {
+  switch (value.t) {
+    case 'str':
+      return { Str: value.v };
+    case 'i64': {
+      const num = Number(value.v);
+      if (!Number.isSafeInteger(num)) {
+        throw new Error('Value.i64 exceeds safe integer range for IPC transport.');
+      }
+      return { I64: num };
+    }
+    case 'f64':
+      return { F64: value.v };
+    case 'bool':
+      return { Bool: value.v };
+    case 'time':
+      return { Time: toValidTimeMicros(value.v) };
+    case 'ref':
+      return { Ref: value.v };
+    case 'blob':
+      return { Blob: value.v };
+    case 'json':
+      return { Json: value.v };
+    default: {
+      const _exhaustive: never = value;
+      throw new Error(`Unsupported value type: ${String(_exhaustive)}`);
+    }
+  }
+}
+
+function toValidTimeMicros(value: string): number {
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    throw new Error(`Invalid ISO-8601 timestamp: ${value}`);
+  }
+  return parsed * 1000;
 }
 
 const VALUE_TYPE_FROM_RUST: Record<RustValueType, EffectiveSchema['fields'][number]['valueType']> = {

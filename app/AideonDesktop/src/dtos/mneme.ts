@@ -118,3 +118,55 @@ export interface TombstoneEntityInput {
   entityId: EntityId;
   scenarioId?: ScenarioId;
 }
+
+export interface SetPropertyIntervalInput {
+  partitionId: PartitionId;
+  actorId: ActorId;
+  assertedAt: AssertedTime;
+  entityId: EntityId;
+  fieldId: FieldId;
+  value: Value;
+  validFrom: ValidTime;
+  validTo?: ValidTime;
+  layer?: Layer;
+  scenarioId?: ScenarioId;
+}
+
+export interface ClearPropertyIntervalInput {
+  partitionId: PartitionId;
+  actorId: ActorId;
+  assertedAt: AssertedTime;
+  entityId: EntityId;
+  fieldId: FieldId;
+  validFrom: ValidTime;
+  validTo?: ValidTime;
+  layer?: Layer;
+  scenarioId?: ScenarioId;
+}
+
+export interface OrSetUpdateInput {
+  partitionId: PartitionId;
+  actorId: ActorId;
+  assertedAt: AssertedTime;
+  entityId: EntityId;
+  fieldId: FieldId;
+  op: 'Add' | 'Remove';
+  element: Value;
+  validFrom: ValidTime;
+  validTo?: ValidTime;
+  layer?: Layer;
+  scenarioId?: ScenarioId;
+}
+
+export interface CounterUpdateInput {
+  partitionId: PartitionId;
+  actorId: ActorId;
+  assertedAt: AssertedTime;
+  entityId: EntityId;
+  fieldId: FieldId;
+  delta: number;
+  validFrom: ValidTime;
+  validTo?: ValidTime;
+  layer?: Layer;
+  scenarioId?: ScenarioId;
+}

@@ -1,8 +1,10 @@
 //! Host-side Mneme commands bridging renderer IPC calls to the Mneme store.
 
 use aideon_praxis_facade::mneme::{
-    CreateEdgeInput, CreateNodeInput, EdgeTypeRule, GraphWriteApi, MetamodelApi, MetamodelBatch,
-    MnemeError, OpId, PartitionId, SchemaVersion, SetEdgeExistenceIntervalInput, ValidTime,
+    ClearPropIntervalInput, CounterUpdateInput, CreateEdgeInput, CreateNodeInput, EdgeTypeRule,
+    GraphWriteApi, MetamodelApi, MetamodelBatch, MnemeError, OpId, OrSetUpdateInput, PartitionId,
+    PropertyWriteApi, SchemaVersion, SetEdgeExistenceIntervalInput, SetOp, SetPropIntervalInput,
+    ValidTime, Value,
 };
 use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
 use log::{debug, error, info};
@@ -191,6 +193,118 @@ pub async fn mneme_tombstone_entity(
 }
 
 #[tauri::command]
+pub async fn mneme_set_property_interval(
+    state: State<'_, WorkerState>,
+    payload: SetPropertyIntervalPayload,
+) -> Result<OpResult, HostError> {
+    let store = state.mneme();
+    let op_id = store
+        .set_property_interval(SetPropIntervalInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            actor: payload.actor_id,
+            asserted_at: parse_hlc(&payload.asserted_at)?,
+            entity_id: payload.entity_id,
+            field_id: payload.field_id,
+            value: payload.value,
+            valid_from: parse_valid_time(&payload.valid_from)?,
+            valid_to: match payload.valid_to {
+                Some(value) => Some(parse_valid_time(&value)?),
+                None => None,
+            },
+            layer: payload.layer.unwrap_or_else(Layer::default_actual),
+            write_options: None,
+        })
+        .await
+        .map_err(host_error)?;
+    Ok(OpResult { op_id })
+}
+
+#[tauri::command]
+pub async fn mneme_clear_property_interval(
+    state: State<'_, WorkerState>,
+    payload: ClearPropertyIntervalPayload,
+) -> Result<OpResult, HostError> {
+    let store = state.mneme();
+    let op_id = store
+        .clear_property_interval(ClearPropIntervalInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            actor: payload.actor_id,
+            asserted_at: parse_hlc(&payload.asserted_at)?,
+            entity_id: payload.entity_id,
+            field_id: payload.field_id,
+            valid_from: parse_valid_time(&payload.valid_from)?,
+            valid_to: match payload.valid_to {
+                Some(value) => Some(parse_valid_time(&value)?),
+                None => None,
+            },
+            layer: payload.layer.unwrap_or_else(Layer::default_actual),
+            write_options: None,
+        })
+        .await
+        .map_err(host_error)?;
+    Ok(OpResult { op_id })
+}
+
+#[tauri::command]
+pub async fn mneme_or_set_update(
+    state: State<'_, WorkerState>,
+    payload: OrSetUpdatePayload,
+) -> Result<OpResult, HostError> {
+    let store = state.mneme();
+    let op_id = store
+        .or_set_update(OrSetUpdateInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            actor: payload.actor_id,
+            asserted_at: parse_hlc(&payload.asserted_at)?,
+            entity_id: payload.entity_id,
+            field_id: payload.field_id,
+            op: payload.op,
+            element: payload.element,
+            valid_from: parse_valid_time(&payload.valid_from)?,
+            valid_to: match payload.valid_to {
+                Some(value) => Some(parse_valid_time(&value)?),
+                None => None,
+            },
+            layer: payload.layer.unwrap_or_else(Layer::default_actual),
+            write_options: None,
+        })
+        .await
+        .map_err(host_error)?;
+    Ok(OpResult { op_id })
+}
+
+#[tauri::command]
+pub async fn mneme_counter_update(
+    state: State<'_, WorkerState>,
+    payload: CounterUpdatePayload,
+) -> Result<OpResult, HostError> {
+    let store = state.mneme();
+    let op_id = store
+        .counter_update(CounterUpdateInput {
+            partition: payload.partition_id,
+            scenario_id: payload.scenario_id,
+            actor: payload.actor_id,
+            asserted_at: parse_hlc(&payload.asserted_at)?,
+            entity_id: payload.entity_id,
+            field_id: payload.field_id,
+            delta: payload.delta,
+            valid_from: parse_valid_time(&payload.valid_from)?,
+            valid_to: match payload.valid_to {
+                Some(value) => Some(parse_valid_time(&value)?),
+                None => None,
+            },
+            layer: payload.layer.unwrap_or_else(Layer::default_actual),
+            write_options: None,
+        })
+        .await
+        .map_err(host_error)?;
+    Ok(OpResult { op_id })
+}
+
+#[tauri::command]
 pub async fn mneme_get_effective_schema(
     state: State<'_, WorkerState>,
     partition_id: PartitionId,
@@ -315,6 +429,66 @@ pub struct TombstoneEntityPayload {
     pub actor_id: ActorId,
     pub asserted_at: String,
     pub entity_id: aideon_praxis_facade::mneme::Id,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetPropertyIntervalPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub entity_id: aideon_praxis_facade::mneme::Id,
+    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub value: Value,
+    pub valid_from: String,
+    pub valid_to: Option<String>,
+    pub layer: Option<Layer>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClearPropertyIntervalPayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub entity_id: aideon_praxis_facade::mneme::Id,
+    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub valid_from: String,
+    pub valid_to: Option<String>,
+    pub layer: Option<Layer>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrSetUpdatePayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub entity_id: aideon_praxis_facade::mneme::Id,
+    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub op: SetOp,
+    pub element: Value,
+    pub valid_from: String,
+    pub valid_to: Option<String>,
+    pub layer: Option<Layer>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CounterUpdatePayload {
+    pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
+    pub actor_id: ActorId,
+    pub asserted_at: String,
+    pub entity_id: aideon_praxis_facade::mneme::Id,
+    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub delta: i64,
+    pub valid_from: String,
+    pub valid_to: Option<String>,
+    pub layer: Option<Layer>,
 }
 
 #[cfg(test)]

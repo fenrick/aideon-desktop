@@ -12,6 +12,10 @@ import {
   compileEffectiveSchema,
   getEffectiveSchema,
   listEdgeTypeRules,
+  counterUpdate,
+  orSetUpdate,
+  setPropertyInterval,
+  clearPropertyInterval,
   setEdgeExistenceInterval,
   tombstoneEntity,
   upsertMetamodelBatch,
@@ -284,6 +288,116 @@ describe('mneme-api metamodel bindings', () => {
       actorId: 'a-1',
       assertedAt: '123',
       entityId: 'n-1',
+    });
+  });
+
+  it('converts property values to rust enum shapes', async () => {
+    invokeMock.mockResolvedValue({ opId: 'op-prop' });
+    const validFrom = '2025-01-01T00:00:00Z';
+
+    await setPropertyInterval({
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      entityId: 'n-1',
+      fieldId: 'f-1',
+      value: { t: 'time', v: validFrom },
+      validFrom,
+      layer: 'Actual',
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('mneme_set_property_interval', {
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      entityId: 'n-1',
+      fieldId: 'f-1',
+      value: { Time: new Date(validFrom).getTime() * 1000 },
+      validFrom,
+      validTo: undefined,
+      layer: 'Actual',
+      scenarioId: undefined,
+    });
+  });
+
+  it('passes clear property interval inputs through to the host', async () => {
+    invokeMock.mockResolvedValue({ opId: 'op-clear' });
+
+    await clearPropertyInterval({
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      entityId: 'n-1',
+      fieldId: 'f-1',
+      validFrom: '2025-01-01T00:00:00Z',
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('mneme_clear_property_interval', {
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      entityId: 'n-1',
+      fieldId: 'f-1',
+      validFrom: '2025-01-01T00:00:00Z',
+      validTo: undefined,
+      layer: undefined,
+      scenarioId: undefined,
+    });
+  });
+
+  it('converts OR-set elements to rust enum shapes', async () => {
+    invokeMock.mockResolvedValue({ opId: 'op-or' });
+
+    await orSetUpdate({
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      entityId: 'n-1',
+      fieldId: 'f-1',
+      op: 'Add',
+      element: { t: 'i64', v: 42n },
+      validFrom: '2025-01-01T00:00:00Z',
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('mneme_or_set_update', {
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      entityId: 'n-1',
+      fieldId: 'f-1',
+      op: 'Add',
+      element: { I64: 42 },
+      validFrom: '2025-01-01T00:00:00Z',
+      validTo: undefined,
+      layer: undefined,
+      scenarioId: undefined,
+    });
+  });
+
+  it('passes counter update inputs through to the host', async () => {
+    invokeMock.mockResolvedValue({ opId: 'op-counter' });
+
+    await counterUpdate({
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      entityId: 'n-1',
+      fieldId: 'f-1',
+      delta: 5,
+      validFrom: '2025-01-01T00:00:00Z',
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('mneme_counter_update', {
+      partitionId: 'p-1',
+      actorId: 'a-1',
+      assertedAt: '123',
+      entityId: 'n-1',
+      fieldId: 'f-1',
+      delta: 5,
+      validFrom: '2025-01-01T00:00:00Z',
+      validTo: undefined,
+      layer: undefined,
+      scenarioId: undefined,
     });
   });
 });

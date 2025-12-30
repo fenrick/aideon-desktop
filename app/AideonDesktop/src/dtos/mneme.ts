@@ -435,6 +435,11 @@ export interface PartitionHeadResult {
   head: AssertedTime;
 }
 
+export interface GetPartitionHeadInput {
+  partitionId: string;
+  scenarioId?: string;
+}
+
 export interface CreateScenarioInput {
   partitionId: string;
   actorId: string;

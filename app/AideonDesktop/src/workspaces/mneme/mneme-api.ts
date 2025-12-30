@@ -2,37 +2,38 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type {
   AssertedTime,
+  ChangeEvent,
   ClearPropertyIntervalInput,
+  ComputedCacheEntry,
+  ComputedRule,
   CounterUpdateInput,
   CreateEdgeInput,
   CreateNodeInput,
-  ChangeEvent,
+  CreateScenarioInput,
+  DeleteScenarioInput,
   EdgeTypeRuleDefinition,
-  FieldDefinition,
-  FieldFilter,
+  ExplainResolutionInput,
+  ExplainResolutionResult,
+  ExplainTraversalInput,
+  ExplainTraversalResult,
   ExportOpsInput,
   ExportOpsResult,
   ExportOptions,
   ExportRecord,
-  ImportOptions,
-  ImportReport,
+  FieldDefinition,
+  FieldFilter,
   GetChangesSinceInput,
   GetGraphDegreeStatsInput,
   GetGraphEdgeTypeCountsInput,
-  CreateScenarioInput,
-  DeleteScenarioInput,
   GetPageRankScoresInput,
   GetProjectionEdgesInput,
   GraphDegreeStat,
   GraphEdgeTypeCount,
+  ImportOptions,
+  ImportReport,
   IngestOpsInput,
+  IntegrityHead,
   JobSummary,
-  ValidationRule,
-  UpsertValidationRulesInput,
-  ComputedRule,
-  UpsertComputedRulesInput,
-  ComputedCacheEntry,
-  UpsertComputedCacheInput,
   ListComputedCacheInput,
   ListEntitiesInput,
   ListEntitiesResultItem,
@@ -42,38 +43,36 @@ import type {
   PageRankRunParams,
   PageRankRunResult,
   PageRankScore,
-  PageRankSeed,
+  GetPartitionHeadInput,
   PartitionHeadResult,
   ProjectionEdge,
   ReadEntityAtTimeInput,
   ReadEntityAtTimeResult,
   ReadValue,
-  RetentionPolicy,
   RunProcessingWorkerInput,
   RunProcessingWorkerResult,
   SchemaCompileResult,
+  SchemaHead,
+  SchemaManifest,
   SetEdgeExistenceIntervalInput,
   SetPropertyIntervalInput,
+  SnapshotOptions,
+  StorePageRankRunInput,
   SubscribePartitionInput,
   SubscriptionResult,
-  StorePageRankRunInput,
-  SnapshotOptions,
   TombstoneEntityInput,
+  TraverseAtTimeInput,
+  TraverseEdgeItem,
   TriggerCompactionInput,
   TriggerProcessingInput,
   TriggerRetentionInput,
-  TraverseAtTimeInput,
-  TraverseEdgeItem,
-  UnsubscribePartitionInput,
-  IntegrityHead,
-  SchemaHead,
-  SchemaManifest,
-  ExplainResolutionInput,
-  ExplainResolutionResult,
-  ExplainTraversalInput,
-  ExplainTraversalResult,
   TypeDefinition,
   TypeFieldDefinition,
+  UnsubscribePartitionInput,
+  UpsertComputedCacheInput,
+  UpsertComputedRulesInput,
+  UpsertValidationRulesInput,
+  ValidationRule,
   ValidTime,
   Value,
 } from 'dtos';
@@ -181,7 +180,9 @@ export interface EffectiveSchema {
  * Upsert metamodel changes into the host.
  * @param input - Batch payload.
  */
-export async function upsertMetamodelBatch(input: UpsertMetamodelBatchInput): Promise<MnemeOpResult> {
+export async function upsertMetamodelBatch(
+  input: UpsertMetamodelBatchInput,
+): Promise<MnemeOpResult> {
   if (!isTauri()) {
     return { opId: 'mock-op' };
   }
@@ -267,14 +268,14 @@ export async function setEdgeExistenceInterval(
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(
-      COMMANDS.setEdgeExistenceInterval,
-      toInvokeArguments(input),
-    );
+    return await invoke<MnemeOpResult>(COMMANDS.setEdgeExistenceInterval, toInvokeArguments(input));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.setEdgeExistenceInterval}' failed: ${String(error)}`, {
-      cause: error,
-    });
+    throw new Error(
+      `Host command '${COMMANDS.setEdgeExistenceInterval}' failed: ${String(error)}`,
+      {
+        cause: error,
+      },
+    );
   }
 }
 
@@ -326,10 +327,7 @@ export async function clearPropertyInterval(
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(
-      COMMANDS.clearPropertyInterval,
-      toInvokeArguments(input),
-    );
+    return await invoke<MnemeOpResult>(COMMANDS.clearPropertyInterval, toInvokeArguments(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.clearPropertyInterval}' failed: ${String(error)}`, {
       cause: error,
@@ -403,9 +401,7 @@ export async function readEntityAtTime(
  * Traverse edges at a given time.
  * @param input - Traverse payload.
  */
-export async function traverseAtTime(
-  input: TraverseAtTimeInput,
-): Promise<TraverseEdgeItem[]> {
+export async function traverseAtTime(input: TraverseAtTimeInput): Promise<TraverseEdgeItem[]> {
   if (!isTauri()) {
     return [];
   }
@@ -428,9 +424,7 @@ export async function traverseAtTime(
  * List entities at a given time.
  * @param input - List payload.
  */
-export async function listEntities(
-  input: ListEntitiesInput,
-): Promise<ListEntitiesResultItem[]> {
+export async function listEntities(input: ListEntitiesInput): Promise<ListEntitiesResultItem[]> {
   if (!isTauri()) {
     return [];
   }
@@ -511,9 +505,7 @@ export async function getGraphEdgeTypeCounts(
 /**
  * Store PageRank scores in Mneme.
  */
-export async function storePageRankRun(
-  input: StorePageRankRunInput,
-): Promise<PageRankRunResult> {
+export async function storePageRankRun(input: StorePageRankRunInput): Promise<PageRankRunResult> {
   if (!isTauri()) {
     return { runId: 'mock-run' };
   }
@@ -532,9 +524,7 @@ export async function storePageRankRun(
 /**
  * Fetch PageRank scores.
  */
-export async function getPageRankScores(
-  input: GetPageRankScoresInput,
-): Promise<PageRankScore[]> {
+export async function getPageRankScores(input: GetPageRankScoresInput): Promise<PageRankScore[]> {
   if (!isTauri()) {
     return [];
   }
@@ -586,12 +576,14 @@ export async function ingestOps(input: IngestOpsInput): Promise<void> {
 /**
  * Fetch the partition head.
  */
-export async function getPartitionHead(partitionId: string): Promise<PartitionHeadResult> {
+export async function getPartitionHead(
+  input: GetPartitionHeadInput,
+): Promise<PartitionHeadResult> {
   if (!isTauri()) {
     return { head: '0' };
   }
   try {
-    return await invoke<PartitionHeadResult>(COMMANDS.getPartitionHead, { partitionId });
+    return await invoke<PartitionHeadResult>(COMMANDS.getPartitionHead, input);
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.getPartitionHead}' failed: ${String(error)}`, {
       cause: error,
@@ -634,7 +626,9 @@ export async function deleteScenario(input: DeleteScenarioInput): Promise<void> 
 /**
  * Export a streaming op log payload.
  */
-export async function exportOpsStream(options: ExportOptions): Promise<AsyncIterable<ExportRecord>> {
+export async function exportOpsStream(
+  options: ExportOptions,
+): Promise<AsyncIterable<ExportRecord>> {
   if (!isTauri()) {
     return toAsyncIterable([]);
   }
@@ -837,9 +831,7 @@ export async function listComputedCache(
   }
 }
 
-export async function triggerRebuildEffectiveSchema(
-  input: TriggerProcessingInput,
-): Promise<void> {
+export async function triggerRebuildEffectiveSchema(input: TriggerProcessingInput): Promise<void> {
   if (!isTauri()) {
     return;
   }
@@ -860,10 +852,9 @@ export async function triggerRefreshIntegrity(input: TriggerProcessingInput): Pr
   try {
     await invoke<void>(COMMANDS.triggerRefreshIntegrity, input);
   } catch (error) {
-    throw new Error(
-      `Host command '${COMMANDS.triggerRefreshIntegrity}' failed: ${String(error)}`,
-      { cause: error },
-    );
+    throw new Error(`Host command '${COMMANDS.triggerRefreshIntegrity}' failed: ${String(error)}`, {
+      cause: error,
+    });
   }
 }
 
@@ -938,9 +929,7 @@ export async function listJobs(input: ListJobsInput): Promise<JobSummary[]> {
   }
 }
 
-export async function getChangesSince(
-  input: GetChangesSinceInput,
-): Promise<ChangeEvent[]> {
+export async function getChangesSince(input: GetChangesSinceInput): Promise<ChangeEvent[]> {
   if (!isTauri()) {
     return [];
   }
@@ -969,9 +958,7 @@ export async function subscribePartition(
   }
 }
 
-export async function unsubscribePartition(
-  input: UnsubscribePartitionInput,
-): Promise<boolean> {
+export async function unsubscribePartition(input: UnsubscribePartitionInput): Promise<boolean> {
   if (!isTauri()) {
     return true;
   }
@@ -984,9 +971,7 @@ export async function unsubscribePartition(
   }
 }
 
-export async function onChangeEvents(
-  handler: (event: ChangeEvent) => void,
-): Promise<() => void> {
+export async function onChangeEvents(handler: (event: ChangeEvent) => void): Promise<() => void> {
   if (!isTauri()) {
     return async () => {};
   }
@@ -1036,10 +1021,7 @@ export async function getLastSchemaCompile(
   }
 }
 
-export async function listFailedJobs(
-  partitionId: string,
-  limit: number,
-): Promise<JobSummary[]> {
+export async function listFailedJobs(partitionId: string, limit: number): Promise<JobSummary[]> {
   if (!isTauri()) {
     return [];
   }
@@ -1468,22 +1450,22 @@ const VALUE_TYPE_MAP: Record<EffectiveSchema['fields'][number]['valueType'], Rus
   json: 'Json',
 };
 
-const MERGE_POLICY_MAP: Record<
-  EffectiveSchema['fields'][number]['mergePolicy'],
-  RustMergePolicy
-> = {
-  LWW: 'Lww',
-  MV: 'Mv',
-  OR_SET: 'OrSet',
-  COUNTER: 'Counter',
-  TEXT: 'Text',
-};
+const MERGE_POLICY_MAP: Record<EffectiveSchema['fields'][number]['mergePolicy'], RustMergePolicy> =
+  {
+    LWW: 'Lww',
+    MV: 'Mv',
+    OR_SET: 'OrSet',
+    COUNTER: 'Counter',
+    TEXT: 'Text',
+  };
 
 /**
  * Normalize value types to the Rust enum representation.
  * @param valueType - Value type in either Rust or API form.
  */
-function toRustValueType(valueType: RustValueType | EffectiveSchema['fields'][number]['valueType']) {
+function toRustValueType(
+  valueType: RustValueType | EffectiveSchema['fields'][number]['valueType'],
+) {
   if (valueType in VALUE_TYPE_MAP) {
     return VALUE_TYPE_MAP[valueType as EffectiveSchema['fields'][number]['valueType']];
   }
@@ -1766,9 +1748,7 @@ function fromRustComputedCacheEntry(entry: RustComputedCacheEntry): ComputedCach
   };
 }
 
-function toRustComputedCacheEntry(
-  entry: ComputedCacheEntry,
-): RustComputedCacheEntryPayload {
+function toRustComputedCacheEntry(entry: ComputedCacheEntry): RustComputedCacheEntryPayload {
   return {
     entity_id: entry.entityId,
     field_id: entry.fieldId,
@@ -1900,9 +1880,7 @@ function fromRustExplainEdgeFact(fact: RustExplainEdgeFact) {
   };
 }
 
-function fromRustExplainResolution(
-  result: RustExplainResolutionResult,
-): ExplainResolutionResult {
+function fromRustExplainResolution(result: RustExplainResolutionResult): ExplainResolutionResult {
   return {
     entityId: result.entity_id,
     fieldId: result.field_id,
@@ -1912,9 +1890,7 @@ function fromRustExplainResolution(
   };
 }
 
-function fromRustExplainTraversal(
-  result: RustExplainTraversalResult,
-): ExplainTraversalResult {
+function fromRustExplainTraversal(result: RustExplainTraversalResult): ExplainTraversalResult {
   return {
     edgeId: result.edge_id,
     active: result.active,
@@ -2022,25 +1998,28 @@ function fromRustGraphEdgeTypeCount(count: RustGraphEdgeTypeCount): GraphEdgeTyp
   };
 }
 
-const VALUE_TYPE_FROM_RUST: Record<RustValueType, EffectiveSchema['fields'][number]['valueType']> = {
-  Str: 'str',
-  I64: 'i64',
-  F64: 'f64',
-  Bool: 'bool',
-  Time: 'time',
-  Ref: 'ref',
-  Blob: 'blob',
-  Json: 'json',
-};
-
-const MERGE_POLICY_FROM_RUST: Record<RustMergePolicy, EffectiveSchema['fields'][number]['mergePolicy']> =
+const VALUE_TYPE_FROM_RUST: Record<RustValueType, EffectiveSchema['fields'][number]['valueType']> =
   {
-    Lww: 'LWW',
-    Mv: 'MV',
-    OrSet: 'OR_SET',
-    Counter: 'COUNTER',
-    Text: 'TEXT',
+    Str: 'str',
+    I64: 'i64',
+    F64: 'f64',
+    Bool: 'bool',
+    Time: 'time',
+    Ref: 'ref',
+    Blob: 'blob',
+    Json: 'json',
   };
+
+const MERGE_POLICY_FROM_RUST: Record<
+  RustMergePolicy,
+  EffectiveSchema['fields'][number]['mergePolicy']
+> = {
+  Lww: 'LWW',
+  Mv: 'MV',
+  OrSet: 'OR_SET',
+  Counter: 'COUNTER',
+  Text: 'TEXT',
+};
 
 /**
  * Convert a Rust effective schema into the API representation.

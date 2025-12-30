@@ -1507,6 +1507,7 @@ pub struct PartitionHeadResult {
 #[serde(rename_all = "camelCase")]
 pub struct PartitionHeadPayload {
     pub partition_id: PartitionId,
+    pub scenario_id: Option<ScenarioId>,
 }
 
 #[derive(Debug, Deserialize)]

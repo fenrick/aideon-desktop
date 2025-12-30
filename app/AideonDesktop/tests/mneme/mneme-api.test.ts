@@ -970,10 +970,13 @@ describe('mneme-api metamodel bindings', () => {
   it('fetches partition head', async () => {
     invokeMock.mockResolvedValue({ head: '999' });
 
-    const result = await getPartitionHead('p-1');
+    const result = await getPartitionHead({ partitionId: 'p-1' });
 
     expect(result.head).toBe('999');
-    expect(invokeMock).toHaveBeenCalledWith('mneme_get_partition_head', { partitionId: 'p-1' });
+    expect(invokeMock).toHaveBeenCalledWith('mneme_get_partition_head', {
+      partitionId: 'p-1',
+      scenarioId: undefined,
+    });
   });
 
   it('creates and deletes scenarios', async () => {

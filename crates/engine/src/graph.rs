@@ -391,10 +391,10 @@ mod tests {
         MetaValidationRules,
     };
     use serde_json::Value;
-    use std::collections::BTreeMap as StdBTreeMap;
+    use std::collections::HashMap as StdHashMap;
 
     fn registry(allow_duplicate: Option<bool>) -> MetaModelRegistry {
-        let mut rel_rules = StdBTreeMap::new();
+        let mut rel_rules = StdHashMap::new();
         rel_rules.insert(
             "rel".to_string(),
             MetaRelationshipValidation {

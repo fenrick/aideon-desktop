@@ -4,7 +4,7 @@ use aideon_desktop_lib::StateAtResult;
 fn state_at_result_camelcase_roundtrip() {
     // Incoming JSON uses camelCase keys
     let json_in = r#"{
-        "asOf": "2025-01-01",
+        "commitId": "commit-001",
         "scenario": null,
         "confidence": null,
         "nodes": 7,
@@ -16,7 +16,10 @@ fn state_at_result_camelcase_roundtrip() {
 
     // Outgoing JSON must keep camelCase
     let out = serde_json::to_string(&v).expect("serialize");
-    assert!(out.contains("\"asOf\""), "must serialize camelCase asOf");
+    assert!(
+        out.contains("\"commitId\""),
+        "must serialize camelCase commitId"
+    );
     assert!(out.contains("\"nodes\":7"));
     assert!(out.contains("\"edges\":11"));
 }

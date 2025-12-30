@@ -206,30 +206,6 @@ pub struct DiffSummary {
     pub edge_dels: u64,
 }
 
-impl DiffSummary {
-    pub fn new(
-        from: String,
-        to: String,
-        node_adds: u64,
-        node_mods: u64,
-        node_dels: u64,
-        edge_adds: u64,
-        edge_mods: u64,
-        edge_dels: u64,
-    ) -> Self {
-        Self {
-            from,
-            to,
-            node_adds,
-            node_mods,
-            node_dels,
-            edge_adds,
-            edge_mods,
-            edge_dels,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TopologyDeltaArgs {

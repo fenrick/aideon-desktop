@@ -257,12 +257,14 @@ impl Store for SqliteDb {
     async fn get_branch_head(&self, name: &str) -> PraxisResult<Option<String>> {
         let name = name.to_string();
         self.with_conn(move |conn| {
-            conn.query_row(
-                "SELECT head FROM branches WHERE name = ?1",
-                params![name],
-                |row| row.get(0),
-            )
-            .optional()
+            let head = conn
+                .query_row(
+                    "SELECT head FROM branches WHERE name = ?1",
+                    params![name],
+                    |row| row.get::<_, Option<String>>(0),
+                )
+                .optional()?;
+            Ok(head.flatten())
         })
         .await
     }
@@ -277,8 +279,8 @@ impl Store for SqliteDb {
         let expected = expected.map(|v| v.to_string());
         let next = next.map(|v| v.to_string());
         let conn = Arc::clone(&self.conn);
-        let result = spawn_blocking(move || -> PraxisResult<()> {
-            let guard = conn.lock().map_err(|_| PraxisError::IntegrityViolation {
+        spawn_blocking(move || -> PraxisResult<()> {
+            let mut guard = conn.lock().map_err(|_| PraxisError::IntegrityViolation {
                 message: "sqlite connection poisoned".into(),
             })?;
             let tx = guard
@@ -293,16 +295,17 @@ impl Store for SqliteDb {
             .map_err(|err| PraxisError::IntegrityViolation {
                 message: format!("sqlite insert branch error: {err}"),
             })?;
-            let current: Option<String> = tx
+            let current = tx
                 .query_row(
                     "SELECT head FROM branches WHERE name = ?1",
                     params![name],
-                    |row| row.get(0),
+                    |row| row.get::<_, Option<String>>(0),
                 )
                 .optional()
                 .map_err(|err| PraxisError::IntegrityViolation {
                     message: format!("sqlite read branch error: {err}"),
-                })?;
+                })?
+                .flatten();
             if current != expected {
                 return Err(PraxisError::ConcurrencyConflict {
                     branch: name,
@@ -325,8 +328,7 @@ impl Store for SqliteDb {
         .await
         .map_err(|err| PraxisError::IntegrityViolation {
             message: format!("sqlite join error: {err}"),
-        })?;
-        result
+        })?
     }
 
     async fn put_commit(&self, commit: &PersistedCommit) -> PraxisResult<()> {

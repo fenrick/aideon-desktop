@@ -192,16 +192,16 @@ pub(super) async fn diff_summary(inner: &mut Inner, args: DiffArgs) -> PraxisRes
     let (from_id, from_snapshot, _) = resolve_snapshot(inner, &args.from, None).await?;
     let (to_id, to_snapshot, _) = resolve_snapshot(inner, &args.to, None).await?;
     let patch = from_snapshot.diff(&to_snapshot);
-    Ok(DiffSummary::new(
-        from_id,
-        to_id,
-        patch.node_adds.len() as u64,
-        patch.node_mods.len() as u64,
-        patch.node_dels.len() as u64,
-        patch.edge_adds.len() as u64,
-        patch.edge_mods.len() as u64,
-        patch.edge_dels.len() as u64,
-    ))
+    Ok(DiffSummary {
+        from: from_id,
+        to: to_id,
+        node_adds: patch.node_adds.len() as u64,
+        node_mods: patch.node_mods.len() as u64,
+        node_dels: patch.node_dels.len() as u64,
+        edge_adds: patch.edge_adds.len() as u64,
+        edge_mods: patch.edge_mods.len() as u64,
+        edge_dels: patch.edge_dels.len() as u64,
+    })
 }
 
 pub(super) async fn topology_delta(
@@ -508,10 +508,10 @@ mod tests {
     };
     use crate::temporal::NodeVersion;
     use serde_json::json;
-    use std::collections::BTreeMap;
+    use std::collections::HashMap;
 
     fn registry() -> MetaModelRegistry {
-        let mut rels = BTreeMap::new();
+        let mut rels = HashMap::new();
         rels.insert(
             "rel".to_string(),
             MetaRelationshipValidation {

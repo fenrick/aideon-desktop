@@ -47,7 +47,6 @@ async fn merge_creates_commit_when_no_conflicts() {
         .merge(MergeRequest {
             source: "feature/merge-demo".into(),
             target: "main".into(),
-            strategy: None,
         })
         .await
         .expect("merge ok");
@@ -64,9 +63,9 @@ async fn merge_creates_commit_when_no_conflicts() {
 
     assert!(merged.nodes > 0, "merged state should contain nodes");
     assert_eq!(merged.scenario.as_deref(), Some("main"));
-    assert_ne!(merged.as_of, base_head);
+    assert_ne!(merged.commit_id, base_head);
     assert!(
-        merged.as_of != feature_commit,
+        merged.commit_id != feature_commit,
         "merge commit should differ from feature head"
     );
 }
@@ -168,7 +167,6 @@ async fn merge_returns_conflict_when_branches_diverge_on_same_node() {
         .merge(MergeRequest {
             source: "feature/alpha".into(),
             target: "feature/beta".into(),
-            strategy: None,
         })
         .await
         .expect("merge completes");

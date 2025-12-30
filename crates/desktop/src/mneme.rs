@@ -1,27 +1,28 @@
 //! Host-side Mneme commands bridging renderer IPC calls to the Mneme store.
 
+use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
 use aideon_praxis_facade::mneme::{
     AnalyticsApi, AnalyticsResultsApi, ChangeEvent, ChangeFeedApi, ClearPropIntervalInput,
-    CompareOp, CounterUpdateInput, CreateEdgeInput, CreateNodeInput, CreateScenarioInput, Direction,
-    EdgeTypeRule, EntityKind, FieldFilter, ExportOpsInput, GetGraphDegreeStatsInput,
-    GetGraphEdgeTypeCountsInput, GetProjectionEdgesInput, GraphDegreeStat, GraphEdgeTypeCount,
-    GraphReadApi, GraphWriteApi, ListEntitiesInput, ListEntitiesResultItem, MetamodelApi,
-    MetamodelBatch, MnemeError, OpEnvelope, OpId, OrSetUpdateInput, PageRankRunSpec, PartitionId,
-    PropertyWriteApi, ReadEntityAtTimeInput, ReadEntityAtTimeResult, SchemaVersion,
-    SetEdgeExistenceIntervalInput, SetOp, SetPropIntervalInput, SyncApi, ScenarioApi,
-    TraverseAtTimeInput, TraverseEdgeItem, ValidTime, Value, ProjectionEdge, MnemeProcessingApi,
-    TriggerProcessingInput, TriggerRetentionInput, TriggerCompactionInput, RetentionPolicy,
-    RunWorkerInput, JobSummary, DiagnosticsApi, IntegrityHead, SchemaHead, SchemaManifest,
-    ExplainResolutionInput, ExplainResolutionResult, ExplainTraversalInput, ExplainTraversalResult,
-    ExportOptions, ExportRecord, ImportOptions, ImportReport, MnemeExportApi, MnemeImportApi,
-    MnemeSnapshotApi, SnapshotOptions, ValidationRulesApi, ValidationRule, ComputedRulesApi,
-    ComputedRule, ComputedCacheApi, ComputedCacheEntry, ListComputedCacheInput,
+    CompareOp, ComputedCacheApi, ComputedCacheEntry, ComputedRule, ComputedRulesApi,
+    CounterUpdateInput, CreateEdgeInput, CreateNodeInput, CreateScenarioInput, DiagnosticsApi,
+    Direction, EdgeTypeRule, EntityKind, ExplainResolutionInput, ExplainResolutionResult,
+    ExplainTraversalInput, ExplainTraversalResult, ExportOpsInput, ExportOptions, ExportRecord,
+    FieldFilter, GetGraphDegreeStatsInput, GetGraphEdgeTypeCountsInput, GetProjectionEdgesInput,
+    GraphDegreeStat, GraphEdgeTypeCount, GraphReadApi, GraphWriteApi, ImportOptions, ImportReport,
+    IntegrityHead, JobSummary, ListComputedCacheInput, ListEntitiesInput, ListEntitiesResultItem,
+    MetamodelApi, MetamodelBatch, MnemeError, MnemeExportApi, MnemeImportApi, MnemeProcessingApi,
+    MnemeSnapshotApi, OpEnvelope, OpId, OrSetUpdateInput, PageRankRunSpec, PartitionId,
+    ProjectionEdge, PropertyWriteApi, ReadEntityAtTimeInput, ReadEntityAtTimeResult,
+    RetentionPolicy, RunWorkerInput, ScenarioApi, SchemaHead, SchemaManifest, SchemaVersion,
+    SetEdgeExistenceIntervalInput, SetOp, SetPropIntervalInput, SnapshotOptions, SyncApi,
+    TraverseAtTimeInput, TraverseEdgeItem, TriggerCompactionInput, TriggerProcessingInput,
+    TriggerRetentionInput, ValidTime, ValidationRule, ValidationRulesApi, Value,
 };
-use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
+use tauri::Emitter;
 use tauri::State;
 use tauri::Window;
 use tauri::async_runtime::spawn;
@@ -91,8 +92,8 @@ pub async fn mneme_compile_effective_schema(
 ) -> Result<SchemaVersion, HostError> {
     info!("host: mneme_compile_effective_schema received");
     debug!(
-        "host: mneme_compile_effective_schema partition={:?} type_id={:?}",
-        payload.partition_id, payload.type_id
+        "host: mneme_compile_effective_schema partition={:?} scenario={:?} type_id={:?}",
+        payload.partition_id, payload.scenario_id, payload.type_id
     );
     let store = state.mneme();
     let result = store
@@ -549,6 +550,10 @@ pub async fn mneme_store_pagerank_scores(
     payload: StorePageRankScoresPayload,
 ) -> Result<PageRankRunResult, HostError> {
     let store = state.mneme();
+    debug!(
+        "host: mneme_store_pagerank_scores partition={:?} scenario={:?} asserted_at={:?}",
+        payload.partition_id, payload.scenario_id, payload.asserted_at
+    );
     let as_of_valid_time = match payload.as_of_valid_time {
         Some(value) => Some(parse_valid_time(&value)?),
         None => None,
@@ -562,17 +567,18 @@ pub async fn mneme_store_pagerank_scores(
         .store_pagerank_scores(
             payload.partition_id,
             payload.actor_id,
-            parse_hlc(&payload.asserted_at)?,
             as_of_valid_time,
             as_of_asserted_at,
             PageRankRunSpec {
                 damping: payload.params.damping,
                 max_iters: payload.params.max_iters,
                 tol: payload.params.tol,
-                personalised_seed: payload
-                    .params
-                    .personalised_seed
-                    .map(|entries| entries.into_iter().map(|seed| (seed.id, seed.weight)).collect()),
+                personalised_seed: payload.params.personalised_seed.map(|entries| {
+                    entries
+                        .into_iter()
+                        .map(|seed| (seed.id, seed.weight))
+                        .collect()
+                }),
             },
             payload
                 .scores
@@ -629,6 +635,12 @@ pub async fn mneme_ingest_ops(
     payload: IngestOpsPayload,
 ) -> Result<(), HostError> {
     let store = state.mneme();
+    debug!(
+        "host: mneme_ingest_ops partition={:?} scenario={:?} ops={}",
+        payload.partition_id,
+        payload.scenario_id,
+        payload.ops.len()
+    );
     let ops: Vec<OpEnvelope> = payload
         .ops
         .into_iter()
@@ -655,6 +667,10 @@ pub async fn mneme_get_partition_head(
     payload: PartitionHeadPayload,
 ) -> Result<PartitionHeadResult, HostError> {
     let store = state.mneme();
+    debug!(
+        "host: mneme_get_partition_head partition={:?} scenario={:?}",
+        payload.partition_id, payload.scenario_id
+    );
     let head = store
         .get_partition_head(payload.partition_id)
         .await
@@ -725,10 +741,7 @@ pub async fn mneme_export_ops_stream(
         include_data_ops: payload.include_data_ops.unwrap_or(true),
         include_scenarios: payload.include_scenarios.unwrap_or(true),
     };
-    let records = store
-        .export_ops_stream(options)
-        .await
-        .map_err(host_error)?;
+    let records = store.export_ops_stream(options).await.map_err(host_error)?;
     Ok(records.collect())
 }
 
@@ -1164,12 +1177,10 @@ fn host_error(err: MnemeError) -> HostError {
 }
 
 fn parse_hlc(value: &str) -> Result<Hlc, HostError> {
-    let parsed = value
-        .parse::<i64>()
-        .map_err(|_| HostError {
-            code: "invalid_time",
-            message: format!("invalid assertedAt HLC value: {value}"),
-        })?;
+    let parsed = value.parse::<i64>().map_err(|_| HostError {
+        code: "invalid_time",
+        message: format!("invalid assertedAt HLC value: {value}"),
+    })?;
     Ok(Hlc::from_i64(parsed))
 }
 
@@ -1181,7 +1192,12 @@ fn parse_valid_time(value: &str) -> Result<ValidTime, HostError> {
         code: "invalid_time",
         message: format!("invalid valid time value: {value}"),
     })?;
-    Ok(ValidTime(parsed.unix_timestamp_nanos() / 1_000))
+    let micros = parsed.unix_timestamp_nanos() / 1_000;
+    let micros = i64::try_from(micros).map_err(|_| HostError {
+        code: "invalid_time",
+        message: format!("valid time value out of range: {value}"),
+    })?;
+    Ok(ValidTime(micros))
 }
 
 fn next_subscription_id() -> String {

@@ -111,6 +111,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "once_cell",
+ "sea-orm",
  "serde",
  "serde_json",
  "thiserror 2.0.17",

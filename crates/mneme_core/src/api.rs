@@ -90,7 +90,7 @@ pub struct ReadEntityAtTimeInput {
     pub include_defaults: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ReadEntityAtTimeResult {
     pub entity_id: Id,
     pub kind: EntityKind,
@@ -99,7 +99,7 @@ pub struct ReadEntityAtTimeResult {
     pub properties: HashMap<Id, ReadValue>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Direction {
     Out,
     In,
@@ -118,7 +118,7 @@ pub struct TraverseAtTimeInput {
     pub limit: u32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TraverseEdgeItem {
     pub edge_id: Id,
     pub src_id: Id,
@@ -126,7 +126,7 @@ pub struct TraverseEdgeItem {
     pub type_id: Option<Id>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CompareOp {
     Eq,
     Ne,
@@ -159,7 +159,7 @@ pub struct ListEntitiesInput {
     pub cursor: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ListEntitiesResultItem {
     pub entity_id: Id,
     pub kind: EntityKind,
@@ -207,7 +207,7 @@ pub trait GraphReadApi {
     ) -> MnemeResult<Vec<ListEntitiesResultItem>>;
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ProjectionEdge {
     pub edge_id: Id,
     pub src_id: Id,

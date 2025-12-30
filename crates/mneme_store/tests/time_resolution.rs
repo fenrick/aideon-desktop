@@ -473,7 +473,8 @@ async fn tombstone_edge_removes_traversal() -> aideon_mneme_store::MnemeResult<(
     let config = MnemeConfig::default_sqlite(base.join("mneme.sqlite").to_string_lossy());
     let store = MnemeStore::connect(&config, base).await?;
     let (partition, actor) = new_ids();
-    let type_id = Id::new();
+    let node_type_id = Id::new();
+    let edge_type_id = Id::new();
     store
         .upsert_metamodel_batch(
             partition,
@@ -482,14 +483,14 @@ async fn tombstone_edge_removes_traversal() -> aideon_mneme_store::MnemeResult<(
             MetamodelBatch {
                 types: vec![
                     TypeDef {
-                        type_id,
+                        type_id: node_type_id,
                         applies_to: EntityKind::Node,
                         label: "NodeType".to_string(),
                         is_abstract: false,
                         parent_type_id: None,
                     },
                     TypeDef {
-                        type_id,
+                        type_id: edge_type_id,
                         applies_to: EntityKind::Edge,
                         label: "EdgeType".to_string(),
                         is_abstract: false,
@@ -513,7 +514,7 @@ async fn tombstone_edge_removes_traversal() -> aideon_mneme_store::MnemeResult<(
             actor,
             asserted_at: Hlc::now(),
             node_id: src_id,
-            type_id: Some(type_id),
+            type_id: Some(node_type_id),
             acl_group_id: None,
             owner_actor_id: None,
             visibility: None,
@@ -527,7 +528,7 @@ async fn tombstone_edge_removes_traversal() -> aideon_mneme_store::MnemeResult<(
             actor,
             asserted_at: Hlc::now(),
             node_id: dst_id,
-            type_id: Some(type_id),
+            type_id: Some(node_type_id),
             acl_group_id: None,
             owner_actor_id: None,
             visibility: None,

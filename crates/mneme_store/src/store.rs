@@ -263,13 +263,12 @@ impl MnemeStore {
         scenario_id: Option<ScenarioId>,
         entity_id: Id,
     ) -> MnemeResult<Option<(EntityKind, Option<Id>, bool)>> {
-        if let Some(scenario_id) = scenario_id {
-            if let Some(row) = self
+        if let Some(scenario_id) = scenario_id
+            && let Some(row) = self
                 .read_entity_row_in_partition_conn(conn, partition, Some(scenario_id), entity_id)
                 .await?
-            {
-                return Ok(Some(row));
-            }
+        {
+            return Ok(Some(row));
         }
         self.read_entity_row_in_partition_conn(conn, partition, None, entity_id)
             .await
@@ -297,7 +296,7 @@ impl MnemeStore {
         let Some(row) = row else {
             return Ok(None);
         };
-        let scenario_id = read_opt_id(&row, AideonEdges::ScenarioId).map(ScenarioId);
+        let scenario_id = read_opt_id(&row, AideonEdges::ScenarioId)?.map(ScenarioId);
         let src_id = read_id(&row, AideonEdges::SrcEntityId)?;
         let dst_id = read_id(&row, AideonEdges::DstEntityId)?;
         let edge_type_id = read_opt_id(&row, AideonEdges::EdgeTypeId)?;
@@ -397,30 +396,29 @@ impl MnemeStore {
         self.validate_or_warn(src.0 == EntityKind::Node, "edge src is not a node")?;
         self.validate_or_warn(dst.0 == EntityKind::Node, "edge dst is not a node")?;
 
-        if let Some(edge_type_id) = input.type_id {
-            if let Some(rule) = self
+        if let Some(edge_type_id) = input.type_id
+            && let Some(rule) = self
                 .fetch_edge_type_rule(conn, input.partition, edge_type_id)
                 .await?
-            {
-                if !rule.allowed_src_type_ids.is_empty() {
-                    if let Some(src_type) = src.1 {
-                        self.validate_or_warn(
-                            rule.allowed_src_type_ids.contains(&src_type),
-                            "edge src type not allowed by rule",
-                        )?;
-                    } else {
-                        self.validate_or_warn(false, "edge src type is required by rule")?;
-                    }
+        {
+            if !rule.allowed_src_type_ids.is_empty() {
+                if let Some(src_type) = src.1 {
+                    self.validate_or_warn(
+                        rule.allowed_src_type_ids.contains(&src_type),
+                        "edge src type not allowed by rule",
+                    )?;
+                } else {
+                    self.validate_or_warn(false, "edge src type is required by rule")?;
                 }
-                if !rule.allowed_dst_type_ids.is_empty() {
-                    if let Some(dst_type) = dst.1 {
-                        self.validate_or_warn(
-                            rule.allowed_dst_type_ids.contains(&dst_type),
-                            "edge dst type not allowed by rule",
-                        )?;
-                    } else {
-                        self.validate_or_warn(false, "edge dst type is required by rule")?;
-                    }
+            }
+            if !rule.allowed_dst_type_ids.is_empty() {
+                if let Some(dst_type) = dst.1 {
+                    self.validate_or_warn(
+                        rule.allowed_dst_type_ids.contains(&dst_type),
+                        "edge dst type not allowed by rule",
+                    )?;
+                } else {
+                    self.validate_or_warn(false, "edge dst type is required by rule")?;
                 }
             }
         }
@@ -975,48 +973,47 @@ impl MnemeStore {
                 if let Some((kind, _type_id, _is_deleted)) = self
                     .read_entity_row_in_partition_conn(tx, *payload_partition, None, *entity_id)
                     .await?
+                    && kind == EntityKind::Edge
                 {
-                    if kind == EntityKind::Edge {
-                        let insert_exists = Query::insert()
-                            .into_table(AideonEdgeExistsFacts::Table)
-                            .columns([
+                    let insert_exists = Query::insert()
+                        .into_table(AideonEdgeExistsFacts::Table)
+                        .columns([
+                            AideonEdgeExistsFacts::PartitionId,
+                            AideonEdgeExistsFacts::ScenarioId,
+                            AideonEdgeExistsFacts::EdgeId,
+                            AideonEdgeExistsFacts::ValidFrom,
+                            AideonEdgeExistsFacts::ValidTo,
+                            AideonEdgeExistsFacts::ValidBucket,
+                            AideonEdgeExistsFacts::Layer,
+                            AideonEdgeExistsFacts::AssertedAtHlc,
+                            AideonEdgeExistsFacts::OpId,
+                            AideonEdgeExistsFacts::IsTombstone,
+                        ])
+                        .values_panic([
+                            id_value(self.backend, payload_partition.0).into(),
+                            opt_id_value(self.backend, scenario_id.map(|s| s.0)).into(),
+                            id_value(self.backend, *entity_id).into(),
+                            0i64.into(),
+                            SeaValue::BigInt(None).into(),
+                            valid_bucket(ValidTime(0)).into(),
+                            Self::layer_value(Layer::Actual).into(),
+                            asserted_at.as_i64().into(),
+                            id_value(self.backend, op_id.0).into(),
+                            true.into(),
+                        ])
+                        .on_conflict(
+                            OnConflict::columns([
                                 AideonEdgeExistsFacts::PartitionId,
-                                AideonEdgeExistsFacts::ScenarioId,
                                 AideonEdgeExistsFacts::EdgeId,
                                 AideonEdgeExistsFacts::ValidFrom,
-                                AideonEdgeExistsFacts::ValidTo,
-                                AideonEdgeExistsFacts::ValidBucket,
-                                AideonEdgeExistsFacts::Layer,
                                 AideonEdgeExistsFacts::AssertedAtHlc,
                                 AideonEdgeExistsFacts::OpId,
-                                AideonEdgeExistsFacts::IsTombstone,
                             ])
-                            .values_panic([
-                                id_value(self.backend, payload_partition.0).into(),
-                                opt_id_value(self.backend, scenario_id.map(|s| s.0)).into(),
-                                id_value(self.backend, *entity_id).into(),
-                                0i64.into(),
-                                SeaValue::BigInt(None).into(),
-                                valid_bucket(ValidTime(0)).into(),
-                                Self::layer_value(Layer::Actual).into(),
-                                asserted_at.as_i64().into(),
-                                id_value(self.backend, op_id.0).into(),
-                                true.into(),
-                            ])
-                            .on_conflict(
-                                OnConflict::columns([
-                                    AideonEdgeExistsFacts::PartitionId,
-                                    AideonEdgeExistsFacts::EdgeId,
-                                    AideonEdgeExistsFacts::ValidFrom,
-                                    AideonEdgeExistsFacts::AssertedAtHlc,
-                                    AideonEdgeExistsFacts::OpId,
-                                ])
-                                .do_nothing()
-                                .to_owned(),
-                            )
-                            .to_owned();
-                        exec(tx, &insert_exists).await?;
-                    }
+                            .do_nothing()
+                            .to_owned(),
+                        )
+                        .to_owned();
+                    exec(tx, &insert_exists).await?;
                 }
 
                 let delete_projection = Query::delete()
@@ -1055,33 +1052,37 @@ impl MnemeStore {
                 }
                 insert_property_fact(
                     tx,
-                    input.partition,
-                    input.scenario_id,
-                    input.entity_id,
-                    input.field_id,
-                    &input.value,
-                    input.valid_from,
-                    input.valid_to,
-                    input.layer,
-                    asserted_at,
-                    op_id,
-                    false,
                     self.backend,
+                    PropertyFactInsertInput {
+                        partition: input.partition,
+                        scenario_id: input.scenario_id,
+                        entity_id: input.entity_id,
+                        field_id: input.field_id,
+                        value: &input.value,
+                        valid_from: input.valid_from,
+                        valid_to: input.valid_to,
+                        layer: input.layer,
+                        asserted_at,
+                        op_id,
+                        is_tombstone: false,
+                    },
                 )
                 .await?;
                 if constraints.is_indexed {
                     insert_index_row(
                         tx,
-                        input.partition,
-                        input.scenario_id,
-                        input.field_id,
-                        input.entity_id,
-                        &input.value,
-                        input.valid_from,
-                        input.valid_to,
-                        asserted_at,
-                        input.layer,
                         self.backend,
+                        IndexInsertInput {
+                            partition: input.partition,
+                            scenario_id: input.scenario_id,
+                            field_id: input.field_id,
+                            entity_id: input.entity_id,
+                            value: &input.value,
+                            valid_from: input.valid_from,
+                            valid_to: input.valid_to,
+                            asserted_at,
+                            layer: input.layer,
+                        },
                     )
                     .await?;
                 }
@@ -1107,18 +1108,20 @@ impl MnemeStore {
                 let value = default_value_for_type(constraints.value_type);
                 insert_property_fact(
                     tx,
-                    input.partition,
-                    input.scenario_id,
-                    input.entity_id,
-                    input.field_id,
-                    &value,
-                    input.valid_from,
-                    input.valid_to,
-                    input.layer,
-                    asserted_at,
-                    op_id,
-                    true,
                     self.backend,
+                    PropertyFactInsertInput {
+                        partition: input.partition,
+                        scenario_id: input.scenario_id,
+                        entity_id: input.entity_id,
+                        field_id: input.field_id,
+                        value: &value,
+                        valid_from: input.valid_from,
+                        valid_to: input.valid_to,
+                        layer: input.layer,
+                        asserted_at,
+                        op_id,
+                        is_tombstone: true,
+                    },
                 )
                 .await?;
                 if constraints.is_indexed {
@@ -1155,18 +1158,20 @@ impl MnemeStore {
                 let is_tombstone = matches!(input.op, SetOp::Remove);
                 insert_property_fact(
                     tx,
-                    input.partition,
-                    input.scenario_id,
-                    input.entity_id,
-                    input.field_id,
-                    &input.element,
-                    input.valid_from,
-                    input.valid_to,
-                    input.layer,
-                    asserted_at,
-                    op_id,
-                    is_tombstone,
                     self.backend,
+                    PropertyFactInsertInput {
+                        partition: input.partition,
+                        scenario_id: input.scenario_id,
+                        entity_id: input.entity_id,
+                        field_id: input.field_id,
+                        value: &input.element,
+                        valid_from: input.valid_from,
+                        valid_to: input.valid_to,
+                        layer: input.layer,
+                        asserted_at,
+                        op_id,
+                        is_tombstone,
+                    },
                 )
                 .await?;
                 if constraints.is_indexed {
@@ -1184,16 +1189,18 @@ impl MnemeStore {
                     } else {
                         insert_index_row(
                             tx,
-                            input.partition,
-                            input.scenario_id,
-                            input.field_id,
-                            input.entity_id,
-                            &input.element,
-                            input.valid_from,
-                            input.valid_to,
-                            asserted_at,
-                            input.layer,
                             self.backend,
+                            IndexInsertInput {
+                                partition: input.partition,
+                                scenario_id: input.scenario_id,
+                                field_id: input.field_id,
+                                entity_id: input.entity_id,
+                                value: &input.element,
+                                valid_from: input.valid_from,
+                                valid_to: input.valid_to,
+                                asserted_at,
+                                layer: input.layer,
+                            },
                         )
                         .await?;
                     }
@@ -1217,33 +1224,37 @@ impl MnemeStore {
                 let value = Value::I64(input.delta);
                 insert_property_fact(
                     tx,
-                    input.partition,
-                    input.scenario_id,
-                    input.entity_id,
-                    input.field_id,
-                    &value,
-                    input.valid_from,
-                    input.valid_to,
-                    input.layer,
-                    asserted_at,
-                    op_id,
-                    false,
                     self.backend,
+                    PropertyFactInsertInput {
+                        partition: input.partition,
+                        scenario_id: input.scenario_id,
+                        entity_id: input.entity_id,
+                        field_id: input.field_id,
+                        value: &value,
+                        valid_from: input.valid_from,
+                        valid_to: input.valid_to,
+                        layer: input.layer,
+                        asserted_at,
+                        op_id,
+                        is_tombstone: false,
+                    },
                 )
                 .await?;
                 if constraints.is_indexed {
                     insert_index_row(
                         tx,
-                        input.partition,
-                        input.scenario_id,
-                        input.field_id,
-                        input.entity_id,
-                        &value,
-                        input.valid_from,
-                        input.valid_to,
-                        asserted_at,
-                        input.layer,
                         self.backend,
+                        IndexInsertInput {
+                            partition: input.partition,
+                            scenario_id: input.scenario_id,
+                            field_id: input.field_id,
+                            entity_id: input.entity_id,
+                            value: &value,
+                            valid_from: input.valid_from,
+                            valid_to: input.valid_to,
+                            asserted_at,
+                            layer: input.layer,
+                        },
                     )
                     .await?;
                 }
@@ -1435,22 +1446,45 @@ impl MnemeStore {
         Ok(())
     }
 
-    async fn export_fact_table(
+    async fn export_fact_table<
+        TTable: sea_query::Iden + Clone,
+        TEntity: sea_query::Iden + Clone,
+        TField: sea_query::Iden + Clone,
+        TValidFrom: sea_query::Iden + Clone,
+        TValidTo: sea_query::Iden + Clone,
+        TLayer: sea_query::Iden + Clone,
+        TAsserted: sea_query::Iden + Clone,
+        TOpId: sea_query::Iden + Clone,
+        TTombstone: sea_query::Iden + Clone,
+        TValue: sea_query::Iden + Clone,
+    >(
         &self,
         records: &mut Vec<ExportRecord>,
         opts: &SnapshotOptions,
-        table: impl sea_query::Iden + Clone,
-        entity_col: impl sea_query::Iden + Clone,
-        field_col: impl sea_query::Iden + Clone,
-        valid_from_col: impl sea_query::Iden + Clone,
-        valid_to_col: impl sea_query::Iden + Clone,
-        layer_col: impl sea_query::Iden + Clone,
-        asserted_col: impl sea_query::Iden + Clone,
-        op_id_col: impl sea_query::Iden + Clone,
-        tombstone_col: impl sea_query::Iden + Clone,
-        value_col: impl sea_query::Iden + Clone,
-        record_type: &str,
+        spec: ExportFactTableSpec<
+            '_,
+            TTable,
+            TEntity,
+            TField,
+            TValidFrom,
+            TValidTo,
+            TLayer,
+            TAsserted,
+            TOpId,
+            TTombstone,
+            TValue,
+        >,
     ) -> MnemeResult<()> {
+        let table = spec.table;
+        let entity_col = spec.entity_col;
+        let field_col = spec.field_col;
+        let valid_from_col = spec.valid_from_col;
+        let valid_to_col = spec.valid_to_col;
+        let layer_col = spec.layer_col;
+        let asserted_col = spec.asserted_col;
+        let op_id_col = spec.op_id_col;
+        let tombstone_col = spec.tombstone_col;
+        let value_col = spec.value_col;
         let mut select = Query::select()
             .from(table.clone())
             .column(entity_col.clone())
@@ -1489,7 +1523,7 @@ impl MnemeStore {
             let asserted_at = read_hlc_by_name(&row, &col_name(asserted_col.clone()))?;
             let op_id = read_id_by_name(&row, &col_name(op_id_col.clone()))?;
             let is_tombstone: bool = row.try_get("", &col_name(tombstone_col.clone()))?;
-            let value = match record_type {
+            let value = match spec.record_type {
                 "snapshot_fact_str" => {
                     let value: String = row.try_get("", &col_name(value_col.clone()))?;
                     serde_json::Value::String(value)
@@ -1530,7 +1564,7 @@ impl MnemeStore {
                 _ => serde_json::Value::Null,
             };
             records.push(ExportRecord {
-                record_type: record_type.to_string(),
+                record_type: spec.record_type.to_string(),
                 data: serde_json::json!({
                     "entity_id": entity_id,
                     "field_id": field_id,
@@ -1974,19 +2008,17 @@ impl MnemeStore {
                 return false;
             }
         }
-        if let Some(groups) = &ctx.allowed_acl_groups {
-            if let Some(group_id) = &entity.acl_group_id {
-                if !groups.iter().any(|allowed| allowed == group_id) {
-                    return false;
-                }
-            }
+        if let Some(groups) = &ctx.allowed_acl_groups
+            && let Some(group_id) = &entity.acl_group_id
+            && !groups.iter().any(|allowed| allowed == group_id)
+        {
+            return false;
         }
-        if let Some(owners) = &ctx.allowed_owner_ids {
-            if let Some(owner) = entity.owner_actor_id {
-                if !owners.iter().any(|allowed| allowed == &owner) {
-                    return false;
-                }
-            }
+        if let Some(owners) = &ctx.allowed_owner_ids
+            && let Some(owner) = entity.owner_actor_id
+            && !owners.iter().any(|allowed| allowed == &owner)
+        {
+            return false;
         }
         true
     }
@@ -1997,13 +2029,12 @@ impl MnemeStore {
         scenario_id: Option<crate::ScenarioId>,
         entity_id: Id,
     ) -> MnemeResult<(PartitionId, EntityKind, Option<Id>, bool)> {
-        if let Some(scenario_id) = scenario_id {
-            if let Some((kind, type_id, is_deleted)) = self
+        if let Some(scenario_id) = scenario_id
+            && let Some((kind, type_id, is_deleted)) = self
                 .read_entity_row_in_partition(partition, Some(scenario_id), entity_id)
                 .await?
-            {
-                return Ok((partition, kind, type_id, is_deleted));
-            }
+        {
+            return Ok((partition, kind, type_id, is_deleted));
         }
         if let Some((kind, type_id, is_deleted)) = self
             .read_entity_row_in_partition(partition, None, entity_id)
@@ -2097,12 +2128,10 @@ impl MnemeStore {
                     .to_owned();
                 if let Some(row) = query_one(conn, &select).await? {
                     found_attachment = true;
-                    if let Ok(value) = row
+                    if let Ok(Some(value)) = row
                         .try_get::<Option<bool>>("", &col_name(AideonTypeFields::DisallowOverlap))
                     {
-                        if let Some(value) = value {
-                            constraints.disallow_overlap = value;
-                        }
+                        constraints.disallow_overlap = value;
                     }
                 }
             }
@@ -2158,164 +2187,135 @@ impl MnemeStore {
     async fn property_overlap_exists<C: ConnectionTrait>(
         &self,
         conn: &C,
-        partition: PartitionId,
-        scenario_id: Option<ScenarioId>,
-        entity_id: Id,
-        field_id: Id,
-        valid_from: ValidTime,
-        valid_to: Option<ValidTime>,
+        input: PropertyOverlapInput,
         value_type: ValueType,
     ) -> MnemeResult<bool> {
         match value_type {
             ValueType::Str => {
                 self.property_overlap_exists_for(
                     conn,
-                    partition,
-                    scenario_id,
-                    entity_id,
-                    field_id,
-                    valid_from,
-                    valid_to,
-                    AideonPropFactStr::Table,
-                    AideonPropFactStr::PartitionId,
-                    AideonPropFactStr::ScenarioId,
-                    AideonPropFactStr::EntityId,
-                    AideonPropFactStr::FieldId,
-                    AideonPropFactStr::ValidFrom,
-                    AideonPropFactStr::ValidTo,
+                    &input,
+                    PropertyOverlapTableSpec {
+                        table: AideonPropFactStr::Table,
+                        partition_col: AideonPropFactStr::PartitionId,
+                        scenario_col: AideonPropFactStr::ScenarioId,
+                        entity_col: AideonPropFactStr::EntityId,
+                        field_col: AideonPropFactStr::FieldId,
+                        valid_from_col: AideonPropFactStr::ValidFrom,
+                        valid_to_col: AideonPropFactStr::ValidTo,
+                    },
                 )
                 .await
             }
             ValueType::I64 => {
                 self.property_overlap_exists_for(
                     conn,
-                    partition,
-                    scenario_id,
-                    entity_id,
-                    field_id,
-                    valid_from,
-                    valid_to,
-                    AideonPropFactI64::Table,
-                    AideonPropFactI64::PartitionId,
-                    AideonPropFactI64::ScenarioId,
-                    AideonPropFactI64::EntityId,
-                    AideonPropFactI64::FieldId,
-                    AideonPropFactI64::ValidFrom,
-                    AideonPropFactI64::ValidTo,
+                    &input,
+                    PropertyOverlapTableSpec {
+                        table: AideonPropFactI64::Table,
+                        partition_col: AideonPropFactI64::PartitionId,
+                        scenario_col: AideonPropFactI64::ScenarioId,
+                        entity_col: AideonPropFactI64::EntityId,
+                        field_col: AideonPropFactI64::FieldId,
+                        valid_from_col: AideonPropFactI64::ValidFrom,
+                        valid_to_col: AideonPropFactI64::ValidTo,
+                    },
                 )
                 .await
             }
             ValueType::F64 => {
                 self.property_overlap_exists_for(
                     conn,
-                    partition,
-                    scenario_id,
-                    entity_id,
-                    field_id,
-                    valid_from,
-                    valid_to,
-                    AideonPropFactF64::Table,
-                    AideonPropFactF64::PartitionId,
-                    AideonPropFactF64::ScenarioId,
-                    AideonPropFactF64::EntityId,
-                    AideonPropFactF64::FieldId,
-                    AideonPropFactF64::ValidFrom,
-                    AideonPropFactF64::ValidTo,
+                    &input,
+                    PropertyOverlapTableSpec {
+                        table: AideonPropFactF64::Table,
+                        partition_col: AideonPropFactF64::PartitionId,
+                        scenario_col: AideonPropFactF64::ScenarioId,
+                        entity_col: AideonPropFactF64::EntityId,
+                        field_col: AideonPropFactF64::FieldId,
+                        valid_from_col: AideonPropFactF64::ValidFrom,
+                        valid_to_col: AideonPropFactF64::ValidTo,
+                    },
                 )
                 .await
             }
             ValueType::Bool => {
                 self.property_overlap_exists_for(
                     conn,
-                    partition,
-                    scenario_id,
-                    entity_id,
-                    field_id,
-                    valid_from,
-                    valid_to,
-                    AideonPropFactBool::Table,
-                    AideonPropFactBool::PartitionId,
-                    AideonPropFactBool::ScenarioId,
-                    AideonPropFactBool::EntityId,
-                    AideonPropFactBool::FieldId,
-                    AideonPropFactBool::ValidFrom,
-                    AideonPropFactBool::ValidTo,
+                    &input,
+                    PropertyOverlapTableSpec {
+                        table: AideonPropFactBool::Table,
+                        partition_col: AideonPropFactBool::PartitionId,
+                        scenario_col: AideonPropFactBool::ScenarioId,
+                        entity_col: AideonPropFactBool::EntityId,
+                        field_col: AideonPropFactBool::FieldId,
+                        valid_from_col: AideonPropFactBool::ValidFrom,
+                        valid_to_col: AideonPropFactBool::ValidTo,
+                    },
                 )
                 .await
             }
             ValueType::Time => {
                 self.property_overlap_exists_for(
                     conn,
-                    partition,
-                    scenario_id,
-                    entity_id,
-                    field_id,
-                    valid_from,
-                    valid_to,
-                    AideonPropFactTime::Table,
-                    AideonPropFactTime::PartitionId,
-                    AideonPropFactTime::ScenarioId,
-                    AideonPropFactTime::EntityId,
-                    AideonPropFactTime::FieldId,
-                    AideonPropFactTime::ValidFrom,
-                    AideonPropFactTime::ValidTo,
+                    &input,
+                    PropertyOverlapTableSpec {
+                        table: AideonPropFactTime::Table,
+                        partition_col: AideonPropFactTime::PartitionId,
+                        scenario_col: AideonPropFactTime::ScenarioId,
+                        entity_col: AideonPropFactTime::EntityId,
+                        field_col: AideonPropFactTime::FieldId,
+                        valid_from_col: AideonPropFactTime::ValidFrom,
+                        valid_to_col: AideonPropFactTime::ValidTo,
+                    },
                 )
                 .await
             }
             ValueType::Ref => {
                 self.property_overlap_exists_for(
                     conn,
-                    partition,
-                    scenario_id,
-                    entity_id,
-                    field_id,
-                    valid_from,
-                    valid_to,
-                    AideonPropFactRef::Table,
-                    AideonPropFactRef::PartitionId,
-                    AideonPropFactRef::ScenarioId,
-                    AideonPropFactRef::EntityId,
-                    AideonPropFactRef::FieldId,
-                    AideonPropFactRef::ValidFrom,
-                    AideonPropFactRef::ValidTo,
+                    &input,
+                    PropertyOverlapTableSpec {
+                        table: AideonPropFactRef::Table,
+                        partition_col: AideonPropFactRef::PartitionId,
+                        scenario_col: AideonPropFactRef::ScenarioId,
+                        entity_col: AideonPropFactRef::EntityId,
+                        field_col: AideonPropFactRef::FieldId,
+                        valid_from_col: AideonPropFactRef::ValidFrom,
+                        valid_to_col: AideonPropFactRef::ValidTo,
+                    },
                 )
                 .await
             }
             ValueType::Blob => {
                 self.property_overlap_exists_for(
                     conn,
-                    partition,
-                    scenario_id,
-                    entity_id,
-                    field_id,
-                    valid_from,
-                    valid_to,
-                    AideonPropFactBlob::Table,
-                    AideonPropFactBlob::PartitionId,
-                    AideonPropFactBlob::ScenarioId,
-                    AideonPropFactBlob::EntityId,
-                    AideonPropFactBlob::FieldId,
-                    AideonPropFactBlob::ValidFrom,
-                    AideonPropFactBlob::ValidTo,
+                    &input,
+                    PropertyOverlapTableSpec {
+                        table: AideonPropFactBlob::Table,
+                        partition_col: AideonPropFactBlob::PartitionId,
+                        scenario_col: AideonPropFactBlob::ScenarioId,
+                        entity_col: AideonPropFactBlob::EntityId,
+                        field_col: AideonPropFactBlob::FieldId,
+                        valid_from_col: AideonPropFactBlob::ValidFrom,
+                        valid_to_col: AideonPropFactBlob::ValidTo,
+                    },
                 )
                 .await
             }
             ValueType::Json => {
                 self.property_overlap_exists_for(
                     conn,
-                    partition,
-                    scenario_id,
-                    entity_id,
-                    field_id,
-                    valid_from,
-                    valid_to,
-                    AideonPropFactJson::Table,
-                    AideonPropFactJson::PartitionId,
-                    AideonPropFactJson::ScenarioId,
-                    AideonPropFactJson::EntityId,
-                    AideonPropFactJson::FieldId,
-                    AideonPropFactJson::ValidFrom,
-                    AideonPropFactJson::ValidTo,
+                    &input,
+                    PropertyOverlapTableSpec {
+                        table: AideonPropFactJson::Table,
+                        partition_col: AideonPropFactJson::PartitionId,
+                        scenario_col: AideonPropFactJson::ScenarioId,
+                        entity_col: AideonPropFactJson::EntityId,
+                        field_col: AideonPropFactJson::FieldId,
+                        valid_from_col: AideonPropFactJson::ValidFrom,
+                        valid_to_col: AideonPropFactJson::ValidTo,
+                    },
                 )
                 .await
             }
@@ -2334,19 +2334,16 @@ impl MnemeStore {
     >(
         &self,
         conn: &C,
-        partition: PartitionId,
-        scenario_id: Option<ScenarioId>,
-        entity_id: Id,
-        field_id: Id,
-        valid_from: ValidTime,
-        valid_to: Option<ValidTime>,
-        table: TTable,
-        partition_col: TPartition,
-        scenario_col: TScenario,
-        entity_col: TEntity,
-        field_col: TField,
-        valid_from_col: TValidFrom,
-        valid_to_col: TValidTo,
+        input: &PropertyOverlapInput,
+        spec: PropertyOverlapTableSpec<
+            TTable,
+            TPartition,
+            TScenario,
+            TEntity,
+            TField,
+            TValidFrom,
+            TValidTo,
+        >,
     ) -> MnemeResult<bool>
     where
         C: ConnectionTrait,
@@ -2359,29 +2356,40 @@ impl MnemeStore {
         TValidTo: Iden + Copy,
     {
         let mut select = Query::select()
-            .from(table)
-            .column(valid_from_col)
-            .and_where(Expr::col((table, partition_col)).eq(id_value(self.backend, partition.0)))
-            .and_where(Expr::col((table, entity_col)).eq(id_value(self.backend, entity_id)))
-            .and_where(Expr::col((table, field_col)).eq(id_value(self.backend, field_id)))
+            .from(spec.table)
+            .column(spec.valid_from_col)
+            .and_where(
+                Expr::col((spec.table, spec.partition_col))
+                    .eq(id_value(self.backend, input.partition.0)),
+            )
+            .and_where(
+                Expr::col((spec.table, spec.entity_col))
+                    .eq(id_value(self.backend, input.entity_id)),
+            )
+            .and_where(
+                Expr::col((spec.table, spec.field_col)).eq(id_value(self.backend, input.field_id)),
+            )
             .limit(1)
             .to_owned();
-        if let Some(scenario_id) = scenario_id {
+        if let Some(scenario_id) = input.scenario_id {
             select.and_where(
-                Expr::col((table, scenario_col)).eq(id_value(self.backend, scenario_id.0)),
+                Expr::col((spec.table, spec.scenario_col))
+                    .eq(id_value(self.backend, scenario_id.0)),
             );
         } else {
-            select.and_where(Expr::col((table, scenario_col)).is_null());
+            select.and_where(Expr::col((spec.table, spec.scenario_col)).is_null());
         }
-        let overlap_expr = match valid_to {
-            Some(valid_to) => Expr::col((table, valid_from_col)).lt(valid_to.0).and(
-                Expr::col((table, valid_to_col))
-                    .is_null()
-                    .or(Expr::col((table, valid_to_col)).gt(valid_from.0)),
-            ),
-            None => Expr::col((table, valid_to_col))
+        let overlap_expr = match input.valid_to {
+            Some(valid_to) => Expr::col((spec.table, spec.valid_from_col))
+                .lt(valid_to.0)
+                .and(
+                    Expr::col((spec.table, spec.valid_to_col))
+                        .is_null()
+                        .or(Expr::col((spec.table, spec.valid_to_col)).gt(input.valid_from.0)),
+                ),
+            None => Expr::col((spec.table, spec.valid_to_col))
                 .is_null()
-                .or(Expr::col((table, valid_to_col)).gt(valid_from.0)),
+                .or(Expr::col((spec.table, spec.valid_to_col)).gt(input.valid_from.0)),
         };
         select.and_where(overlap_expr);
         Ok(query_one(conn, &select).await?.is_some())
@@ -2393,17 +2401,16 @@ impl MnemeStore {
         input: &SetPropIntervalInput,
         value_type: ValueType,
     ) -> MnemeResult<()> {
+        let overlap_input = PropertyOverlapInput {
+            partition: input.partition,
+            scenario_id: input.scenario_id,
+            entity_id: input.entity_id,
+            field_id: input.field_id,
+            valid_from: input.valid_from,
+            valid_to: input.valid_to,
+        };
         if self
-            .property_overlap_exists(
-                tx,
-                input.partition,
-                input.scenario_id,
-                input.entity_id,
-                input.field_id,
-                input.valid_from,
-                input.valid_to,
-                value_type,
-            )
+            .property_overlap_exists(tx, overlap_input, value_type)
             .await?
         {
             return Err(MnemeError::conflict("overlapping intervals disallowed"));
@@ -2417,17 +2424,16 @@ impl MnemeStore {
         input: &ClearPropIntervalInput,
         value_type: ValueType,
     ) -> MnemeResult<()> {
+        let overlap_input = PropertyOverlapInput {
+            partition: input.partition,
+            scenario_id: input.scenario_id,
+            entity_id: input.entity_id,
+            field_id: input.field_id,
+            valid_from: input.valid_from,
+            valid_to: input.valid_to,
+        };
         if self
-            .property_overlap_exists(
-                tx,
-                input.partition,
-                input.scenario_id,
-                input.entity_id,
-                input.field_id,
-                input.valid_from,
-                input.valid_to,
-                value_type,
-            )
+            .property_overlap_exists(tx, overlap_input, value_type)
             .await?
         {
             return Err(MnemeError::conflict("overlapping intervals disallowed"));
@@ -2441,30 +2447,31 @@ impl MnemeStore {
         input: &SetPropIntervalInput,
         value_type: ValueType,
     ) -> MnemeResult<()> {
+        let overlap_input = PropertyOverlapInput {
+            partition: input.partition,
+            scenario_id: input.scenario_id,
+            entity_id: input.entity_id,
+            field_id: input.field_id,
+            valid_from: input.valid_from,
+            valid_to: input.valid_to,
+        };
         if !self
-            .property_overlap_exists(
-                tx,
-                input.partition,
-                input.scenario_id,
-                input.entity_id,
-                input.field_id,
-                input.valid_from,
-                input.valid_to,
-                value_type,
-            )
+            .property_overlap_exists(tx, overlap_input, value_type)
             .await?
         {
             return Ok(());
         }
         self.insert_overlap_finding(
             tx,
-            input.partition,
-            input.scenario_id,
-            input.entity_id,
-            input.field_id,
-            input.valid_from,
-            input.valid_to,
-            "set_property",
+            OverlapFindingInput {
+                partition: input.partition,
+                scenario_id: input.scenario_id,
+                entity_id: input.entity_id,
+                field_id: input.field_id,
+                valid_from: input.valid_from,
+                valid_to: input.valid_to,
+                op_kind: "set_property",
+            },
         )
         .await
     }
@@ -2475,30 +2482,31 @@ impl MnemeStore {
         input: &ClearPropIntervalInput,
         value_type: ValueType,
     ) -> MnemeResult<()> {
+        let overlap_input = PropertyOverlapInput {
+            partition: input.partition,
+            scenario_id: input.scenario_id,
+            entity_id: input.entity_id,
+            field_id: input.field_id,
+            valid_from: input.valid_from,
+            valid_to: input.valid_to,
+        };
         if !self
-            .property_overlap_exists(
-                tx,
-                input.partition,
-                input.scenario_id,
-                input.entity_id,
-                input.field_id,
-                input.valid_from,
-                input.valid_to,
-                value_type,
-            )
+            .property_overlap_exists(tx, overlap_input, value_type)
             .await?
         {
             return Ok(());
         }
         self.insert_overlap_finding(
             tx,
-            input.partition,
-            input.scenario_id,
-            input.entity_id,
-            input.field_id,
-            input.valid_from,
-            input.valid_to,
-            "clear_property",
+            OverlapFindingInput {
+                partition: input.partition,
+                scenario_id: input.scenario_id,
+                entity_id: input.entity_id,
+                field_id: input.field_id,
+                valid_from: input.valid_from,
+                valid_to: input.valid_to,
+                op_kind: "clear_property",
+            },
         )
         .await
     }
@@ -2506,13 +2514,7 @@ impl MnemeStore {
     async fn insert_overlap_finding(
         &self,
         tx: &sea_orm::DatabaseTransaction,
-        partition: PartitionId,
-        scenario_id: Option<ScenarioId>,
-        entity_id: Id,
-        field_id: Id,
-        valid_from: ValidTime,
-        valid_to: Option<ValidTime>,
-        op_kind: &str,
+        input: OverlapFindingInput<'_>,
     ) -> MnemeResult<()> {
         const SEVERITY_WARN: i64 = 1;
         let run_id = Id::new();
@@ -2529,14 +2531,14 @@ impl MnemeStore {
                 AideonIntegrityRuns::CreatedAssertedAtHlc,
             ])
             .values_panic([
-                id_value(self.backend, partition.0).into(),
+                id_value(self.backend, input.partition.0).into(),
                 id_value(self.backend, run_id).into(),
-                opt_id_value(self.backend, scenario_id.map(|s| s.0)).into(),
-                valid_from.0.into(),
+                opt_id_value(self.backend, input.scenario_id.map(|s| s.0)).into(),
+                input.valid_from.0.into(),
                 now.into(),
                 serde_json::json!({
                     "reason": "overlap_warning",
-                    "op_kind": op_kind,
+                    "op_kind": input.op_kind,
                 })
                 .to_string()
                 .into(),
@@ -2556,15 +2558,15 @@ impl MnemeStore {
                 AideonIntegrityFindings::DetailsJson,
             ])
             .values_panic([
-                id_value(self.backend, partition.0).into(),
+                id_value(self.backend, input.partition.0).into(),
                 id_value(self.backend, run_id).into(),
                 "overlap_warning".into(),
                 SEVERITY_WARN.into(),
-                id_value(self.backend, entity_id).into(),
+                id_value(self.backend, input.entity_id).into(),
                 serde_json::json!({
-                    "field_id": field_id,
-                    "valid_from": valid_from.0,
-                    "valid_to": valid_to.map(|v| v.0),
+                    "field_id": input.field_id,
+                    "valid_from": input.valid_from.0,
+                    "valid_to": input.valid_to.map(|v| v.0),
                 })
                 .to_string()
                 .into(),
@@ -2581,8 +2583,8 @@ impl MnemeStore {
                 AideonIntegrityHead::UpdatedAssertedAtHlc,
             ])
             .values_panic([
-                id_value(self.backend, partition.0).into(),
-                opt_id_value(self.backend, scenario_id.map(|s| s.0)).into(),
+                id_value(self.backend, input.partition.0).into(),
+                opt_id_value(self.backend, input.scenario_id.map(|s| s.0)).into(),
                 id_value(self.backend, run_id).into(),
                 now.into(),
             ])
@@ -2637,10 +2639,10 @@ fn normalize_index_text(value: &str) -> String {
 }
 
 fn check_value_limits(value: &Value, limits: &MnemeLimits) -> MnemeResult<()> {
-    if let Value::Blob(payload) = value {
-        if payload.len() > limits.max_blob_bytes {
-            return Err(MnemeError::validation("blob value exceeds limit"));
-        }
+    if let Value::Blob(payload) = value
+        && payload.len() > limits.max_blob_bytes
+    {
+        return Err(MnemeError::validation("blob value exceeds limit"));
     }
     Ok(())
 }
@@ -2948,58 +2950,8 @@ impl MetamodelApi for MnemeStore {
         asserted_at: Hlc,
         type_id: Id,
     ) -> MnemeResult<SchemaVersion> {
-        let schema = self.build_effective_schema(partition, type_id).await?;
-        let payload =
-            serde_json::to_vec(&schema).map_err(|err| MnemeError::storage(err.to_string()))?;
-        let hash = blake3::hash(&payload).to_hex().to_string();
-        let insert = Query::insert()
-            .into_table(AideonEffectiveSchemaCache::Table)
-            .columns([
-                AideonEffectiveSchemaCache::PartitionId,
-                AideonEffectiveSchemaCache::TypeId,
-                AideonEffectiveSchemaCache::SchemaVersionHash,
-                AideonEffectiveSchemaCache::Blob,
-                AideonEffectiveSchemaCache::BuiltAssertedAtHlc,
-            ])
-            .values_panic([
-                id_value(self.backend, partition.0).into(),
-                id_value(self.backend, type_id).into(),
-                hash.clone().into(),
-                payload.into(),
-                asserted_at.as_i64().into(),
-            ])
-            .to_owned();
-        exec(&self.conn, &insert).await?;
-        let update_head = Query::insert()
-            .into_table(AideonTypeSchemaHead::Table)
-            .columns([
-                AideonTypeSchemaHead::PartitionId,
-                AideonTypeSchemaHead::TypeId,
-                AideonTypeSchemaHead::SchemaVersionHash,
-                AideonTypeSchemaHead::UpdatedAssertedAtHlc,
-            ])
-            .values_panic([
-                id_value(self.backend, partition.0).into(),
-                id_value(self.backend, type_id).into(),
-                hash.clone().into(),
-                asserted_at.as_i64().into(),
-            ])
-            .on_conflict(
-                OnConflict::columns([
-                    AideonTypeSchemaHead::PartitionId,
-                    AideonTypeSchemaHead::TypeId,
-                ])
-                .update_columns([
-                    AideonTypeSchemaHead::SchemaVersionHash,
-                    AideonTypeSchemaHead::UpdatedAssertedAtHlc,
-                ])
-                .to_owned(),
-            )
-            .to_owned();
-        exec(&self.conn, &update_head).await?;
-        Ok(SchemaVersion {
-            schema_version_hash: hash,
-        })
+        self.compile_effective_schema_with_conn(&self.conn, partition, asserted_at, type_id)
+            .await
     }
 
     async fn get_effective_schema(
@@ -3528,34 +3480,38 @@ impl PropertyWriteApi for MnemeStore {
             .await?;
         insert_property_fact(
             &tx,
-            input.partition,
-            input.scenario_id,
-            input.entity_id,
-            input.field_id,
-            &input.value,
-            input.valid_from,
-            input.valid_to,
-            input.layer,
-            asserted_at,
-            op_id,
-            false,
             self.backend,
+            PropertyFactInsertInput {
+                partition: input.partition,
+                scenario_id: input.scenario_id,
+                entity_id: input.entity_id,
+                field_id: input.field_id,
+                value: &input.value,
+                valid_from: input.valid_from,
+                valid_to: input.valid_to,
+                layer: input.layer,
+                asserted_at,
+                op_id,
+                is_tombstone: false,
+            },
         )
         .await?;
         self.maybe_failpoint("after_property_fact_insert")?;
         if constraints.is_indexed {
             insert_index_row(
                 &tx,
-                input.partition,
-                input.scenario_id,
-                input.field_id,
-                input.entity_id,
-                &input.value,
-                input.valid_from,
-                input.valid_to,
-                asserted_at,
-                input.layer,
                 self.backend,
+                IndexInsertInput {
+                    partition: input.partition,
+                    scenario_id: input.scenario_id,
+                    field_id: input.field_id,
+                    entity_id: input.entity_id,
+                    value: &input.value,
+                    valid_from: input.valid_from,
+                    valid_to: input.valid_to,
+                    asserted_at,
+                    layer: input.layer,
+                },
             )
             .await?;
         }
@@ -3613,18 +3569,20 @@ impl PropertyWriteApi for MnemeStore {
         };
         insert_property_fact(
             &tx,
-            input.partition,
-            input.scenario_id,
-            input.entity_id,
-            input.field_id,
-            &value,
-            input.valid_from,
-            input.valid_to,
-            input.layer,
-            asserted_at,
-            op_id,
-            true,
             self.backend,
+            PropertyFactInsertInput {
+                partition: input.partition,
+                scenario_id: input.scenario_id,
+                entity_id: input.entity_id,
+                field_id: input.field_id,
+                value: &value,
+                valid_from: input.valid_from,
+                valid_to: input.valid_to,
+                layer: input.layer,
+                asserted_at,
+                op_id,
+                is_tombstone: true,
+            },
         )
         .await?;
         if constraints.is_indexed {
@@ -3678,18 +3636,20 @@ impl PropertyWriteApi for MnemeStore {
         let is_tombstone = matches!(input.op, SetOp::Remove);
         insert_property_fact(
             &tx,
-            input.partition,
-            input.scenario_id,
-            input.entity_id,
-            input.field_id,
-            &input.element,
-            input.valid_from,
-            input.valid_to,
-            input.layer,
-            asserted_at,
-            op_id,
-            is_tombstone,
             self.backend,
+            PropertyFactInsertInput {
+                partition: input.partition,
+                scenario_id: input.scenario_id,
+                entity_id: input.entity_id,
+                field_id: input.field_id,
+                value: &input.element,
+                valid_from: input.valid_from,
+                valid_to: input.valid_to,
+                layer: input.layer,
+                asserted_at,
+                op_id,
+                is_tombstone,
+            },
         )
         .await?;
         if constraints.is_indexed {
@@ -3707,16 +3667,18 @@ impl PropertyWriteApi for MnemeStore {
             } else {
                 insert_index_row(
                     &tx,
-                    input.partition,
-                    input.scenario_id,
-                    input.field_id,
-                    input.entity_id,
-                    &input.element,
-                    input.valid_from,
-                    input.valid_to,
-                    asserted_at,
-                    input.layer,
                     self.backend,
+                    IndexInsertInput {
+                        partition: input.partition,
+                        scenario_id: input.scenario_id,
+                        field_id: input.field_id,
+                        entity_id: input.entity_id,
+                        value: &input.element,
+                        valid_from: input.valid_from,
+                        valid_to: input.valid_to,
+                        asserted_at,
+                        layer: input.layer,
+                    },
                 )
                 .await?;
             }
@@ -3756,33 +3718,37 @@ impl PropertyWriteApi for MnemeStore {
         let value = Value::I64(input.delta);
         insert_property_fact(
             &tx,
-            input.partition,
-            input.scenario_id,
-            input.entity_id,
-            input.field_id,
-            &value,
-            input.valid_from,
-            input.valid_to,
-            input.layer,
-            asserted_at,
-            op_id,
-            false,
             self.backend,
+            PropertyFactInsertInput {
+                partition: input.partition,
+                scenario_id: input.scenario_id,
+                entity_id: input.entity_id,
+                field_id: input.field_id,
+                value: &value,
+                valid_from: input.valid_from,
+                valid_to: input.valid_to,
+                layer: input.layer,
+                asserted_at,
+                op_id,
+                is_tombstone: false,
+            },
         )
         .await?;
         if constraints.is_indexed {
             insert_index_row(
                 &tx,
-                input.partition,
-                input.scenario_id,
-                input.field_id,
-                input.entity_id,
-                &value,
-                input.valid_from,
-                input.valid_to,
-                asserted_at,
-                input.layer,
                 self.backend,
+                IndexInsertInput {
+                    partition: input.partition,
+                    scenario_id: input.scenario_id,
+                    field_id: input.field_id,
+                    entity_id: input.entity_id,
+                    value: &value,
+                    valid_from: input.valid_from,
+                    valid_to: input.valid_to,
+                    asserted_at,
+                    layer: input.layer,
+                },
             )
             .await?;
         }
@@ -3797,19 +3763,17 @@ impl GraphReadApi for MnemeStore {
         &self,
         input: ReadEntityAtTimeInput,
     ) -> MnemeResult<ReadEntityAtTimeResult> {
-        if let Some(ctx) = &input.security_context {
-            let security = self
+        if let Some(ctx) = &input.security_context
+            && let Some(security) = self
                 .read_entity_security_with_fallback(
                     input.partition,
                     input.scenario_id,
                     input.entity_id,
                 )
-                .await?;
-            if let Some(security) = security {
-                if !Self::is_entity_visible(ctx, &security) {
-                    return Err(MnemeError::not_found("entity not visible"));
-                }
-            }
+                .await?
+            && !Self::is_entity_visible(ctx, &security)
+        {
+            return Err(MnemeError::not_found("entity not visible"));
         }
         let (resolved_partition, kind, type_id, is_deleted) = self
             .read_entity_row_with_fallback(input.partition, input.scenario_id, input.entity_id)
@@ -3873,25 +3837,26 @@ impl GraphReadApi for MnemeStore {
                 .await?;
             let facts = fetch_property_facts_with_fallback(
                 &self.conn,
-                resolved_partition,
-                input.scenario_id,
-                input.entity_id,
-                field_id,
-                input.at_valid_time,
-                input.as_of_asserted_at,
-                constraints.value_type,
+                PropertyFactQueryInput {
+                    partition: resolved_partition,
+                    scenario_id: input.scenario_id,
+                    entity_id: input.entity_id,
+                    field_id,
+                    at_valid_time: input.at_valid_time,
+                    as_of_asserted_at: input.as_of_asserted_at,
+                    value_type: constraints.value_type,
+                },
                 self.backend,
             )
             .await?;
             if facts.is_empty() {
-                if input.include_defaults {
-                    if let Some(default) = defaults_by_field
+                if input.include_defaults
+                    && let Some(default) = defaults_by_field
                         .as_ref()
                         .and_then(|defaults| defaults.get(&field_id))
                         .and_then(|value| value.clone())
-                    {
-                        properties.insert(field_id, ReadValue::Single(default));
-                    }
+                {
+                    properties.insert(field_id, ReadValue::Single(default));
                 }
                 continue;
             }
@@ -3914,19 +3879,17 @@ impl GraphReadApi for MnemeStore {
         &self,
         input: TraverseAtTimeInput,
     ) -> MnemeResult<Vec<TraverseEdgeItem>> {
-        if let Some(ctx) = &input.security_context {
-            let security = self
+        if let Some(ctx) = &input.security_context
+            && let Some(security) = self
                 .read_entity_security_with_fallback(
                     input.partition,
                     input.scenario_id,
                     input.from_entity_id,
                 )
-                .await?;
-            if let Some(security) = security {
-                if !Self::is_entity_visible(ctx, &security) {
-                    return Ok(Vec::new());
-                }
-            }
+                .await?
+            && !Self::is_entity_visible(ctx, &security)
+        {
+            return Ok(Vec::new());
         }
         let mut facts_by_edge: HashMap<Id, Vec<EdgeFact>> = HashMap::new();
         let mut edge_ids = std::collections::HashSet::new();
@@ -3964,41 +3927,38 @@ impl GraphReadApi for MnemeStore {
         for (_edge_id, facts) in facts_by_edge {
             if let Some(edge) = resolve_edge(facts)? {
                 if let Some(ctx) = &input.security_context {
-                    let edge_security = self
+                    if let Some(edge_security) = self
                         .read_entity_security_with_fallback(
                             input.partition,
                             input.scenario_id,
                             edge.edge_id,
                         )
-                        .await?;
-                    if let Some(edge_security) = edge_security {
-                        if !Self::is_entity_visible(ctx, &edge_security) {
-                            continue;
-                        }
+                        .await?
+                        && !Self::is_entity_visible(ctx, &edge_security)
+                    {
+                        continue;
                     }
-                    let src_security = self
+                    if let Some(src_security) = self
                         .read_entity_security_with_fallback(
                             input.partition,
                             input.scenario_id,
                             edge.src_id,
                         )
-                        .await?;
-                    if let Some(src_security) = src_security {
-                        if !Self::is_entity_visible(ctx, &src_security) {
-                            continue;
-                        }
+                        .await?
+                        && !Self::is_entity_visible(ctx, &src_security)
+                    {
+                        continue;
                     }
-                    let dst_security = self
+                    if let Some(dst_security) = self
                         .read_entity_security_with_fallback(
                             input.partition,
                             input.scenario_id,
                             edge.dst_id,
                         )
-                        .await?;
-                    if let Some(dst_security) = dst_security {
-                        if !Self::is_entity_visible(ctx, &dst_security) {
-                            continue;
-                        }
+                        .await?
+                        && !Self::is_entity_visible(ctx, &dst_security)
+                    {
+                        continue;
                     }
                 }
                 edges.push(edge);
@@ -4099,29 +4059,27 @@ impl GraphReadApi for MnemeStore {
             if is_deleted {
                 continue;
             }
-            if let Some(ctx) = &input.security_context {
-                if let Some(security) = self
+            if let Some(ctx) = &input.security_context
+                && let Some(security) = self
                     .read_entity_security_with_fallback(
                         input.partition,
                         input.scenario_id,
                         entity_id,
                     )
                     .await?
-                {
-                    if !Self::is_entity_visible(ctx, &security) {
-                        continue;
-                    }
-                }
+                && !Self::is_entity_visible(ctx, &security)
+            {
+                continue;
             }
-            if let Some(kind_filter) = input.kind {
-                if kind != kind_filter {
-                    continue;
-                }
+            if let Some(kind_filter) = input.kind
+                && kind != kind_filter
+            {
+                continue;
             }
-            if let Some(type_filter) = input.type_id {
-                if type_id != Some(type_filter) {
-                    continue;
-                }
+            if let Some(type_filter) = input.type_id
+                && type_id != Some(type_filter)
+            {
+                continue;
             }
             let mut matches = true;
             for filter in &input.filters {
@@ -4130,13 +4088,15 @@ impl GraphReadApi for MnemeStore {
                     .await?;
                 let facts = fetch_property_facts_with_fallback(
                     &self.conn,
-                    input.partition,
-                    input.scenario_id,
-                    entity_id,
-                    filter.field_id,
-                    input.at_valid_time,
-                    input.as_of_asserted_at,
-                    constraints.value_type,
+                    PropertyFactQueryInput {
+                        partition: input.partition,
+                        scenario_id: input.scenario_id,
+                        entity_id,
+                        field_id: filter.field_id,
+                        at_valid_time: input.at_valid_time,
+                        as_of_asserted_at: input.as_of_asserted_at,
+                        value_type: constraints.value_type,
+                    },
                     self.backend,
                 )
                 .await?;
@@ -4190,41 +4150,38 @@ impl AnalyticsApi for MnemeStore {
         for (edge_id, edge) in scenario_edges {
             seen.insert(edge_id);
             if let Some(ctx) = &input.security_context {
-                let edge_security = self
+                if let Some(edge_security) = self
                     .read_entity_security_with_fallback(
                         input.partition,
                         input.scenario_id,
                         edge.edge_id,
                     )
-                    .await?;
-                if let Some(edge_security) = edge_security {
-                    if !Self::is_entity_visible(ctx, &edge_security) {
-                        continue;
-                    }
+                    .await?
+                    && !Self::is_entity_visible(ctx, &edge_security)
+                {
+                    continue;
                 }
-                let src_security = self
+                if let Some(src_security) = self
                     .read_entity_security_with_fallback(
                         input.partition,
                         input.scenario_id,
                         edge.src_id,
                     )
-                    .await?;
-                if let Some(src_security) = src_security {
-                    if !Self::is_entity_visible(ctx, &src_security) {
-                        continue;
-                    }
+                    .await?
+                    && !Self::is_entity_visible(ctx, &src_security)
+                {
+                    continue;
                 }
-                let dst_security = self
+                if let Some(dst_security) = self
                     .read_entity_security_with_fallback(
                         input.partition,
                         input.scenario_id,
                         edge.dst_id,
                     )
-                    .await?;
-                if let Some(dst_security) = dst_security {
-                    if !Self::is_entity_visible(ctx, &dst_security) {
-                        continue;
-                    }
+                    .await?
+                    && !Self::is_entity_visible(ctx, &dst_security)
+                {
+                    continue;
                 }
             }
             edges.push(edge);
@@ -4249,29 +4206,26 @@ impl AnalyticsApi for MnemeStore {
                     continue;
                 }
                 if let Some(ctx) = &input.security_context {
-                    let edge_security = self
+                    if let Some(edge_security) = self
                         .read_entity_security_with_fallback(input.partition, None, edge.edge_id)
-                        .await?;
-                    if let Some(edge_security) = edge_security {
-                        if !Self::is_entity_visible(ctx, &edge_security) {
-                            continue;
-                        }
+                        .await?
+                        && !Self::is_entity_visible(ctx, &edge_security)
+                    {
+                        continue;
                     }
-                    let src_security = self
+                    if let Some(src_security) = self
                         .read_entity_security_with_fallback(input.partition, None, edge.src_id)
-                        .await?;
-                    if let Some(src_security) = src_security {
-                        if !Self::is_entity_visible(ctx, &src_security) {
-                            continue;
-                        }
+                        .await?
+                        && !Self::is_entity_visible(ctx, &src_security)
+                    {
+                        continue;
                     }
-                    let dst_security = self
+                    if let Some(dst_security) = self
                         .read_entity_security_with_fallback(input.partition, None, edge.dst_id)
-                        .await?;
-                    if let Some(dst_security) = dst_security {
-                        if !Self::is_entity_visible(ctx, &dst_security) {
-                            continue;
-                        }
+                        .await?
+                        && !Self::is_entity_visible(ctx, &dst_security)
+                    {
+                        continue;
                     }
                 }
                 edges.push(edge);
@@ -5416,7 +5370,7 @@ impl MnemeStore {
                 .values_panic([
                     id_value(self.backend, partition.0).into(),
                     opt_id_value(self.backend, scenario_id.map(|s| s.0)).into(),
-                    opt_id_value(self.backend, edge_type_id.map(|id| id)).into(),
+                    opt_id_value(self.backend, edge_type_id).into(),
                     count.into(),
                     now.into(),
                 ])
@@ -5859,168 +5813,200 @@ impl MnemeStore {
         if !lww_fields.str_fields.is_empty() {
             compact_prop_fact_table(
                 tx,
-                self.backend,
-                partition,
-                &lww_fields.str_fields,
-                AideonPropFactStr::Table,
-                &col_name(AideonPropFactStr::ScenarioId),
-                &col_name(AideonPropFactStr::EntityId),
-                &col_name(AideonPropFactStr::FieldId),
-                &col_name(AideonPropFactStr::ValidFrom),
-                &col_name(AideonPropFactStr::ValidTo),
-                &col_name(AideonPropFactStr::Layer),
-                &col_name(AideonPropFactStr::AssertedAtHlc),
-                &col_name(AideonPropFactStr::OpId),
-                &col_name(AideonPropFactStr::IsTombstone),
-                &col_name(AideonPropFactStr::ValueText),
-                ValueType::Str,
+                PropFactCompactionSpec {
+                    table_info: PropFactTableInfo {
+                        backend: self.backend,
+                        partition,
+                        table: AideonPropFactStr::Table,
+                        scenario_col: &col_name(AideonPropFactStr::ScenarioId),
+                        entity_col: &col_name(AideonPropFactStr::EntityId),
+                        field_col: &col_name(AideonPropFactStr::FieldId),
+                        valid_from_col: &col_name(AideonPropFactStr::ValidFrom),
+                        valid_to_col: &col_name(AideonPropFactStr::ValidTo),
+                        asserted_col: &col_name(AideonPropFactStr::AssertedAtHlc),
+                        op_id_col: &col_name(AideonPropFactStr::OpId),
+                    },
+                    field_ids: &lww_fields.str_fields,
+                    layer_col: &col_name(AideonPropFactStr::Layer),
+                    is_tombstone_col: &col_name(AideonPropFactStr::IsTombstone),
+                    value_col: &col_name(AideonPropFactStr::ValueText),
+                    value_type: ValueType::Str,
+                },
             )
             .await?;
         }
         if !lww_fields.i64_fields.is_empty() {
             compact_prop_fact_table(
                 tx,
-                self.backend,
-                partition,
-                &lww_fields.i64_fields,
-                AideonPropFactI64::Table,
-                &col_name(AideonPropFactI64::ScenarioId),
-                &col_name(AideonPropFactI64::EntityId),
-                &col_name(AideonPropFactI64::FieldId),
-                &col_name(AideonPropFactI64::ValidFrom),
-                &col_name(AideonPropFactI64::ValidTo),
-                &col_name(AideonPropFactI64::Layer),
-                &col_name(AideonPropFactI64::AssertedAtHlc),
-                &col_name(AideonPropFactI64::OpId),
-                &col_name(AideonPropFactI64::IsTombstone),
-                &col_name(AideonPropFactI64::ValueI64),
-                ValueType::I64,
+                PropFactCompactionSpec {
+                    table_info: PropFactTableInfo {
+                        backend: self.backend,
+                        partition,
+                        table: AideonPropFactI64::Table,
+                        scenario_col: &col_name(AideonPropFactI64::ScenarioId),
+                        entity_col: &col_name(AideonPropFactI64::EntityId),
+                        field_col: &col_name(AideonPropFactI64::FieldId),
+                        valid_from_col: &col_name(AideonPropFactI64::ValidFrom),
+                        valid_to_col: &col_name(AideonPropFactI64::ValidTo),
+                        asserted_col: &col_name(AideonPropFactI64::AssertedAtHlc),
+                        op_id_col: &col_name(AideonPropFactI64::OpId),
+                    },
+                    field_ids: &lww_fields.i64_fields,
+                    layer_col: &col_name(AideonPropFactI64::Layer),
+                    is_tombstone_col: &col_name(AideonPropFactI64::IsTombstone),
+                    value_col: &col_name(AideonPropFactI64::ValueI64),
+                    value_type: ValueType::I64,
+                },
             )
             .await?;
         }
         if !lww_fields.f64_fields.is_empty() {
             compact_prop_fact_table(
                 tx,
-                self.backend,
-                partition,
-                &lww_fields.f64_fields,
-                AideonPropFactF64::Table,
-                &col_name(AideonPropFactF64::ScenarioId),
-                &col_name(AideonPropFactF64::EntityId),
-                &col_name(AideonPropFactF64::FieldId),
-                &col_name(AideonPropFactF64::ValidFrom),
-                &col_name(AideonPropFactF64::ValidTo),
-                &col_name(AideonPropFactF64::Layer),
-                &col_name(AideonPropFactF64::AssertedAtHlc),
-                &col_name(AideonPropFactF64::OpId),
-                &col_name(AideonPropFactF64::IsTombstone),
-                &col_name(AideonPropFactF64::ValueF64),
-                ValueType::F64,
+                PropFactCompactionSpec {
+                    table_info: PropFactTableInfo {
+                        backend: self.backend,
+                        partition,
+                        table: AideonPropFactF64::Table,
+                        scenario_col: &col_name(AideonPropFactF64::ScenarioId),
+                        entity_col: &col_name(AideonPropFactF64::EntityId),
+                        field_col: &col_name(AideonPropFactF64::FieldId),
+                        valid_from_col: &col_name(AideonPropFactF64::ValidFrom),
+                        valid_to_col: &col_name(AideonPropFactF64::ValidTo),
+                        asserted_col: &col_name(AideonPropFactF64::AssertedAtHlc),
+                        op_id_col: &col_name(AideonPropFactF64::OpId),
+                    },
+                    field_ids: &lww_fields.f64_fields,
+                    layer_col: &col_name(AideonPropFactF64::Layer),
+                    is_tombstone_col: &col_name(AideonPropFactF64::IsTombstone),
+                    value_col: &col_name(AideonPropFactF64::ValueF64),
+                    value_type: ValueType::F64,
+                },
             )
             .await?;
         }
         if !lww_fields.bool_fields.is_empty() {
             compact_prop_fact_table(
                 tx,
-                self.backend,
-                partition,
-                &lww_fields.bool_fields,
-                AideonPropFactBool::Table,
-                &col_name(AideonPropFactBool::ScenarioId),
-                &col_name(AideonPropFactBool::EntityId),
-                &col_name(AideonPropFactBool::FieldId),
-                &col_name(AideonPropFactBool::ValidFrom),
-                &col_name(AideonPropFactBool::ValidTo),
-                &col_name(AideonPropFactBool::Layer),
-                &col_name(AideonPropFactBool::AssertedAtHlc),
-                &col_name(AideonPropFactBool::OpId),
-                &col_name(AideonPropFactBool::IsTombstone),
-                &col_name(AideonPropFactBool::ValueBool),
-                ValueType::Bool,
+                PropFactCompactionSpec {
+                    table_info: PropFactTableInfo {
+                        backend: self.backend,
+                        partition,
+                        table: AideonPropFactBool::Table,
+                        scenario_col: &col_name(AideonPropFactBool::ScenarioId),
+                        entity_col: &col_name(AideonPropFactBool::EntityId),
+                        field_col: &col_name(AideonPropFactBool::FieldId),
+                        valid_from_col: &col_name(AideonPropFactBool::ValidFrom),
+                        valid_to_col: &col_name(AideonPropFactBool::ValidTo),
+                        asserted_col: &col_name(AideonPropFactBool::AssertedAtHlc),
+                        op_id_col: &col_name(AideonPropFactBool::OpId),
+                    },
+                    field_ids: &lww_fields.bool_fields,
+                    layer_col: &col_name(AideonPropFactBool::Layer),
+                    is_tombstone_col: &col_name(AideonPropFactBool::IsTombstone),
+                    value_col: &col_name(AideonPropFactBool::ValueBool),
+                    value_type: ValueType::Bool,
+                },
             )
             .await?;
         }
         if !lww_fields.time_fields.is_empty() {
             compact_prop_fact_table(
                 tx,
-                self.backend,
-                partition,
-                &lww_fields.time_fields,
-                AideonPropFactTime::Table,
-                &col_name(AideonPropFactTime::ScenarioId),
-                &col_name(AideonPropFactTime::EntityId),
-                &col_name(AideonPropFactTime::FieldId),
-                &col_name(AideonPropFactTime::ValidFrom),
-                &col_name(AideonPropFactTime::ValidTo),
-                &col_name(AideonPropFactTime::Layer),
-                &col_name(AideonPropFactTime::AssertedAtHlc),
-                &col_name(AideonPropFactTime::OpId),
-                &col_name(AideonPropFactTime::IsTombstone),
-                &col_name(AideonPropFactTime::ValueTime),
-                ValueType::Time,
+                PropFactCompactionSpec {
+                    table_info: PropFactTableInfo {
+                        backend: self.backend,
+                        partition,
+                        table: AideonPropFactTime::Table,
+                        scenario_col: &col_name(AideonPropFactTime::ScenarioId),
+                        entity_col: &col_name(AideonPropFactTime::EntityId),
+                        field_col: &col_name(AideonPropFactTime::FieldId),
+                        valid_from_col: &col_name(AideonPropFactTime::ValidFrom),
+                        valid_to_col: &col_name(AideonPropFactTime::ValidTo),
+                        asserted_col: &col_name(AideonPropFactTime::AssertedAtHlc),
+                        op_id_col: &col_name(AideonPropFactTime::OpId),
+                    },
+                    field_ids: &lww_fields.time_fields,
+                    layer_col: &col_name(AideonPropFactTime::Layer),
+                    is_tombstone_col: &col_name(AideonPropFactTime::IsTombstone),
+                    value_col: &col_name(AideonPropFactTime::ValueTime),
+                    value_type: ValueType::Time,
+                },
             )
             .await?;
         }
         if !lww_fields.ref_fields.is_empty() {
             compact_prop_fact_table(
                 tx,
-                self.backend,
-                partition,
-                &lww_fields.ref_fields,
-                AideonPropFactRef::Table,
-                &col_name(AideonPropFactRef::ScenarioId),
-                &col_name(AideonPropFactRef::EntityId),
-                &col_name(AideonPropFactRef::FieldId),
-                &col_name(AideonPropFactRef::ValidFrom),
-                &col_name(AideonPropFactRef::ValidTo),
-                &col_name(AideonPropFactRef::Layer),
-                &col_name(AideonPropFactRef::AssertedAtHlc),
-                &col_name(AideonPropFactRef::OpId),
-                &col_name(AideonPropFactRef::IsTombstone),
-                &col_name(AideonPropFactRef::ValueRefEntityId),
-                ValueType::Ref,
+                PropFactCompactionSpec {
+                    table_info: PropFactTableInfo {
+                        backend: self.backend,
+                        partition,
+                        table: AideonPropFactRef::Table,
+                        scenario_col: &col_name(AideonPropFactRef::ScenarioId),
+                        entity_col: &col_name(AideonPropFactRef::EntityId),
+                        field_col: &col_name(AideonPropFactRef::FieldId),
+                        valid_from_col: &col_name(AideonPropFactRef::ValidFrom),
+                        valid_to_col: &col_name(AideonPropFactRef::ValidTo),
+                        asserted_col: &col_name(AideonPropFactRef::AssertedAtHlc),
+                        op_id_col: &col_name(AideonPropFactRef::OpId),
+                    },
+                    field_ids: &lww_fields.ref_fields,
+                    layer_col: &col_name(AideonPropFactRef::Layer),
+                    is_tombstone_col: &col_name(AideonPropFactRef::IsTombstone),
+                    value_col: &col_name(AideonPropFactRef::ValueRefEntityId),
+                    value_type: ValueType::Ref,
+                },
             )
             .await?;
         }
         if !lww_fields.blob_fields.is_empty() {
             compact_prop_fact_table(
                 tx,
-                self.backend,
-                partition,
-                &lww_fields.blob_fields,
-                AideonPropFactBlob::Table,
-                &col_name(AideonPropFactBlob::ScenarioId),
-                &col_name(AideonPropFactBlob::EntityId),
-                &col_name(AideonPropFactBlob::FieldId),
-                &col_name(AideonPropFactBlob::ValidFrom),
-                &col_name(AideonPropFactBlob::ValidTo),
-                &col_name(AideonPropFactBlob::Layer),
-                &col_name(AideonPropFactBlob::AssertedAtHlc),
-                &col_name(AideonPropFactBlob::OpId),
-                &col_name(AideonPropFactBlob::IsTombstone),
-                &col_name(AideonPropFactBlob::ValueBlob),
-                ValueType::Blob,
+                PropFactCompactionSpec {
+                    table_info: PropFactTableInfo {
+                        backend: self.backend,
+                        partition,
+                        table: AideonPropFactBlob::Table,
+                        scenario_col: &col_name(AideonPropFactBlob::ScenarioId),
+                        entity_col: &col_name(AideonPropFactBlob::EntityId),
+                        field_col: &col_name(AideonPropFactBlob::FieldId),
+                        valid_from_col: &col_name(AideonPropFactBlob::ValidFrom),
+                        valid_to_col: &col_name(AideonPropFactBlob::ValidTo),
+                        asserted_col: &col_name(AideonPropFactBlob::AssertedAtHlc),
+                        op_id_col: &col_name(AideonPropFactBlob::OpId),
+                    },
+                    field_ids: &lww_fields.blob_fields,
+                    layer_col: &col_name(AideonPropFactBlob::Layer),
+                    is_tombstone_col: &col_name(AideonPropFactBlob::IsTombstone),
+                    value_col: &col_name(AideonPropFactBlob::ValueBlob),
+                    value_type: ValueType::Blob,
+                },
             )
             .await?;
         }
         if !lww_fields.json_fields.is_empty() {
             compact_prop_fact_table(
                 tx,
-                self.backend,
-                partition,
-                &lww_fields.json_fields,
-                AideonPropFactJson::Table,
-                &col_name(AideonPropFactJson::ScenarioId),
-                &col_name(AideonPropFactJson::EntityId),
-                &col_name(AideonPropFactJson::FieldId),
-                &col_name(AideonPropFactJson::ValidFrom),
-                &col_name(AideonPropFactJson::ValidTo),
-                &col_name(AideonPropFactJson::Layer),
-                &col_name(AideonPropFactJson::AssertedAtHlc),
-                &col_name(AideonPropFactJson::OpId),
-                &col_name(AideonPropFactJson::IsTombstone),
-                &col_name(AideonPropFactJson::ValueJson),
-                ValueType::Json,
+                PropFactCompactionSpec {
+                    table_info: PropFactTableInfo {
+                        backend: self.backend,
+                        partition,
+                        table: AideonPropFactJson::Table,
+                        scenario_col: &col_name(AideonPropFactJson::ScenarioId),
+                        entity_col: &col_name(AideonPropFactJson::EntityId),
+                        field_col: &col_name(AideonPropFactJson::FieldId),
+                        valid_from_col: &col_name(AideonPropFactJson::ValidFrom),
+                        valid_to_col: &col_name(AideonPropFactJson::ValidTo),
+                        asserted_col: &col_name(AideonPropFactJson::AssertedAtHlc),
+                        op_id_col: &col_name(AideonPropFactJson::OpId),
+                    },
+                    field_ids: &lww_fields.json_fields,
+                    layer_col: &col_name(AideonPropFactJson::Layer),
+                    is_tombstone_col: &col_name(AideonPropFactJson::IsTombstone),
+                    value_col: &col_name(AideonPropFactJson::ValueJson),
+                    value_type: ValueType::Json,
+                },
             )
             .await?;
         }
@@ -6864,41 +6850,14 @@ impl MnemeProcessingApi for MnemeStore {
                     }
 
                     for type_id in type_ids {
-                        let version = self
-                            .compile_effective_schema(
+                        let _version = self
+                            .compile_effective_schema_with_conn(
+                                &tx,
                                 payload.partition_id,
-                                ActorId(Id::new()),
                                 Hlc::now(),
                                 type_id,
                             )
                             .await?;
-                        let update = Query::insert()
-                            .into_table(AideonTypeSchemaHead::Table)
-                            .columns([
-                                AideonTypeSchemaHead::PartitionId,
-                                AideonTypeSchemaHead::TypeId,
-                                AideonTypeSchemaHead::SchemaVersionHash,
-                                AideonTypeSchemaHead::UpdatedAssertedAtHlc,
-                            ])
-                            .values_panic([
-                                id_value(self.backend, payload.partition_id.0).into(),
-                                id_value(self.backend, type_id).into(),
-                                version.schema_version_hash.clone().into(),
-                                Hlc::now().as_i64().into(),
-                            ])
-                            .on_conflict(
-                                OnConflict::columns([
-                                    AideonTypeSchemaHead::PartitionId,
-                                    AideonTypeSchemaHead::TypeId,
-                                ])
-                                .update_columns([
-                                    AideonTypeSchemaHead::SchemaVersionHash,
-                                    AideonTypeSchemaHead::UpdatedAssertedAtHlc,
-                                ])
-                                .to_owned(),
-                            )
-                            .to_owned();
-                        exec(&tx, &update).await?;
                     }
                     Ok(())
                 }
@@ -7273,194 +7232,242 @@ impl ComputedCacheApi for MnemeStore {
             }
             match entry.value {
                 Value::Str(value) => {
+                    let spec = ComputedCacheTableSpec {
+                        table: AideonComputedCacheStr::Table,
+                        partition_col: "partition_id",
+                        entity_col: "entity_id",
+                        field_col: "field_id",
+                        valid_from_col: "valid_from",
+                        valid_to_col: "valid_to",
+                        rule_hash_col: "rule_version_hash",
+                        computed_at_col: "computed_asserted_at_hlc",
+                        value_col: &col_name(AideonComputedCacheStr::ValueText),
+                        value_type: ValueType::Str,
+                    };
                     upsert_computed_cache_row(
                         &tx,
                         self.backend,
-                        partition,
-                        entry.entity_id,
-                        entry.field_id,
-                        entry.valid_from,
-                        entry.valid_to,
-                        &entry.rule_version_hash,
-                        entry.computed_asserted_at,
-                        value.into(),
-                        AideonComputedCacheStr::Table,
-                        "partition_id",
-                        "entity_id",
-                        "field_id",
-                        "valid_from",
-                        "valid_to",
-                        "rule_version_hash",
-                        "computed_asserted_at_hlc",
-                        &col_name(AideonComputedCacheStr::ValueText),
+                        ComputedCacheRowInput {
+                            partition,
+                            entity_id: entry.entity_id,
+                            field_id: entry.field_id,
+                            valid_from: entry.valid_from,
+                            valid_to: entry.valid_to,
+                            rule_version_hash: &entry.rule_version_hash,
+                            computed_asserted_at: entry.computed_asserted_at,
+                            value: value.into(),
+                        },
+                        &spec,
                     )
                     .await?;
                 }
                 Value::I64(value) => {
+                    let spec = ComputedCacheTableSpec {
+                        table: AideonComputedCacheI64::Table,
+                        partition_col: "partition_id",
+                        entity_col: "entity_id",
+                        field_col: "field_id",
+                        valid_from_col: "valid_from",
+                        valid_to_col: "valid_to",
+                        rule_hash_col: "rule_version_hash",
+                        computed_at_col: "computed_asserted_at_hlc",
+                        value_col: &col_name(AideonComputedCacheI64::ValueI64),
+                        value_type: ValueType::I64,
+                    };
                     upsert_computed_cache_row(
                         &tx,
                         self.backend,
-                        partition,
-                        entry.entity_id,
-                        entry.field_id,
-                        entry.valid_from,
-                        entry.valid_to,
-                        &entry.rule_version_hash,
-                        entry.computed_asserted_at,
-                        value.into(),
-                        AideonComputedCacheI64::Table,
-                        "partition_id",
-                        "entity_id",
-                        "field_id",
-                        "valid_from",
-                        "valid_to",
-                        "rule_version_hash",
-                        "computed_asserted_at_hlc",
-                        &col_name(AideonComputedCacheI64::ValueI64),
+                        ComputedCacheRowInput {
+                            partition,
+                            entity_id: entry.entity_id,
+                            field_id: entry.field_id,
+                            valid_from: entry.valid_from,
+                            valid_to: entry.valid_to,
+                            rule_version_hash: &entry.rule_version_hash,
+                            computed_asserted_at: entry.computed_asserted_at,
+                            value: value.into(),
+                        },
+                        &spec,
                     )
                     .await?;
                 }
                 Value::F64(value) => {
+                    let spec = ComputedCacheTableSpec {
+                        table: AideonComputedCacheF64::Table,
+                        partition_col: "partition_id",
+                        entity_col: "entity_id",
+                        field_col: "field_id",
+                        valid_from_col: "valid_from",
+                        valid_to_col: "valid_to",
+                        rule_hash_col: "rule_version_hash",
+                        computed_at_col: "computed_asserted_at_hlc",
+                        value_col: &col_name(AideonComputedCacheF64::ValueF64),
+                        value_type: ValueType::F64,
+                    };
                     upsert_computed_cache_row(
                         &tx,
                         self.backend,
-                        partition,
-                        entry.entity_id,
-                        entry.field_id,
-                        entry.valid_from,
-                        entry.valid_to,
-                        &entry.rule_version_hash,
-                        entry.computed_asserted_at,
-                        value.into(),
-                        AideonComputedCacheF64::Table,
-                        "partition_id",
-                        "entity_id",
-                        "field_id",
-                        "valid_from",
-                        "valid_to",
-                        "rule_version_hash",
-                        "computed_asserted_at_hlc",
-                        &col_name(AideonComputedCacheF64::ValueF64),
+                        ComputedCacheRowInput {
+                            partition,
+                            entity_id: entry.entity_id,
+                            field_id: entry.field_id,
+                            valid_from: entry.valid_from,
+                            valid_to: entry.valid_to,
+                            rule_version_hash: &entry.rule_version_hash,
+                            computed_asserted_at: entry.computed_asserted_at,
+                            value: value.into(),
+                        },
+                        &spec,
                     )
                     .await?;
                 }
                 Value::Bool(value) => {
+                    let spec = ComputedCacheTableSpec {
+                        table: AideonComputedCacheBool::Table,
+                        partition_col: "partition_id",
+                        entity_col: "entity_id",
+                        field_col: "field_id",
+                        valid_from_col: "valid_from",
+                        valid_to_col: "valid_to",
+                        rule_hash_col: "rule_version_hash",
+                        computed_at_col: "computed_asserted_at_hlc",
+                        value_col: &col_name(AideonComputedCacheBool::ValueBool),
+                        value_type: ValueType::Bool,
+                    };
                     upsert_computed_cache_row(
                         &tx,
                         self.backend,
-                        partition,
-                        entry.entity_id,
-                        entry.field_id,
-                        entry.valid_from,
-                        entry.valid_to,
-                        &entry.rule_version_hash,
-                        entry.computed_asserted_at,
-                        value.into(),
-                        AideonComputedCacheBool::Table,
-                        "partition_id",
-                        "entity_id",
-                        "field_id",
-                        "valid_from",
-                        "valid_to",
-                        "rule_version_hash",
-                        "computed_asserted_at_hlc",
-                        &col_name(AideonComputedCacheBool::ValueBool),
+                        ComputedCacheRowInput {
+                            partition,
+                            entity_id: entry.entity_id,
+                            field_id: entry.field_id,
+                            valid_from: entry.valid_from,
+                            valid_to: entry.valid_to,
+                            rule_version_hash: &entry.rule_version_hash,
+                            computed_asserted_at: entry.computed_asserted_at,
+                            value: value.into(),
+                        },
+                        &spec,
                     )
                     .await?;
                 }
                 Value::Time(value) => {
+                    let spec = ComputedCacheTableSpec {
+                        table: AideonComputedCacheTime::Table,
+                        partition_col: "partition_id",
+                        entity_col: "entity_id",
+                        field_col: "field_id",
+                        valid_from_col: "valid_from",
+                        valid_to_col: "valid_to",
+                        rule_hash_col: "rule_version_hash",
+                        computed_at_col: "computed_asserted_at_hlc",
+                        value_col: &col_name(AideonComputedCacheTime::ValueTime),
+                        value_type: ValueType::Time,
+                    };
                     upsert_computed_cache_row(
                         &tx,
                         self.backend,
-                        partition,
-                        entry.entity_id,
-                        entry.field_id,
-                        entry.valid_from,
-                        entry.valid_to,
-                        &entry.rule_version_hash,
-                        entry.computed_asserted_at,
-                        value.0.into(),
-                        AideonComputedCacheTime::Table,
-                        "partition_id",
-                        "entity_id",
-                        "field_id",
-                        "valid_from",
-                        "valid_to",
-                        "rule_version_hash",
-                        "computed_asserted_at_hlc",
-                        &col_name(AideonComputedCacheTime::ValueTime),
+                        ComputedCacheRowInput {
+                            partition,
+                            entity_id: entry.entity_id,
+                            field_id: entry.field_id,
+                            valid_from: entry.valid_from,
+                            valid_to: entry.valid_to,
+                            rule_version_hash: &entry.rule_version_hash,
+                            computed_asserted_at: entry.computed_asserted_at,
+                            value: value.0.into(),
+                        },
+                        &spec,
                     )
                     .await?;
                 }
                 Value::Ref(value) => {
+                    let spec = ComputedCacheTableSpec {
+                        table: AideonComputedCacheRef::Table,
+                        partition_col: "partition_id",
+                        entity_col: "entity_id",
+                        field_col: "field_id",
+                        valid_from_col: "valid_from",
+                        valid_to_col: "valid_to",
+                        rule_hash_col: "rule_version_hash",
+                        computed_at_col: "computed_asserted_at_hlc",
+                        value_col: &col_name(AideonComputedCacheRef::ValueRefEntityId),
+                        value_type: ValueType::Ref,
+                    };
                     upsert_computed_cache_row(
                         &tx,
                         self.backend,
-                        partition,
-                        entry.entity_id,
-                        entry.field_id,
-                        entry.valid_from,
-                        entry.valid_to,
-                        &entry.rule_version_hash,
-                        entry.computed_asserted_at,
-                        id_value(self.backend, value),
-                        AideonComputedCacheRef::Table,
-                        "partition_id",
-                        "entity_id",
-                        "field_id",
-                        "valid_from",
-                        "valid_to",
-                        "rule_version_hash",
-                        "computed_asserted_at_hlc",
-                        &col_name(AideonComputedCacheRef::ValueRefEntityId),
+                        ComputedCacheRowInput {
+                            partition,
+                            entity_id: entry.entity_id,
+                            field_id: entry.field_id,
+                            valid_from: entry.valid_from,
+                            valid_to: entry.valid_to,
+                            rule_version_hash: &entry.rule_version_hash,
+                            computed_asserted_at: entry.computed_asserted_at,
+                            value: id_value(self.backend, value),
+                        },
+                        &spec,
                     )
                     .await?;
                 }
                 Value::Blob(value) => {
+                    let spec = ComputedCacheTableSpec {
+                        table: AideonComputedCacheBlob::Table,
+                        partition_col: "partition_id",
+                        entity_col: "entity_id",
+                        field_col: "field_id",
+                        valid_from_col: "valid_from",
+                        valid_to_col: "valid_to",
+                        rule_hash_col: "rule_version_hash",
+                        computed_at_col: "computed_asserted_at_hlc",
+                        value_col: &col_name(AideonComputedCacheBlob::ValueBlob),
+                        value_type: ValueType::Blob,
+                    };
                     upsert_computed_cache_row(
                         &tx,
                         self.backend,
-                        partition,
-                        entry.entity_id,
-                        entry.field_id,
-                        entry.valid_from,
-                        entry.valid_to,
-                        &entry.rule_version_hash,
-                        entry.computed_asserted_at,
-                        value.into(),
-                        AideonComputedCacheBlob::Table,
-                        "partition_id",
-                        "entity_id",
-                        "field_id",
-                        "valid_from",
-                        "valid_to",
-                        "rule_version_hash",
-                        "computed_asserted_at_hlc",
-                        &col_name(AideonComputedCacheBlob::ValueBlob),
+                        ComputedCacheRowInput {
+                            partition,
+                            entity_id: entry.entity_id,
+                            field_id: entry.field_id,
+                            valid_from: entry.valid_from,
+                            valid_to: entry.valid_to,
+                            rule_version_hash: &entry.rule_version_hash,
+                            computed_asserted_at: entry.computed_asserted_at,
+                            value: value.into(),
+                        },
+                        &spec,
                     )
                     .await?;
                 }
                 Value::Json(value) => {
+                    let spec = ComputedCacheTableSpec {
+                        table: AideonComputedCacheJson::Table,
+                        partition_col: "partition_id",
+                        entity_col: "entity_id",
+                        field_col: "field_id",
+                        valid_from_col: "valid_from",
+                        valid_to_col: "valid_to",
+                        rule_hash_col: "rule_version_hash",
+                        computed_at_col: "computed_asserted_at_hlc",
+                        value_col: &col_name(AideonComputedCacheJson::ValueJson),
+                        value_type: ValueType::Json,
+                    };
                     upsert_computed_cache_row(
                         &tx,
                         self.backend,
-                        partition,
-                        entry.entity_id,
-                        entry.field_id,
-                        entry.valid_from,
-                        entry.valid_to,
-                        &entry.rule_version_hash,
-                        entry.computed_asserted_at,
-                        value.to_string().into(),
-                        AideonComputedCacheJson::Table,
-                        "partition_id",
-                        "entity_id",
-                        "field_id",
-                        "valid_from",
-                        "valid_to",
-                        "rule_version_hash",
-                        "computed_asserted_at_hlc",
-                        &col_name(AideonComputedCacheJson::ValueJson),
+                        ComputedCacheRowInput {
+                            partition,
+                            entity_id: entry.entity_id,
+                            field_id: entry.field_id,
+                            valid_from: entry.valid_from,
+                            valid_to: entry.valid_to,
+                            rule_version_hash: &entry.rule_version_hash,
+                            computed_asserted_at: entry.computed_asserted_at,
+                            value: value.to_string().into(),
+                        },
+                        &spec,
                     )
                     .await?;
                 }
@@ -7482,148 +7489,124 @@ impl ComputedCacheApi for MnemeStore {
             .await?;
         match constraints.value_type {
             ValueType::Str => {
-                list_computed_cache_table(
-                    &self.conn,
-                    self.backend,
-                    &input,
-                    AideonComputedCacheStr::Table,
-                    "partition_id",
-                    "entity_id",
-                    "field_id",
-                    "valid_from",
-                    "valid_to",
-                    "rule_version_hash",
-                    "computed_asserted_at_hlc",
-                    &col_name(AideonComputedCacheStr::ValueText),
-                    ValueType::Str,
-                )
-                .await
+                let spec = ComputedCacheTableSpec {
+                    table: AideonComputedCacheStr::Table,
+                    partition_col: "partition_id",
+                    entity_col: "entity_id",
+                    field_col: "field_id",
+                    valid_from_col: "valid_from",
+                    valid_to_col: "valid_to",
+                    rule_hash_col: "rule_version_hash",
+                    computed_at_col: "computed_asserted_at_hlc",
+                    value_col: &col_name(AideonComputedCacheStr::ValueText),
+                    value_type: ValueType::Str,
+                };
+                list_computed_cache_table(&self.conn, self.backend, &input, &spec).await
             }
             ValueType::I64 => {
-                list_computed_cache_table(
-                    &self.conn,
-                    self.backend,
-                    &input,
-                    AideonComputedCacheI64::Table,
-                    "partition_id",
-                    "entity_id",
-                    "field_id",
-                    "valid_from",
-                    "valid_to",
-                    "rule_version_hash",
-                    "computed_asserted_at_hlc",
-                    &col_name(AideonComputedCacheI64::ValueI64),
-                    ValueType::I64,
-                )
-                .await
+                let spec = ComputedCacheTableSpec {
+                    table: AideonComputedCacheI64::Table,
+                    partition_col: "partition_id",
+                    entity_col: "entity_id",
+                    field_col: "field_id",
+                    valid_from_col: "valid_from",
+                    valid_to_col: "valid_to",
+                    rule_hash_col: "rule_version_hash",
+                    computed_at_col: "computed_asserted_at_hlc",
+                    value_col: &col_name(AideonComputedCacheI64::ValueI64),
+                    value_type: ValueType::I64,
+                };
+                list_computed_cache_table(&self.conn, self.backend, &input, &spec).await
             }
             ValueType::F64 => {
-                list_computed_cache_table(
-                    &self.conn,
-                    self.backend,
-                    &input,
-                    AideonComputedCacheF64::Table,
-                    "partition_id",
-                    "entity_id",
-                    "field_id",
-                    "valid_from",
-                    "valid_to",
-                    "rule_version_hash",
-                    "computed_asserted_at_hlc",
-                    &col_name(AideonComputedCacheF64::ValueF64),
-                    ValueType::F64,
-                )
-                .await
+                let spec = ComputedCacheTableSpec {
+                    table: AideonComputedCacheF64::Table,
+                    partition_col: "partition_id",
+                    entity_col: "entity_id",
+                    field_col: "field_id",
+                    valid_from_col: "valid_from",
+                    valid_to_col: "valid_to",
+                    rule_hash_col: "rule_version_hash",
+                    computed_at_col: "computed_asserted_at_hlc",
+                    value_col: &col_name(AideonComputedCacheF64::ValueF64),
+                    value_type: ValueType::F64,
+                };
+                list_computed_cache_table(&self.conn, self.backend, &input, &spec).await
             }
             ValueType::Bool => {
-                list_computed_cache_table(
-                    &self.conn,
-                    self.backend,
-                    &input,
-                    AideonComputedCacheBool::Table,
-                    "partition_id",
-                    "entity_id",
-                    "field_id",
-                    "valid_from",
-                    "valid_to",
-                    "rule_version_hash",
-                    "computed_asserted_at_hlc",
-                    &col_name(AideonComputedCacheBool::ValueBool),
-                    ValueType::Bool,
-                )
-                .await
+                let spec = ComputedCacheTableSpec {
+                    table: AideonComputedCacheBool::Table,
+                    partition_col: "partition_id",
+                    entity_col: "entity_id",
+                    field_col: "field_id",
+                    valid_from_col: "valid_from",
+                    valid_to_col: "valid_to",
+                    rule_hash_col: "rule_version_hash",
+                    computed_at_col: "computed_asserted_at_hlc",
+                    value_col: &col_name(AideonComputedCacheBool::ValueBool),
+                    value_type: ValueType::Bool,
+                };
+                list_computed_cache_table(&self.conn, self.backend, &input, &spec).await
             }
             ValueType::Time => {
-                list_computed_cache_table(
-                    &self.conn,
-                    self.backend,
-                    &input,
-                    AideonComputedCacheTime::Table,
-                    "partition_id",
-                    "entity_id",
-                    "field_id",
-                    "valid_from",
-                    "valid_to",
-                    "rule_version_hash",
-                    "computed_asserted_at_hlc",
-                    &col_name(AideonComputedCacheTime::ValueTime),
-                    ValueType::Time,
-                )
-                .await
+                let spec = ComputedCacheTableSpec {
+                    table: AideonComputedCacheTime::Table,
+                    partition_col: "partition_id",
+                    entity_col: "entity_id",
+                    field_col: "field_id",
+                    valid_from_col: "valid_from",
+                    valid_to_col: "valid_to",
+                    rule_hash_col: "rule_version_hash",
+                    computed_at_col: "computed_asserted_at_hlc",
+                    value_col: &col_name(AideonComputedCacheTime::ValueTime),
+                    value_type: ValueType::Time,
+                };
+                list_computed_cache_table(&self.conn, self.backend, &input, &spec).await
             }
             ValueType::Ref => {
-                list_computed_cache_table(
-                    &self.conn,
-                    self.backend,
-                    &input,
-                    AideonComputedCacheRef::Table,
-                    "partition_id",
-                    "entity_id",
-                    "field_id",
-                    "valid_from",
-                    "valid_to",
-                    "rule_version_hash",
-                    "computed_asserted_at_hlc",
-                    &col_name(AideonComputedCacheRef::ValueRefEntityId),
-                    ValueType::Ref,
-                )
-                .await
+                let spec = ComputedCacheTableSpec {
+                    table: AideonComputedCacheRef::Table,
+                    partition_col: "partition_id",
+                    entity_col: "entity_id",
+                    field_col: "field_id",
+                    valid_from_col: "valid_from",
+                    valid_to_col: "valid_to",
+                    rule_hash_col: "rule_version_hash",
+                    computed_at_col: "computed_asserted_at_hlc",
+                    value_col: &col_name(AideonComputedCacheRef::ValueRefEntityId),
+                    value_type: ValueType::Ref,
+                };
+                list_computed_cache_table(&self.conn, self.backend, &input, &spec).await
             }
             ValueType::Blob => {
-                list_computed_cache_table(
-                    &self.conn,
-                    self.backend,
-                    &input,
-                    AideonComputedCacheBlob::Table,
-                    "partition_id",
-                    "entity_id",
-                    "field_id",
-                    "valid_from",
-                    "valid_to",
-                    "rule_version_hash",
-                    "computed_asserted_at_hlc",
-                    &col_name(AideonComputedCacheBlob::ValueBlob),
-                    ValueType::Blob,
-                )
-                .await
+                let spec = ComputedCacheTableSpec {
+                    table: AideonComputedCacheBlob::Table,
+                    partition_col: "partition_id",
+                    entity_col: "entity_id",
+                    field_col: "field_id",
+                    valid_from_col: "valid_from",
+                    valid_to_col: "valid_to",
+                    rule_hash_col: "rule_version_hash",
+                    computed_at_col: "computed_asserted_at_hlc",
+                    value_col: &col_name(AideonComputedCacheBlob::ValueBlob),
+                    value_type: ValueType::Blob,
+                };
+                list_computed_cache_table(&self.conn, self.backend, &input, &spec).await
             }
             ValueType::Json => {
-                list_computed_cache_table(
-                    &self.conn,
-                    self.backend,
-                    &input,
-                    AideonComputedCacheJson::Table,
-                    "partition_id",
-                    "entity_id",
-                    "field_id",
-                    "valid_from",
-                    "valid_to",
-                    "rule_version_hash",
-                    "computed_asserted_at_hlc",
-                    &col_name(AideonComputedCacheJson::ValueJson),
-                    ValueType::Json,
-                )
-                .await
+                let spec = ComputedCacheTableSpec {
+                    table: AideonComputedCacheJson::Table,
+                    partition_col: "partition_id",
+                    entity_col: "entity_id",
+                    field_col: "field_id",
+                    valid_from_col: "valid_from",
+                    valid_to_col: "valid_to",
+                    rule_hash_col: "rule_version_hash",
+                    computed_at_col: "computed_asserted_at_hlc",
+                    value_col: &col_name(AideonComputedCacheJson::ValueJson),
+                    value_type: ValueType::Json,
+                };
+                list_computed_cache_table(&self.conn, self.backend, &input, &spec).await
             }
         }
     }
@@ -7737,32 +7720,32 @@ impl DiagnosticsApi for MnemeStore {
         &self,
         input: crate::api::ExplainResolutionInput,
     ) -> MnemeResult<crate::api::ExplainResolutionResult> {
-        if let Some(ctx) = &input.security_context {
-            if let Some(security) = self
+        if let Some(ctx) = &input.security_context
+            && let Some(security) = self
                 .read_entity_security_with_fallback(
                     input.partition,
                     input.scenario_id,
                     input.entity_id,
                 )
                 .await?
-            {
-                if !Self::is_entity_visible(ctx, &security) {
-                    return Err(MnemeError::not_found("entity not visible"));
-                }
-            }
+            && !Self::is_entity_visible(ctx, &security)
+        {
+            return Err(MnemeError::not_found("entity not visible"));
         }
         let constraints = self
             .fetch_field_def(&self.conn, input.partition, input.field_id)
             .await?;
         let facts = fetch_property_facts_with_fallback(
             &self.conn,
-            input.partition,
-            input.scenario_id,
-            input.entity_id,
-            input.field_id,
-            input.at_valid_time,
-            input.as_of_asserted_at,
-            constraints.value_type,
+            PropertyFactQueryInput {
+                partition: input.partition,
+                scenario_id: input.scenario_id,
+                entity_id: input.entity_id,
+                field_id: input.field_id,
+                at_valid_time: input.at_valid_time,
+                as_of_asserted_at: input.as_of_asserted_at,
+                value_type: constraints.value_type,
+            },
             self.backend,
         )
         .await?;
@@ -7786,19 +7769,17 @@ impl DiagnosticsApi for MnemeStore {
         &self,
         input: crate::api::ExplainTraversalInput,
     ) -> MnemeResult<crate::api::ExplainTraversalResult> {
-        if let Some(ctx) = &input.security_context {
-            if let Some(security) = self
+        if let Some(ctx) = &input.security_context
+            && let Some(security) = self
                 .read_entity_security_with_fallback(
                     input.partition,
                     input.scenario_id,
                     input.edge_id,
                 )
                 .await?
-            {
-                if !Self::is_entity_visible(ctx, &security) {
-                    return Err(MnemeError::not_found("edge not visible"));
-                }
-            }
+            && !Self::is_entity_visible(ctx, &security)
+        {
+            return Err(MnemeError::not_found("edge not visible"));
         }
         let facts = fetch_edge_facts_for_edge(
             &self.conn,
@@ -8184,13 +8165,13 @@ impl MnemeImportApi for MnemeStore {
             }
         }
 
-        if options.allow_partition_create {
-            if let Some(first) = ops.first() {
-                let tx = self.conn.begin().await?;
-                self.ensure_partition(&tx, options.target_partition, first.actor_id)
-                    .await?;
-                tx.commit().await?;
-            }
+        if options.allow_partition_create
+            && let Some(first) = ops.first()
+        {
+            let tx = self.conn.begin().await?;
+            self.ensure_partition(&tx, options.target_partition, first.actor_id)
+                .await?;
+            tx.commit().await?;
         }
 
         let mut imported = 0u32;
@@ -8386,129 +8367,145 @@ impl MnemeSnapshotApi for MnemeStore {
             self.export_fact_table(
                 &mut records,
                 &opts,
-                AideonPropFactStr::Table,
-                AideonPropFactStr::EntityId,
-                AideonPropFactStr::FieldId,
-                AideonPropFactStr::ValidFrom,
-                AideonPropFactStr::ValidTo,
-                AideonPropFactStr::Layer,
-                AideonPropFactStr::AssertedAtHlc,
-                AideonPropFactStr::OpId,
-                AideonPropFactStr::IsTombstone,
-                AideonPropFactStr::ValueText,
-                "snapshot_fact_str",
+                ExportFactTableSpec {
+                    table: AideonPropFactStr::Table,
+                    entity_col: AideonPropFactStr::EntityId,
+                    field_col: AideonPropFactStr::FieldId,
+                    valid_from_col: AideonPropFactStr::ValidFrom,
+                    valid_to_col: AideonPropFactStr::ValidTo,
+                    layer_col: AideonPropFactStr::Layer,
+                    asserted_col: AideonPropFactStr::AssertedAtHlc,
+                    op_id_col: AideonPropFactStr::OpId,
+                    tombstone_col: AideonPropFactStr::IsTombstone,
+                    value_col: AideonPropFactStr::ValueText,
+                    record_type: "snapshot_fact_str",
+                },
             )
             .await?;
             self.export_fact_table(
                 &mut records,
                 &opts,
-                AideonPropFactI64::Table,
-                AideonPropFactI64::EntityId,
-                AideonPropFactI64::FieldId,
-                AideonPropFactI64::ValidFrom,
-                AideonPropFactI64::ValidTo,
-                AideonPropFactI64::Layer,
-                AideonPropFactI64::AssertedAtHlc,
-                AideonPropFactI64::OpId,
-                AideonPropFactI64::IsTombstone,
-                AideonPropFactI64::ValueI64,
-                "snapshot_fact_i64",
+                ExportFactTableSpec {
+                    table: AideonPropFactI64::Table,
+                    entity_col: AideonPropFactI64::EntityId,
+                    field_col: AideonPropFactI64::FieldId,
+                    valid_from_col: AideonPropFactI64::ValidFrom,
+                    valid_to_col: AideonPropFactI64::ValidTo,
+                    layer_col: AideonPropFactI64::Layer,
+                    asserted_col: AideonPropFactI64::AssertedAtHlc,
+                    op_id_col: AideonPropFactI64::OpId,
+                    tombstone_col: AideonPropFactI64::IsTombstone,
+                    value_col: AideonPropFactI64::ValueI64,
+                    record_type: "snapshot_fact_i64",
+                },
             )
             .await?;
             self.export_fact_table(
                 &mut records,
                 &opts,
-                AideonPropFactF64::Table,
-                AideonPropFactF64::EntityId,
-                AideonPropFactF64::FieldId,
-                AideonPropFactF64::ValidFrom,
-                AideonPropFactF64::ValidTo,
-                AideonPropFactF64::Layer,
-                AideonPropFactF64::AssertedAtHlc,
-                AideonPropFactF64::OpId,
-                AideonPropFactF64::IsTombstone,
-                AideonPropFactF64::ValueF64,
-                "snapshot_fact_f64",
+                ExportFactTableSpec {
+                    table: AideonPropFactF64::Table,
+                    entity_col: AideonPropFactF64::EntityId,
+                    field_col: AideonPropFactF64::FieldId,
+                    valid_from_col: AideonPropFactF64::ValidFrom,
+                    valid_to_col: AideonPropFactF64::ValidTo,
+                    layer_col: AideonPropFactF64::Layer,
+                    asserted_col: AideonPropFactF64::AssertedAtHlc,
+                    op_id_col: AideonPropFactF64::OpId,
+                    tombstone_col: AideonPropFactF64::IsTombstone,
+                    value_col: AideonPropFactF64::ValueF64,
+                    record_type: "snapshot_fact_f64",
+                },
             )
             .await?;
             self.export_fact_table(
                 &mut records,
                 &opts,
-                AideonPropFactBool::Table,
-                AideonPropFactBool::EntityId,
-                AideonPropFactBool::FieldId,
-                AideonPropFactBool::ValidFrom,
-                AideonPropFactBool::ValidTo,
-                AideonPropFactBool::Layer,
-                AideonPropFactBool::AssertedAtHlc,
-                AideonPropFactBool::OpId,
-                AideonPropFactBool::IsTombstone,
-                AideonPropFactBool::ValueBool,
-                "snapshot_fact_bool",
+                ExportFactTableSpec {
+                    table: AideonPropFactBool::Table,
+                    entity_col: AideonPropFactBool::EntityId,
+                    field_col: AideonPropFactBool::FieldId,
+                    valid_from_col: AideonPropFactBool::ValidFrom,
+                    valid_to_col: AideonPropFactBool::ValidTo,
+                    layer_col: AideonPropFactBool::Layer,
+                    asserted_col: AideonPropFactBool::AssertedAtHlc,
+                    op_id_col: AideonPropFactBool::OpId,
+                    tombstone_col: AideonPropFactBool::IsTombstone,
+                    value_col: AideonPropFactBool::ValueBool,
+                    record_type: "snapshot_fact_bool",
+                },
             )
             .await?;
             self.export_fact_table(
                 &mut records,
                 &opts,
-                AideonPropFactTime::Table,
-                AideonPropFactTime::EntityId,
-                AideonPropFactTime::FieldId,
-                AideonPropFactTime::ValidFrom,
-                AideonPropFactTime::ValidTo,
-                AideonPropFactTime::Layer,
-                AideonPropFactTime::AssertedAtHlc,
-                AideonPropFactTime::OpId,
-                AideonPropFactTime::IsTombstone,
-                AideonPropFactTime::ValueTime,
-                "snapshot_fact_time",
+                ExportFactTableSpec {
+                    table: AideonPropFactTime::Table,
+                    entity_col: AideonPropFactTime::EntityId,
+                    field_col: AideonPropFactTime::FieldId,
+                    valid_from_col: AideonPropFactTime::ValidFrom,
+                    valid_to_col: AideonPropFactTime::ValidTo,
+                    layer_col: AideonPropFactTime::Layer,
+                    asserted_col: AideonPropFactTime::AssertedAtHlc,
+                    op_id_col: AideonPropFactTime::OpId,
+                    tombstone_col: AideonPropFactTime::IsTombstone,
+                    value_col: AideonPropFactTime::ValueTime,
+                    record_type: "snapshot_fact_time",
+                },
             )
             .await?;
             self.export_fact_table(
                 &mut records,
                 &opts,
-                AideonPropFactRef::Table,
-                AideonPropFactRef::EntityId,
-                AideonPropFactRef::FieldId,
-                AideonPropFactRef::ValidFrom,
-                AideonPropFactRef::ValidTo,
-                AideonPropFactRef::Layer,
-                AideonPropFactRef::AssertedAtHlc,
-                AideonPropFactRef::OpId,
-                AideonPropFactRef::IsTombstone,
-                AideonPropFactRef::ValueRefEntityId,
-                "snapshot_fact_ref",
+                ExportFactTableSpec {
+                    table: AideonPropFactRef::Table,
+                    entity_col: AideonPropFactRef::EntityId,
+                    field_col: AideonPropFactRef::FieldId,
+                    valid_from_col: AideonPropFactRef::ValidFrom,
+                    valid_to_col: AideonPropFactRef::ValidTo,
+                    layer_col: AideonPropFactRef::Layer,
+                    asserted_col: AideonPropFactRef::AssertedAtHlc,
+                    op_id_col: AideonPropFactRef::OpId,
+                    tombstone_col: AideonPropFactRef::IsTombstone,
+                    value_col: AideonPropFactRef::ValueRefEntityId,
+                    record_type: "snapshot_fact_ref",
+                },
             )
             .await?;
             self.export_fact_table(
                 &mut records,
                 &opts,
-                AideonPropFactBlob::Table,
-                AideonPropFactBlob::EntityId,
-                AideonPropFactBlob::FieldId,
-                AideonPropFactBlob::ValidFrom,
-                AideonPropFactBlob::ValidTo,
-                AideonPropFactBlob::Layer,
-                AideonPropFactBlob::AssertedAtHlc,
-                AideonPropFactBlob::OpId,
-                AideonPropFactBlob::IsTombstone,
-                AideonPropFactBlob::ValueBlob,
-                "snapshot_fact_blob",
+                ExportFactTableSpec {
+                    table: AideonPropFactBlob::Table,
+                    entity_col: AideonPropFactBlob::EntityId,
+                    field_col: AideonPropFactBlob::FieldId,
+                    valid_from_col: AideonPropFactBlob::ValidFrom,
+                    valid_to_col: AideonPropFactBlob::ValidTo,
+                    layer_col: AideonPropFactBlob::Layer,
+                    asserted_col: AideonPropFactBlob::AssertedAtHlc,
+                    op_id_col: AideonPropFactBlob::OpId,
+                    tombstone_col: AideonPropFactBlob::IsTombstone,
+                    value_col: AideonPropFactBlob::ValueBlob,
+                    record_type: "snapshot_fact_blob",
+                },
             )
             .await?;
             self.export_fact_table(
                 &mut records,
                 &opts,
-                AideonPropFactJson::Table,
-                AideonPropFactJson::EntityId,
-                AideonPropFactJson::FieldId,
-                AideonPropFactJson::ValidFrom,
-                AideonPropFactJson::ValidTo,
-                AideonPropFactJson::Layer,
-                AideonPropFactJson::AssertedAtHlc,
-                AideonPropFactJson::OpId,
-                AideonPropFactJson::IsTombstone,
-                AideonPropFactJson::ValueJson,
-                "snapshot_fact_json",
+                ExportFactTableSpec {
+                    table: AideonPropFactJson::Table,
+                    entity_col: AideonPropFactJson::EntityId,
+                    field_col: AideonPropFactJson::FieldId,
+                    valid_from_col: AideonPropFactJson::ValidFrom,
+                    valid_to_col: AideonPropFactJson::ValidTo,
+                    layer_col: AideonPropFactJson::Layer,
+                    asserted_col: AideonPropFactJson::AssertedAtHlc,
+                    op_id_col: AideonPropFactJson::OpId,
+                    tombstone_col: AideonPropFactJson::IsTombstone,
+                    value_col: AideonPropFactJson::ValueJson,
+                    record_type: "snapshot_fact_json",
+                },
             )
             .await?;
         }
@@ -9062,40 +9059,26 @@ where
     Ok(row)
 }
 
-async fn upsert_computed_cache_row<C>(
+async fn upsert_computed_cache_row<C, TTable>(
     conn: &C,
     backend: DatabaseBackend,
-    partition: PartitionId,
-    entity_id: Id,
-    field_id: Id,
-    valid_from: i64,
-    valid_to: Option<i64>,
-    rule_version_hash: &str,
-    computed_asserted_at: Hlc,
-    value: SeaValue,
-    table: impl sea_query::Iden + Clone,
-    partition_col: &str,
-    entity_col: &str,
-    field_col: &str,
-    valid_from_col: &str,
-    valid_to_col: &str,
-    rule_hash_col: &str,
-    computed_at_col: &str,
-    value_col: &str,
+    input: ComputedCacheRowInput<'_>,
+    spec: &ComputedCacheTableSpec<'_, TTable>,
 ) -> MnemeResult<()>
 where
     C: ConnectionTrait,
+    TTable: sea_query::Iden + Clone,
 {
-    let partition_col = Alias::new(partition_col);
-    let entity_col = Alias::new(entity_col);
-    let field_col = Alias::new(field_col);
-    let valid_from_col = Alias::new(valid_from_col);
-    let valid_to_col = Alias::new(valid_to_col);
-    let rule_hash_col = Alias::new(rule_hash_col);
-    let computed_at_col = Alias::new(computed_at_col);
-    let value_col = Alias::new(value_col);
+    let partition_col = Alias::new(spec.partition_col);
+    let entity_col = Alias::new(spec.entity_col);
+    let field_col = Alias::new(spec.field_col);
+    let valid_from_col = Alias::new(spec.valid_from_col);
+    let valid_to_col = Alias::new(spec.valid_to_col);
+    let rule_hash_col = Alias::new(spec.rule_hash_col);
+    let computed_at_col = Alias::new(spec.computed_at_col);
+    let value_col = Alias::new(spec.value_col);
     let insert = Query::insert()
-        .into_table(table.clone())
+        .into_table(spec.table.clone())
         .columns([
             partition_col.clone(),
             entity_col.clone(),
@@ -9107,14 +9090,14 @@ where
             value_col.clone(),
         ])
         .values_panic([
-            Expr::val(id_value(backend, partition.0)),
-            Expr::val(id_value(backend, entity_id)),
-            Expr::val(id_value(backend, field_id)),
-            Expr::val(valid_from),
-            Expr::val(valid_to),
-            Expr::val(rule_version_hash),
-            Expr::val(computed_asserted_at.as_i64()),
-            Expr::val(value),
+            Expr::val(id_value(backend, input.partition.0)),
+            Expr::val(id_value(backend, input.entity_id)),
+            Expr::val(id_value(backend, input.field_id)),
+            Expr::val(input.valid_from),
+            Expr::val(input.valid_to),
+            Expr::val(input.rule_version_hash),
+            Expr::val(input.computed_asserted_at.as_i64()),
+            Expr::val(input.value),
         ])
         .on_conflict(
             OnConflict::columns([
@@ -9136,30 +9119,21 @@ async fn list_computed_cache_table<C>(
     conn: &C,
     backend: DatabaseBackend,
     input: &ListComputedCacheInput,
-    table: impl sea_query::Iden + Clone,
-    partition_col: &str,
-    entity_col: &str,
-    field_col: &str,
-    valid_from_col: &str,
-    valid_to_col: &str,
-    rule_hash_col: &str,
-    computed_at_col: &str,
-    value_col: &str,
-    value_type: ValueType,
+    spec: &ComputedCacheTableSpec<'_, impl sea_query::Iden + Clone>,
 ) -> MnemeResult<Vec<ComputedCacheEntry>>
 where
     C: ConnectionTrait,
 {
-    let partition_col = Alias::new(partition_col);
-    let entity_col = Alias::new(entity_col);
-    let field_col = Alias::new(field_col);
-    let valid_from_col = Alias::new(valid_from_col);
-    let valid_to_col = Alias::new(valid_to_col);
-    let rule_hash_col = Alias::new(rule_hash_col);
-    let computed_at_col = Alias::new(computed_at_col);
-    let value_col = Alias::new(value_col);
+    let partition_col = Alias::new(spec.partition_col);
+    let entity_col = Alias::new(spec.entity_col);
+    let field_col = Alias::new(spec.field_col);
+    let valid_from_col = Alias::new(spec.valid_from_col);
+    let valid_to_col = Alias::new(spec.valid_to_col);
+    let rule_hash_col = Alias::new(spec.rule_hash_col);
+    let computed_at_col = Alias::new(spec.computed_at_col);
+    let value_col = Alias::new(spec.value_col);
     let mut select = Query::select()
-        .from(table.clone())
+        .from(spec.table.clone())
         .columns([
             entity_col.clone(),
             field_col.clone(),
@@ -9197,7 +9171,7 @@ where
         let valid_to: Option<i64> = row.try_get("", &col_name(valid_to_col.clone()))?;
         let rule_version_hash: String = row.try_get("", &col_name(rule_hash_col.clone()))?;
         let computed_asserted_at: i64 = row.try_get("", &col_name(computed_at_col.clone()))?;
-        let value = read_value(value_type, &row, &col_name(value_col.clone()))?;
+        let value = read_value(spec.value_type, &row, &col_name(value_col.clone()))?;
         entries.push(ComputedCacheEntry {
             entity_id,
             field_id,
@@ -9252,37 +9226,194 @@ impl LwwFields {
     }
 }
 
-async fn compact_prop_fact_table<C>(
-    conn: &C,
+type PropFactKey = (Option<Id>, Id, Id, i64, Option<i64>, i64);
+type EdgeExistsKey = (Option<Id>, Id, i64, Option<i64>, i64);
+type EdgeExistsMergeKey = (Option<Id>, Id, i64, Option<i64>, i64, i64, Id, bool);
+
+struct PropFactRowKey {
+    scenario_id: Option<Id>,
+    entity_id: Id,
+    field_id: Id,
+    valid_from: i64,
+    asserted_at: i64,
+    op_id: Id,
+}
+
+struct PropFactTableInfo<'a, T: sea_query::Iden + Clone> {
     backend: DatabaseBackend,
     partition: PartitionId,
-    field_ids: &[Id],
-    table: impl sea_query::Iden + Clone,
-    scenario_col: &str,
-    entity_col: &str,
-    field_col: &str,
-    valid_from_col: &str,
-    valid_to_col: &str,
-    layer_col: &str,
-    asserted_col: &str,
-    op_id_col: &str,
-    is_tombstone_col: &str,
-    value_col: &str,
+    table: T,
+    scenario_col: &'a str,
+    entity_col: &'a str,
+    field_col: &'a str,
+    valid_from_col: &'a str,
+    valid_to_col: &'a str,
+    asserted_col: &'a str,
+    op_id_col: &'a str,
+}
+
+struct PropFactCompactionSpec<'a, T: sea_query::Iden + Clone> {
+    table_info: PropFactTableInfo<'a, T>,
+    field_ids: &'a [Id],
+    layer_col: &'a str,
+    is_tombstone_col: &'a str,
+    value_col: &'a str,
     value_type: ValueType,
+}
+
+struct EdgeExistsRowKey {
+    scenario_id: Option<Id>,
+    edge_id: Id,
+    valid_from: i64,
+    asserted_at: i64,
+    op_id: Id,
+}
+
+struct EdgeExistsTableInfo {
+    backend: DatabaseBackend,
+    partition: PartitionId,
+}
+
+struct ExportFactTableSpec<
+    'a,
+    TTable: sea_query::Iden + Clone,
+    TEntity: sea_query::Iden + Clone,
+    TField: sea_query::Iden + Clone,
+    TValidFrom: sea_query::Iden + Clone,
+    TValidTo: sea_query::Iden + Clone,
+    TLayer: sea_query::Iden + Clone,
+    TAsserted: sea_query::Iden + Clone,
+    TOpId: sea_query::Iden + Clone,
+    TTombstone: sea_query::Iden + Clone,
+    TValue: sea_query::Iden + Clone,
+> {
+    table: TTable,
+    entity_col: TEntity,
+    field_col: TField,
+    valid_from_col: TValidFrom,
+    valid_to_col: TValidTo,
+    layer_col: TLayer,
+    asserted_col: TAsserted,
+    op_id_col: TOpId,
+    tombstone_col: TTombstone,
+    value_col: TValue,
+    record_type: &'a str,
+}
+
+struct PropertyOverlapInput {
+    partition: PartitionId,
+    scenario_id: Option<ScenarioId>,
+    entity_id: Id,
+    field_id: Id,
+    valid_from: ValidTime,
+    valid_to: Option<ValidTime>,
+}
+
+struct PropertyOverlapTableSpec<
+    TTable: Iden + Copy,
+    TPartition: Iden + Copy,
+    TScenario: Iden + Copy,
+    TEntity: Iden + Copy,
+    TField: Iden + Copy,
+    TValidFrom: Iden + Copy,
+    TValidTo: Iden + Copy,
+> {
+    table: TTable,
+    partition_col: TPartition,
+    scenario_col: TScenario,
+    entity_col: TEntity,
+    field_col: TField,
+    valid_from_col: TValidFrom,
+    valid_to_col: TValidTo,
+}
+
+struct OverlapFindingInput<'a> {
+    partition: PartitionId,
+    scenario_id: Option<ScenarioId>,
+    entity_id: Id,
+    field_id: Id,
+    valid_from: ValidTime,
+    valid_to: Option<ValidTime>,
+    op_kind: &'a str,
+}
+
+struct ComputedCacheRowInput<'a> {
+    partition: PartitionId,
+    entity_id: Id,
+    field_id: Id,
+    valid_from: i64,
+    valid_to: Option<i64>,
+    rule_version_hash: &'a str,
+    computed_asserted_at: Hlc,
+    value: SeaValue,
+}
+
+struct ComputedCacheTableSpec<'a, TTable: sea_query::Iden + Clone> {
+    table: TTable,
+    partition_col: &'a str,
+    entity_col: &'a str,
+    field_col: &'a str,
+    valid_from_col: &'a str,
+    valid_to_col: &'a str,
+    rule_hash_col: &'a str,
+    computed_at_col: &'a str,
+    value_col: &'a str,
+    value_type: ValueType,
+}
+
+struct PropertyFactInsertInput<'a> {
+    partition: PartitionId,
+    scenario_id: Option<crate::ScenarioId>,
+    entity_id: Id,
+    field_id: Id,
+    value: &'a Value,
+    valid_from: ValidTime,
+    valid_to: Option<ValidTime>,
+    layer: Layer,
+    asserted_at: Hlc,
+    op_id: OpId,
+    is_tombstone: bool,
+}
+
+struct IndexInsertInput<'a> {
+    partition: PartitionId,
+    scenario_id: Option<crate::ScenarioId>,
+    field_id: Id,
+    entity_id: Id,
+    value: &'a Value,
+    valid_from: ValidTime,
+    valid_to: Option<ValidTime>,
+    asserted_at: Hlc,
+    layer: Layer,
+}
+
+struct PropertyFactQueryInput {
+    partition: PartitionId,
+    scenario_id: Option<crate::ScenarioId>,
+    entity_id: Id,
+    field_id: Id,
+    at_valid_time: ValidTime,
+    as_of_asserted_at: Option<Hlc>,
+    value_type: ValueType,
+}
+
+async fn compact_prop_fact_table<C>(
+    conn: &C,
+    spec: PropFactCompactionSpec<'_, impl sea_query::Iden + Clone>,
 ) -> MnemeResult<()>
 where
     C: ConnectionTrait,
 {
-    let scenario_col_name = scenario_col;
-    let entity_col_name = entity_col;
-    let field_col_name = field_col;
-    let valid_from_col_name = valid_from_col;
-    let valid_to_col_name = valid_to_col;
-    let layer_col_name = layer_col;
-    let asserted_col_name = asserted_col;
-    let op_id_col_name = op_id_col;
-    let is_tombstone_col_name = is_tombstone_col;
-    let value_col_name = value_col;
+    let scenario_col_name = spec.table_info.scenario_col;
+    let entity_col_name = spec.table_info.entity_col;
+    let field_col_name = spec.table_info.field_col;
+    let valid_from_col_name = spec.table_info.valid_from_col;
+    let valid_to_col_name = spec.table_info.valid_to_col;
+    let layer_col_name = spec.layer_col;
+    let asserted_col_name = spec.table_info.asserted_col;
+    let op_id_col_name = spec.table_info.op_id_col;
+    let is_tombstone_col_name = spec.is_tombstone_col;
+    let value_col_name = spec.value_col;
     let scenario_col = Alias::new(scenario_col_name);
     let entity_col = Alias::new(entity_col_name);
     let field_col = Alias::new(field_col_name);
@@ -9293,9 +9424,9 @@ where
     let op_id_col = Alias::new(op_id_col_name);
     let is_tombstone_col = Alias::new(is_tombstone_col_name);
     let value_col = Alias::new(value_col_name);
-    for field_id in field_ids {
+    for field_id in spec.field_ids {
         let select = Query::select()
-            .from(table.clone())
+            .from(spec.table_info.table.clone())
             .columns([
                 scenario_col.clone(),
                 entity_col.clone(),
@@ -9308,8 +9439,13 @@ where
                 is_tombstone_col.clone(),
                 value_col.clone(),
             ])
-            .and_where(Expr::col(Alias::new("partition_id")).eq(id_value(backend, partition.0)))
-            .and_where(Expr::col(field_col.clone()).eq(id_value(backend, *field_id)))
+            .and_where(Expr::col(Alias::new("partition_id")).eq(id_value(
+                spec.table_info.backend,
+                spec.table_info.partition.0,
+            )))
+            .and_where(
+                Expr::col(field_col.clone()).eq(id_value(spec.table_info.backend, *field_id)),
+            )
             .order_by(scenario_col.clone(), Order::Asc)
             .order_by(entity_col.clone(), Order::Asc)
             .order_by(valid_from_col.clone(), Order::Asc)
@@ -9320,7 +9456,7 @@ where
             .to_owned();
 
         let rows = query_all(conn, &select).await?;
-        let mut last_key: Option<(Option<Id>, Id, Id, i64, Option<i64>, i64)> = None;
+        let mut last_key: Option<PropFactKey> = None;
         for row in rows {
             let scenario_id = read_opt_id_by_name(&row, &col_name(scenario_col.clone()))?;
             let entity_id = read_id_by_name(&row, &col_name(entity_col.clone()))?;
@@ -9341,21 +9477,15 @@ where
             if last_key == Some(key) {
                 delete_prop_fact_row(
                     conn,
-                    backend,
-                    partition,
-                    table.clone(),
-                    scenario_col_name,
-                    entity_col_name,
-                    field_col_name,
-                    valid_from_col_name,
-                    asserted_col_name,
-                    op_id_col_name,
-                    scenario_id,
-                    entity_id,
-                    field_id,
-                    valid_from,
-                    asserted_at,
-                    op_id,
+                    &spec.table_info,
+                    PropFactRowKey {
+                        scenario_id,
+                        entity_id,
+                        field_id,
+                        valid_from,
+                        asserted_at,
+                        op_id,
+                    },
                 )
                 .await?;
             } else {
@@ -9364,7 +9494,7 @@ where
         }
 
         let select = Query::select()
-            .from(table.clone())
+            .from(spec.table_info.table.clone())
             .columns([
                 scenario_col.clone(),
                 entity_col.clone(),
@@ -9377,8 +9507,13 @@ where
                 is_tombstone_col.clone(),
                 value_col.clone(),
             ])
-            .and_where(Expr::col(Alias::new("partition_id")).eq(id_value(backend, partition.0)))
-            .and_where(Expr::col(field_col.clone()).eq(id_value(backend, *field_id)))
+            .and_where(Expr::col(Alias::new("partition_id")).eq(id_value(
+                spec.table_info.backend,
+                spec.table_info.partition.0,
+            )))
+            .and_where(
+                Expr::col(field_col.clone()).eq(id_value(spec.table_info.backend, *field_id)),
+            )
             .order_by(scenario_col.clone(), Order::Asc)
             .order_by(entity_col.clone(), Order::Asc)
             .order_by(layer_col.clone(), Order::Asc)
@@ -9399,7 +9534,7 @@ where
             let asserted_at: i64 = row.try_get("", &col_name(asserted_col.clone()))?;
             let op_id = read_id_by_name(&row, &col_name(op_id_col.clone()))?;
             let is_tombstone: bool = row.try_get("", &col_name(is_tombstone_col.clone()))?;
-            let value = read_value(value_type, &row, &col_name(value_col.clone()))?;
+            let value = read_value(spec.value_type, &row, &col_name(value_col.clone()))?;
 
             let current = CompactionRow {
                 scenario_id,
@@ -9428,42 +9563,29 @@ where
                     previous.valid_to = current.valid_to;
                     update_prop_fact_valid_to(
                         conn,
-                        backend,
-                        partition,
-                        table.clone(),
-                        scenario_col_name,
-                        entity_col_name,
-                        field_col_name,
-                        valid_from_col_name,
-                        valid_to_col_name,
-                        asserted_col_name,
-                        op_id_col_name,
-                        previous.scenario_id,
-                        previous.entity_id,
-                        previous.field_id,
-                        previous.valid_from,
+                        &spec.table_info,
+                        PropFactRowKey {
+                            scenario_id: previous.scenario_id,
+                            entity_id: previous.entity_id,
+                            field_id: previous.field_id,
+                            valid_from: previous.valid_from,
+                            asserted_at: previous.asserted_at,
+                            op_id: previous.op_id,
+                        },
                         previous.valid_to,
-                        previous.asserted_at,
-                        previous.op_id,
                     )
                     .await?;
                     delete_prop_fact_row(
                         conn,
-                        backend,
-                        partition,
-                        table.clone(),
-                        scenario_col_name,
-                        entity_col_name,
-                        field_col_name,
-                        valid_from_col_name,
-                        asserted_col_name,
-                        op_id_col_name,
-                        current.scenario_id,
-                        current.entity_id,
-                        current.field_id,
-                        current.valid_from,
-                        current.asserted_at,
-                        current.op_id,
+                        &spec.table_info,
+                        PropFactRowKey {
+                            scenario_id: current.scenario_id,
+                            entity_id: current.entity_id,
+                            field_id: current.field_id,
+                            valid_from: current.valid_from,
+                            asserted_at: current.asserted_at,
+                            op_id: current.op_id,
+                        },
                     )
                     .await?;
                     prev = Some(previous);
@@ -9476,44 +9598,34 @@ where
     Ok(())
 }
 
-async fn delete_prop_fact_row<C>(
+async fn delete_prop_fact_row<C, T: sea_query::Iden + Clone>(
     conn: &C,
-    backend: DatabaseBackend,
-    partition: PartitionId,
-    table: impl sea_query::Iden + Clone,
-    scenario_col: &str,
-    entity_col: &str,
-    field_col: &str,
-    valid_from_col: &str,
-    asserted_col: &str,
-    op_id_col: &str,
-    scenario_id: Option<Id>,
-    entity_id: Id,
-    field_id: Id,
-    valid_from: i64,
-    asserted_at: i64,
-    op_id: Id,
+    table_info: &PropFactTableInfo<'_, T>,
+    row_key: PropFactRowKey,
 ) -> MnemeResult<()>
 where
     C: ConnectionTrait,
 {
-    let scenario_col = Alias::new(scenario_col);
-    let entity_col = Alias::new(entity_col);
-    let field_col = Alias::new(field_col);
-    let valid_from_col = Alias::new(valid_from_col);
-    let asserted_col = Alias::new(asserted_col);
-    let op_id_col = Alias::new(op_id_col);
+    let scenario_col = Alias::new(table_info.scenario_col);
+    let entity_col = Alias::new(table_info.entity_col);
+    let field_col = Alias::new(table_info.field_col);
+    let valid_from_col = Alias::new(table_info.valid_from_col);
+    let asserted_col = Alias::new(table_info.asserted_col);
+    let op_id_col = Alias::new(table_info.op_id_col);
     let mut delete = Query::delete()
-        .from_table(table)
-        .and_where(Expr::col(Alias::new("partition_id")).eq(id_value(backend, partition.0)))
-        .and_where(Expr::col(entity_col).eq(id_value(backend, entity_id)))
-        .and_where(Expr::col(field_col).eq(id_value(backend, field_id)))
-        .and_where(Expr::col(valid_from_col).eq(valid_from))
-        .and_where(Expr::col(asserted_col).eq(asserted_at))
-        .and_where(Expr::col(op_id_col).eq(id_value(backend, op_id)))
+        .from_table(table_info.table.clone())
+        .and_where(
+            Expr::col(Alias::new("partition_id"))
+                .eq(id_value(table_info.backend, table_info.partition.0)),
+        )
+        .and_where(Expr::col(entity_col).eq(id_value(table_info.backend, row_key.entity_id)))
+        .and_where(Expr::col(field_col).eq(id_value(table_info.backend, row_key.field_id)))
+        .and_where(Expr::col(valid_from_col).eq(row_key.valid_from))
+        .and_where(Expr::col(asserted_col).eq(row_key.asserted_at))
+        .and_where(Expr::col(op_id_col).eq(id_value(table_info.backend, row_key.op_id)))
         .to_owned();
-    if let Some(scenario_id) = scenario_id {
-        delete.and_where(Expr::col(scenario_col).eq(id_value(backend, scenario_id)));
+    if let Some(scenario_id) = row_key.scenario_id {
+        delete.and_where(Expr::col(scenario_col).eq(id_value(table_info.backend, scenario_id)));
     } else {
         delete.and_where(Expr::col(scenario_col).is_null());
     }
@@ -9521,48 +9633,37 @@ where
     Ok(())
 }
 
-async fn update_prop_fact_valid_to<C>(
+async fn update_prop_fact_valid_to<C, T: sea_query::Iden + Clone>(
     conn: &C,
-    backend: DatabaseBackend,
-    partition: PartitionId,
-    table: impl sea_query::Iden + Clone,
-    scenario_col: &str,
-    entity_col: &str,
-    field_col: &str,
-    valid_from_col: &str,
-    valid_to_col: &str,
-    asserted_col: &str,
-    op_id_col: &str,
-    scenario_id: Option<Id>,
-    entity_id: Id,
-    field_id: Id,
-    valid_from: i64,
+    table_info: &PropFactTableInfo<'_, T>,
+    row_key: PropFactRowKey,
     valid_to: Option<i64>,
-    asserted_at: i64,
-    op_id: Id,
 ) -> MnemeResult<()>
 where
     C: ConnectionTrait,
 {
-    let scenario_col = Alias::new(scenario_col);
-    let entity_col = Alias::new(entity_col);
-    let field_col = Alias::new(field_col);
-    let valid_from_col = Alias::new(valid_from_col);
-    let valid_to_col = Alias::new(valid_to_col);
-    let asserted_col = Alias::new(asserted_col);
-    let op_id_col = Alias::new(op_id_col);
+    let scenario_col = Alias::new(table_info.scenario_col);
+    let entity_col = Alias::new(table_info.entity_col);
+    let field_col = Alias::new(table_info.field_col);
+    let valid_from_col = Alias::new(table_info.valid_from_col);
+    let valid_to_col = Alias::new(table_info.valid_to_col);
+    let asserted_col = Alias::new(table_info.asserted_col);
+    let op_id_col = Alias::new(table_info.op_id_col);
     let mut update = Query::update()
-        .table(table)
+        .table(table_info.table.clone())
         .values([(valid_to_col, valid_to.into())])
-        .and_where(Expr::col(Alias::new("partition_id")).eq(id_value(backend, partition.0)))
-        .and_where(Expr::col(entity_col).eq(id_value(backend, entity_id)))
-        .and_where(Expr::col(field_col).eq(id_value(backend, field_id)))
-        .and_where(Expr::col(valid_from_col).eq(valid_from))
-        .and_where(Expr::col(asserted_col).eq(asserted_at))
-        .and_where(Expr::col(op_id_col).eq(id_value(backend, op_id)))
+        .and_where(
+            Expr::col(Alias::new("partition_id"))
+                .eq(id_value(table_info.backend, table_info.partition.0)),
+        )
+        .and_where(Expr::col(entity_col).eq(id_value(table_info.backend, row_key.entity_id)))
+        .and_where(Expr::col(field_col).eq(id_value(table_info.backend, row_key.field_id)))
+        .and_where(Expr::col(valid_from_col).eq(row_key.valid_from))
+        .and_where(Expr::col(asserted_col).eq(row_key.asserted_at))
+        .and_where(Expr::col(op_id_col).eq(id_value(table_info.backend, row_key.op_id)))
         .to_owned();
-    if let Some(scenario_id) = scenario_id {
-        update.and_where(Expr::col(scenario_col).eq(id_value(backend, scenario_id)));
+    if let Some(scenario_id) = row_key.scenario_id {
+        update.and_where(Expr::col(scenario_col).eq(id_value(table_info.backend, scenario_id)));
     } else {
         update.and_where(Expr::col(scenario_col).is_null());
     }
@@ -9578,6 +9679,7 @@ async fn compact_edge_exists_facts<C>(
 where
     C: ConnectionTrait,
 {
+    let table_info = EdgeExistsTableInfo { backend, partition };
     let select = Query::select()
         .from(AideonEdgeExistsFacts::Table)
         .columns([
@@ -9600,7 +9702,7 @@ where
         .order_by(AideonEdgeExistsFacts::OpId, Order::Desc)
         .to_owned();
     let rows = query_all(conn, &select).await?;
-    let mut last_key: Option<(Option<Id>, Id, i64, Option<i64>, i64)> = None;
+    let mut last_key: Option<EdgeExistsKey> = None;
     for row in rows {
         let scenario_id = read_opt_id_by_name(&row, &col_name(AideonEdgeExistsFacts::ScenarioId))?;
         let edge_id = read_id(&row, AideonEdgeExistsFacts::EdgeId)?;
@@ -9613,13 +9715,14 @@ where
         if last_key == Some(key) {
             delete_edge_exists_row(
                 conn,
-                backend,
-                partition,
-                scenario_id,
-                edge_id,
-                valid_from,
-                asserted_at,
-                op_id,
+                &table_info,
+                EdgeExistsRowKey {
+                    scenario_id,
+                    edge_id,
+                    valid_from,
+                    asserted_at,
+                    op_id,
+                },
             )
             .await?;
         } else {
@@ -9648,7 +9751,7 @@ where
         .order_by(AideonEdgeExistsFacts::ValidFrom, Order::Asc)
         .to_owned();
     let rows = query_all(conn, &select).await?;
-    let mut prev: Option<(Option<Id>, Id, i64, Option<i64>, i64, i64, Id, bool)> = None;
+    let mut prev: Option<EdgeExistsMergeKey> = None;
     for row in rows {
         let scenario_id = read_opt_id_by_name(&row, &col_name(AideonEdgeExistsFacts::ScenarioId))?;
         let edge_id = read_id(&row, AideonEdgeExistsFacts::EdgeId)?;
@@ -9658,6 +9761,16 @@ where
         let asserted_at: i64 = row.try_get("", &col_name(AideonEdgeExistsFacts::AssertedAtHlc))?;
         let op_id = read_id(&row, AideonEdgeExistsFacts::OpId)?;
         let is_tombstone: bool = row.try_get("", &col_name(AideonEdgeExistsFacts::IsTombstone))?;
+        let key: EdgeExistsMergeKey = (
+            scenario_id,
+            edge_id,
+            valid_from,
+            valid_to,
+            layer,
+            asserted_at,
+            op_id,
+            is_tombstone,
+        );
         if let Some((
             prev_scenario,
             prev_edge,
@@ -9679,25 +9792,27 @@ where
             if can_merge {
                 update_edge_exists_valid_to(
                     conn,
-                    backend,
-                    partition,
-                    prev_scenario,
-                    prev_edge,
-                    prev_from,
+                    &table_info,
+                    EdgeExistsRowKey {
+                        scenario_id: prev_scenario,
+                        edge_id: prev_edge,
+                        valid_from: prev_from,
+                        asserted_at: prev_asserted,
+                        op_id: prev_op,
+                    },
                     valid_to,
-                    prev_asserted,
-                    prev_op,
                 )
                 .await?;
                 delete_edge_exists_row(
                     conn,
-                    backend,
-                    partition,
-                    scenario_id,
-                    edge_id,
-                    valid_from,
-                    asserted_at,
-                    op_id,
+                    &table_info,
+                    EdgeExistsRowKey {
+                        scenario_id,
+                        edge_id,
+                        valid_from,
+                        asserted_at,
+                        op_id,
+                    },
                 )
                 .await?;
                 prev = Some((
@@ -9713,44 +9828,39 @@ where
                 continue;
             }
         }
-        prev = Some((
-            scenario_id,
-            edge_id,
-            valid_from,
-            valid_to,
-            layer,
-            asserted_at,
-            op_id,
-            is_tombstone,
-        ));
+        prev = Some(key);
     }
     Ok(())
 }
 
 async fn delete_edge_exists_row<C>(
     conn: &C,
-    backend: DatabaseBackend,
-    partition: PartitionId,
-    scenario_id: Option<Id>,
-    edge_id: Id,
-    valid_from: i64,
-    asserted_at: i64,
-    op_id: Id,
+    table_info: &EdgeExistsTableInfo,
+    row_key: EdgeExistsRowKey,
 ) -> MnemeResult<()>
 where
     C: ConnectionTrait,
 {
     let mut delete = Query::delete()
         .from_table(AideonEdgeExistsFacts::Table)
-        .and_where(Expr::col(AideonEdgeExistsFacts::PartitionId).eq(id_value(backend, partition.0)))
-        .and_where(Expr::col(AideonEdgeExistsFacts::EdgeId).eq(id_value(backend, edge_id)))
-        .and_where(Expr::col(AideonEdgeExistsFacts::ValidFrom).eq(valid_from))
-        .and_where(Expr::col(AideonEdgeExistsFacts::AssertedAtHlc).eq(asserted_at))
-        .and_where(Expr::col(AideonEdgeExistsFacts::OpId).eq(id_value(backend, op_id)))
+        .and_where(
+            Expr::col(AideonEdgeExistsFacts::PartitionId)
+                .eq(id_value(table_info.backend, table_info.partition.0)),
+        )
+        .and_where(
+            Expr::col(AideonEdgeExistsFacts::EdgeId)
+                .eq(id_value(table_info.backend, row_key.edge_id)),
+        )
+        .and_where(Expr::col(AideonEdgeExistsFacts::ValidFrom).eq(row_key.valid_from))
+        .and_where(Expr::col(AideonEdgeExistsFacts::AssertedAtHlc).eq(row_key.asserted_at))
+        .and_where(
+            Expr::col(AideonEdgeExistsFacts::OpId).eq(id_value(table_info.backend, row_key.op_id)),
+        )
         .to_owned();
-    if let Some(scenario_id) = scenario_id {
+    if let Some(scenario_id) = row_key.scenario_id {
         delete.and_where(
-            Expr::col(AideonEdgeExistsFacts::ScenarioId).eq(id_value(backend, scenario_id)),
+            Expr::col(AideonEdgeExistsFacts::ScenarioId)
+                .eq(id_value(table_info.backend, scenario_id)),
         );
     } else {
         delete.and_where(Expr::col(AideonEdgeExistsFacts::ScenarioId).is_null());
@@ -9761,14 +9871,9 @@ where
 
 async fn update_edge_exists_valid_to<C>(
     conn: &C,
-    backend: DatabaseBackend,
-    partition: PartitionId,
-    scenario_id: Option<Id>,
-    edge_id: Id,
-    valid_from: i64,
+    table_info: &EdgeExistsTableInfo,
+    row_key: EdgeExistsRowKey,
     valid_to: Option<i64>,
-    asserted_at: i64,
-    op_id: Id,
 ) -> MnemeResult<()>
 where
     C: ConnectionTrait,
@@ -9776,207 +9881,30 @@ where
     let mut update = Query::update()
         .table(AideonEdgeExistsFacts::Table)
         .values([(AideonEdgeExistsFacts::ValidTo, valid_to.into())])
-        .and_where(Expr::col(AideonEdgeExistsFacts::PartitionId).eq(id_value(backend, partition.0)))
-        .and_where(Expr::col(AideonEdgeExistsFacts::EdgeId).eq(id_value(backend, edge_id)))
-        .and_where(Expr::col(AideonEdgeExistsFacts::ValidFrom).eq(valid_from))
-        .and_where(Expr::col(AideonEdgeExistsFacts::AssertedAtHlc).eq(asserted_at))
-        .and_where(Expr::col(AideonEdgeExistsFacts::OpId).eq(id_value(backend, op_id)))
+        .and_where(
+            Expr::col(AideonEdgeExistsFacts::PartitionId)
+                .eq(id_value(table_info.backend, table_info.partition.0)),
+        )
+        .and_where(
+            Expr::col(AideonEdgeExistsFacts::EdgeId)
+                .eq(id_value(table_info.backend, row_key.edge_id)),
+        )
+        .and_where(Expr::col(AideonEdgeExistsFacts::ValidFrom).eq(row_key.valid_from))
+        .and_where(Expr::col(AideonEdgeExistsFacts::AssertedAtHlc).eq(row_key.asserted_at))
+        .and_where(
+            Expr::col(AideonEdgeExistsFacts::OpId).eq(id_value(table_info.backend, row_key.op_id)),
+        )
         .to_owned();
-    if let Some(scenario_id) = scenario_id {
+    if let Some(scenario_id) = row_key.scenario_id {
         update.and_where(
-            Expr::col(AideonEdgeExistsFacts::ScenarioId).eq(id_value(backend, scenario_id)),
+            Expr::col(AideonEdgeExistsFacts::ScenarioId)
+                .eq(id_value(table_info.backend, scenario_id)),
         );
     } else {
         update.and_where(Expr::col(AideonEdgeExistsFacts::ScenarioId).is_null());
     }
     exec(conn, &update).await?;
     Ok(())
-}
-
-#[cfg(test)]
-mod compaction_tests {
-    use super::*;
-    use crate::{FieldDef, SetEdgeExistenceIntervalInput, TypeDef, TypeFieldDef};
-    use tempfile::tempdir;
-
-    #[tokio::test]
-    async fn compaction_prunes_duplicate_intervals() -> MnemeResult<()> {
-        let dir = tempdir().expect("tempdir");
-        let base = dir.path();
-        let config = MnemeConfig::default_sqlite(base.join("compaction.sqlite").to_string_lossy());
-        let store = MnemeStore::connect(&config, base).await?;
-        let partition = PartitionId(Id::new());
-        let actor = ActorId(Id::new());
-        let type_id = Id::new();
-        let field_id = Id::new();
-
-        store
-            .upsert_metamodel_batch(
-                partition,
-                actor,
-                Hlc::now(),
-                MetamodelBatch {
-                    types: vec![TypeDef {
-                        type_id,
-                        applies_to: EntityKind::Node,
-                        label: "Service".to_string(),
-                        is_abstract: false,
-                        parent_type_id: None,
-                    }],
-                    fields: vec![FieldDef {
-                        field_id,
-                        label: "name".to_string(),
-                        value_type: ValueType::Str,
-                        cardinality_multi: false,
-                        merge_policy: MergePolicy::Lww,
-                        is_indexed: false,
-                        disallow_overlap: false,
-                    }],
-                    type_fields: vec![TypeFieldDef {
-                        type_id,
-                        field_id,
-                        is_required: false,
-                        default_value: None,
-                        override_default: false,
-                        tighten_required: false,
-                        disallow_overlap: None,
-                    }],
-                    edge_type_rules: vec![],
-                    metamodel_version: None,
-                    metamodel_source: None,
-                },
-            )
-            .await?;
-
-        let node_id = Id::new();
-        store
-            .create_node(CreateNodeInput {
-                partition,
-                scenario_id: None,
-                actor,
-                asserted_at: Hlc::now(),
-                node_id,
-                type_id: Some(type_id),
-                acl_group_id: None,
-                owner_actor_id: None,
-                visibility: None,
-                write_options: None,
-            })
-            .await?;
-
-        store
-            .set_property_interval(SetPropIntervalInput {
-                partition,
-                scenario_id: None,
-                actor,
-                asserted_at: Hlc::now(),
-                entity_id: node_id,
-                field_id,
-                value: Value::Str("alpha".to_string()),
-                valid_from: ValidTime(0),
-                valid_to: Some(ValidTime(10)),
-                layer: Layer::Actual,
-                write_options: None,
-            })
-            .await?;
-        store
-            .set_property_interval(SetPropIntervalInput {
-                partition,
-                scenario_id: None,
-                actor,
-                asserted_at: Hlc::now(),
-                entity_id: node_id,
-                field_id,
-                value: Value::Str("beta".to_string()),
-                valid_from: ValidTime(0),
-                valid_to: Some(ValidTime(10)),
-                layer: Layer::Actual,
-                write_options: None,
-            })
-            .await?;
-
-        let edge_id = Id::new();
-        store
-            .create_edge(CreateEdgeInput {
-                partition,
-                scenario_id: None,
-                actor,
-                asserted_at: Hlc::now(),
-                edge_id,
-                type_id: None,
-                src_id: node_id,
-                dst_id: node_id,
-                exists_valid_from: ValidTime(0),
-                exists_valid_to: Some(ValidTime(10)),
-                layer: Layer::Actual,
-                weight: None,
-                acl_group_id: None,
-                owner_actor_id: None,
-                visibility: None,
-                write_options: None,
-            })
-            .await?;
-        store
-            .set_edge_existence_interval(SetEdgeExistenceIntervalInput {
-                partition,
-                scenario_id: None,
-                actor,
-                asserted_at: Hlc::now(),
-                edge_id,
-                valid_from: ValidTime(0),
-                valid_to: Some(ValidTime(10)),
-                layer: Layer::Actual,
-                is_tombstone: false,
-                write_options: None,
-            })
-            .await?;
-
-        let before = store
-            .export_snapshot_stream(SnapshotOptions {
-                partition_id: partition,
-                scenario_id: None,
-                as_of_asserted_at: Hlc::now(),
-                include_facts: true,
-                include_entities: true,
-            })
-            .await?
-            .collect::<Vec<_>>();
-        let before_prop = before
-            .iter()
-            .filter(|rec| rec.record_type == "snapshot_fact_str")
-            .count();
-        let before_edge = before
-            .iter()
-            .filter(|rec| rec.record_type == "snapshot_edge_exists")
-            .count();
-
-        let tx = store.conn.begin().await?;
-        store.compact_partition(&tx, partition).await?;
-        tx.commit().await?;
-
-        let after = store
-            .export_snapshot_stream(SnapshotOptions {
-                partition_id: partition,
-                scenario_id: None,
-                as_of_asserted_at: Hlc::now(),
-                include_facts: true,
-                include_entities: true,
-            })
-            .await?
-            .collect::<Vec<_>>();
-        let after_prop = after
-            .iter()
-            .filter(|rec| rec.record_type == "snapshot_fact_str")
-            .count();
-        let after_edge = after
-            .iter()
-            .filter(|rec| rec.record_type == "snapshot_edge_exists")
-            .count();
-
-        assert!(before_prop > after_prop);
-        assert!(before_edge > after_edge);
-        Ok(())
-    }
 }
 
 async fn partition_has_rows(
@@ -10111,20 +10039,10 @@ fn change_feed_payload(
 
 async fn insert_property_fact(
     tx: &sea_orm::DatabaseTransaction,
-    partition: PartitionId,
-    scenario_id: Option<crate::ScenarioId>,
-    entity_id: Id,
-    field_id: Id,
-    value: &Value,
-    valid_from: ValidTime,
-    valid_to: Option<ValidTime>,
-    layer: Layer,
-    asserted_at: Hlc,
-    op_id: OpId,
-    is_tombstone: bool,
     backend: DatabaseBackend,
+    input: PropertyFactInsertInput<'_>,
 ) -> MnemeResult<()> {
-    let value_type = value.value_type();
+    let value_type = input.value.value_type();
     let (table, column) = value_table_column(value_type);
     let insert = Query::insert()
         .into_table(table.clone())
@@ -10143,18 +10061,18 @@ async fn insert_property_fact(
             column,
         ])
         .values_panic([
-            id_value(backend, partition.0).into(),
-            opt_id_value(backend, scenario_id.map(|s| s.0)).into(),
-            id_value(backend, entity_id).into(),
-            id_value(backend, field_id).into(),
-            valid_from.0.into(),
-            valid_to.map(|v| v.0).into(),
-            valid_bucket(valid_from).into(),
-            (layer as i64).into(),
-            asserted_at.as_i64().into(),
-            id_value(backend, op_id.0).into(),
-            is_tombstone.into(),
-            value_to_sea(backend, value).into(),
+            id_value(backend, input.partition.0).into(),
+            opt_id_value(backend, input.scenario_id.map(|s| s.0)).into(),
+            id_value(backend, input.entity_id).into(),
+            id_value(backend, input.field_id).into(),
+            input.valid_from.0.into(),
+            input.valid_to.map(|v| v.0).into(),
+            valid_bucket(input.valid_from).into(),
+            (input.layer as i64).into(),
+            input.asserted_at.as_i64().into(),
+            id_value(backend, input.op_id.0).into(),
+            input.is_tombstone.into(),
+            value_to_sea(backend, input.value).into(),
         ])
         .to_owned();
     exec(tx, &insert).await
@@ -10162,18 +10080,10 @@ async fn insert_property_fact(
 
 async fn insert_index_row(
     tx: &sea_orm::DatabaseTransaction,
-    partition: PartitionId,
-    scenario_id: Option<crate::ScenarioId>,
-    field_id: Id,
-    entity_id: Id,
-    value: &Value,
-    valid_from: ValidTime,
-    valid_to: Option<ValidTime>,
-    asserted_at: Hlc,
-    layer: Layer,
     backend: DatabaseBackend,
+    input: IndexInsertInput<'_>,
 ) -> MnemeResult<()> {
-    match value {
+    match input.value {
         Value::Str(text) => {
             let norm = normalize_index_text(text);
             let insert = Query::insert()
@@ -10191,16 +10101,16 @@ async fn insert_index_row(
                     AideonIdxFieldStr::Layer,
                 ])
                 .values_panic([
-                    id_value(backend, partition.0).into(),
-                    opt_id_value(backend, scenario_id.map(|s| s.0)).into(),
-                    id_value(backend, field_id).into(),
+                    id_value(backend, input.partition.0).into(),
+                    opt_id_value(backend, input.scenario_id.map(|s| s.0)).into(),
+                    id_value(backend, input.field_id).into(),
                     norm.into(),
-                    id_value(backend, entity_id).into(),
-                    valid_from.0.into(),
-                    valid_to.map(|v| v.0).into(),
-                    valid_bucket(valid_from).into(),
-                    asserted_at.as_i64().into(),
-                    (layer as i64).into(),
+                    id_value(backend, input.entity_id).into(),
+                    input.valid_from.0.into(),
+                    input.valid_to.map(|v| v.0).into(),
+                    valid_bucket(input.valid_from).into(),
+                    input.asserted_at.as_i64().into(),
+                    (input.layer as i64).into(),
                 ])
                 .to_owned();
             exec(tx, &insert).await?;
@@ -10221,16 +10131,16 @@ async fn insert_index_row(
                     AideonIdxFieldI64::Layer,
                 ])
                 .values_panic([
-                    id_value(backend, partition.0).into(),
-                    opt_id_value(backend, scenario_id.map(|s| s.0)).into(),
-                    id_value(backend, field_id).into(),
+                    id_value(backend, input.partition.0).into(),
+                    opt_id_value(backend, input.scenario_id.map(|s| s.0)).into(),
+                    id_value(backend, input.field_id).into(),
                     (*value).into(),
-                    id_value(backend, entity_id).into(),
-                    valid_from.0.into(),
-                    valid_to.map(|v| v.0).into(),
-                    valid_bucket(valid_from).into(),
-                    asserted_at.as_i64().into(),
-                    (layer as i64).into(),
+                    id_value(backend, input.entity_id).into(),
+                    input.valid_from.0.into(),
+                    input.valid_to.map(|v| v.0).into(),
+                    valid_bucket(input.valid_from).into(),
+                    input.asserted_at.as_i64().into(),
+                    (input.layer as i64).into(),
                 ])
                 .to_owned();
             exec(tx, &insert).await?;
@@ -10251,16 +10161,16 @@ async fn insert_index_row(
                     AideonIdxFieldF64::Layer,
                 ])
                 .values_panic([
-                    id_value(backend, partition.0).into(),
-                    opt_id_value(backend, scenario_id.map(|s| s.0)).into(),
-                    id_value(backend, field_id).into(),
+                    id_value(backend, input.partition.0).into(),
+                    opt_id_value(backend, input.scenario_id.map(|s| s.0)).into(),
+                    id_value(backend, input.field_id).into(),
                     (*value).into(),
-                    id_value(backend, entity_id).into(),
-                    valid_from.0.into(),
-                    valid_to.map(|v| v.0).into(),
-                    valid_bucket(valid_from).into(),
-                    asserted_at.as_i64().into(),
-                    (layer as i64).into(),
+                    id_value(backend, input.entity_id).into(),
+                    input.valid_from.0.into(),
+                    input.valid_to.map(|v| v.0).into(),
+                    valid_bucket(input.valid_from).into(),
+                    input.asserted_at.as_i64().into(),
+                    (input.layer as i64).into(),
                 ])
                 .to_owned();
             exec(tx, &insert).await?;
@@ -10281,16 +10191,16 @@ async fn insert_index_row(
                     AideonIdxFieldBool::Layer,
                 ])
                 .values_panic([
-                    id_value(backend, partition.0).into(),
-                    opt_id_value(backend, scenario_id.map(|s| s.0)).into(),
-                    id_value(backend, field_id).into(),
+                    id_value(backend, input.partition.0).into(),
+                    opt_id_value(backend, input.scenario_id.map(|s| s.0)).into(),
+                    id_value(backend, input.field_id).into(),
                     (*value).into(),
-                    id_value(backend, entity_id).into(),
-                    valid_from.0.into(),
-                    valid_to.map(|v| v.0).into(),
-                    valid_bucket(valid_from).into(),
-                    asserted_at.as_i64().into(),
-                    (layer as i64).into(),
+                    id_value(backend, input.entity_id).into(),
+                    input.valid_from.0.into(),
+                    input.valid_to.map(|v| v.0).into(),
+                    valid_bucket(input.valid_from).into(),
+                    input.asserted_at.as_i64().into(),
+                    (input.layer as i64).into(),
                 ])
                 .to_owned();
             exec(tx, &insert).await?;
@@ -10311,16 +10221,16 @@ async fn insert_index_row(
                     AideonIdxFieldTime::Layer,
                 ])
                 .values_panic([
-                    id_value(backend, partition.0).into(),
-                    opt_id_value(backend, scenario_id.map(|s| s.0)).into(),
-                    id_value(backend, field_id).into(),
+                    id_value(backend, input.partition.0).into(),
+                    opt_id_value(backend, input.scenario_id.map(|s| s.0)).into(),
+                    id_value(backend, input.field_id).into(),
                     value.0.into(),
-                    id_value(backend, entity_id).into(),
-                    valid_from.0.into(),
-                    valid_to.map(|v| v.0).into(),
-                    valid_bucket(valid_from).into(),
-                    asserted_at.as_i64().into(),
-                    (layer as i64).into(),
+                    id_value(backend, input.entity_id).into(),
+                    input.valid_from.0.into(),
+                    input.valid_to.map(|v| v.0).into(),
+                    valid_bucket(input.valid_from).into(),
+                    input.asserted_at.as_i64().into(),
+                    (input.layer as i64).into(),
                 ])
                 .to_owned();
             exec(tx, &insert).await?;
@@ -10341,16 +10251,16 @@ async fn insert_index_row(
                     AideonIdxFieldRef::Layer,
                 ])
                 .values_panic([
-                    id_value(backend, partition.0).into(),
-                    opt_id_value(backend, scenario_id.map(|s| s.0)).into(),
-                    id_value(backend, field_id).into(),
+                    id_value(backend, input.partition.0).into(),
+                    opt_id_value(backend, input.scenario_id.map(|s| s.0)).into(),
+                    id_value(backend, input.field_id).into(),
                     id_value(backend, *value).into(),
-                    id_value(backend, entity_id).into(),
-                    valid_from.0.into(),
-                    valid_to.map(|v| v.0).into(),
-                    valid_bucket(valid_from).into(),
-                    asserted_at.as_i64().into(),
-                    (layer as i64).into(),
+                    id_value(backend, input.entity_id).into(),
+                    input.valid_from.0.into(),
+                    input.valid_to.map(|v| v.0).into(),
+                    valid_bucket(input.valid_from).into(),
+                    input.asserted_at.as_i64().into(),
+                    (input.layer as i64).into(),
                 ])
                 .to_owned();
             exec(tx, &insert).await?;
@@ -10548,59 +10458,29 @@ fn default_value_for_type(value_type: ValueType) -> Value {
 
 async fn fetch_property_facts_with_fallback(
     conn: &DatabaseConnection,
-    partition: PartitionId,
-    scenario_id: Option<crate::ScenarioId>,
-    entity_id: Id,
-    field_id: Id,
-    at_valid_time: ValidTime,
-    as_of_asserted_at: Option<Hlc>,
-    value_type: ValueType,
+    input: PropertyFactQueryInput,
     backend: DatabaseBackend,
 ) -> MnemeResult<Vec<PropertyFact>> {
-    let facts = fetch_property_facts_in_partition(
-        conn,
-        partition,
-        scenario_id,
-        entity_id,
-        field_id,
-        at_valid_time,
-        as_of_asserted_at,
-        value_type,
-        backend,
-    )
-    .await?;
+    let facts = fetch_property_facts_in_partition(conn, &input, backend).await?;
     if !facts.is_empty() {
         return Ok(facts);
     }
-    if scenario_id.is_some() {
-        return fetch_property_facts_in_partition(
-            conn,
-            partition,
-            None,
-            entity_id,
-            field_id,
-            at_valid_time,
-            as_of_asserted_at,
-            value_type,
-            backend,
-        )
-        .await;
+    if input.scenario_id.is_some() {
+        let fallback = PropertyFactQueryInput {
+            scenario_id: None,
+            ..input
+        };
+        return fetch_property_facts_in_partition(conn, &fallback, backend).await;
     }
     Ok(facts)
 }
 
 async fn fetch_property_facts_in_partition(
     conn: &DatabaseConnection,
-    partition: PartitionId,
-    scenario_id: Option<crate::ScenarioId>,
-    entity_id: Id,
-    field_id: Id,
-    at_valid_time: ValidTime,
-    as_of_asserted_at: Option<Hlc>,
-    value_type: ValueType,
+    input: &PropertyFactQueryInput,
     backend: DatabaseBackend,
 ) -> MnemeResult<Vec<PropertyFact>> {
-    let (table, column) = value_table_column(value_type);
+    let (table, column) = value_table_column(input.value_type);
     let mut select = Query::select()
         .from(table.clone())
         .columns([
@@ -10614,22 +10494,24 @@ async fn fetch_property_facts_in_partition(
         ])
         .and_where(
             Expr::col((table.clone(), Alias::new("partition_id")))
-                .eq(id_value(backend, partition.0)),
+                .eq(id_value(backend, input.partition.0)),
         )
         .and_where(
-            Expr::col((table.clone(), Alias::new("entity_id"))).eq(id_value(backend, entity_id)),
+            Expr::col((table.clone(), Alias::new("entity_id")))
+                .eq(id_value(backend, input.entity_id)),
         )
         .and_where(
-            Expr::col((table.clone(), Alias::new("field_id"))).eq(id_value(backend, field_id)),
+            Expr::col((table.clone(), Alias::new("field_id")))
+                .eq(id_value(backend, input.field_id)),
         )
-        .and_where(Expr::col((table.clone(), Alias::new("valid_from"))).lte(at_valid_time.0))
+        .and_where(Expr::col((table.clone(), Alias::new("valid_from"))).lte(input.at_valid_time.0))
         .and_where(
             Expr::col((table.clone(), Alias::new("valid_to")))
-                .gt(at_valid_time.0)
+                .gt(input.at_valid_time.0)
                 .or(Expr::col((table.clone(), Alias::new("valid_to"))).is_null()),
         )
         .to_owned();
-    if let Some(scenario_id) = scenario_id {
+    if let Some(scenario_id) = input.scenario_id {
         select.and_where(
             Expr::col((table.clone(), Alias::new("scenario_id")))
                 .eq(id_value(backend, scenario_id.0)),
@@ -10637,7 +10519,7 @@ async fn fetch_property_facts_in_partition(
     } else {
         select.and_where(Expr::col((table.clone(), Alias::new("scenario_id"))).is_null());
     }
-    if let Some(as_of) = as_of_asserted_at {
+    if let Some(as_of) = input.as_of_asserted_at {
         select.and_where(
             Expr::col((table.clone(), Alias::new("asserted_at_hlc"))).lte(as_of.as_i64()),
         );
@@ -10645,7 +10527,7 @@ async fn fetch_property_facts_in_partition(
     let rows = query_all(conn, &select).await?;
     let mut facts = Vec::new();
     for row in rows {
-        let value = read_value(value_type, &row, &col_name(column.clone()))?;
+        let value = read_value(input.value_type, &row, &col_name(column.clone()))?;
         let valid_from: i64 = row.try_get("", "valid_from")?;
         let valid_to: Option<i64> = row.try_get("", "valid_to")?;
         let layer: i64 = row.try_get("", "layer")?;
@@ -11102,19 +10984,17 @@ async fn list_entities_without_filters(
             if is_deleted {
                 continue;
             }
-            if let Some(ctx) = &input.security_context {
-                if let Some(security) = store
+            if let Some(ctx) = &input.security_context
+                && let Some(security) = store
                     .read_entity_security_with_fallback(
                         input.partition,
                         input.scenario_id,
                         entity_id,
                     )
                     .await?
-                {
-                    if !MnemeStore::is_entity_visible(ctx, &security) {
-                        continue;
-                    }
-                }
+                && !MnemeStore::is_entity_visible(ctx, &security)
+            {
+                continue;
             }
             seen.insert(entity_id);
             results.push(ListEntitiesResultItem {
@@ -11650,11 +11530,21 @@ impl MnemeStore {
         partition: PartitionId,
         type_id: Id,
     ) -> MnemeResult<EffectiveSchema> {
-        let lineage = self.type_lineage(&self.conn, partition, type_id).await?;
+        self.build_effective_schema_with_conn(&self.conn, partition, type_id)
+            .await
+    }
+
+    async fn build_effective_schema_with_conn<C: ConnectionTrait>(
+        &self,
+        conn: &C,
+        partition: PartitionId,
+        type_id: Id,
+    ) -> MnemeResult<EffectiveSchema> {
+        let lineage = self.type_lineage(conn, partition, type_id).await?;
         let mut applies_to = None;
         for lineage_type in &lineage {
             let meta = self
-                .fetch_type_meta(&self.conn, partition, *lineage_type)
+                .fetch_type_meta(conn, partition, *lineage_type)
                 .await?
                 .ok_or_else(|| MnemeError::not_found("type not found"))?;
             if let Some(existing) = applies_to {
@@ -11708,7 +11598,7 @@ impl MnemeStore {
                 )
                 .and_where(Expr::col((AideonFields::Table, AideonFields::IsDeleted)).eq(false))
                 .to_owned();
-            let rows = query_all(&self.conn, &select_fields).await?;
+            let rows = query_all(conn, &select_fields).await?;
             for row in rows {
                 let field_id = read_id(&row, AideonTypeFields::FieldId)?;
                 let value_type_raw: i16 = row.try_get("", &col_name(AideonFields::ValueType))?;
@@ -11786,9 +11676,7 @@ impl MnemeStore {
                     } else if is_required && !existing.is_required {
                         self.validate_or_warn(false, "required flag tightens without permission")?;
                     }
-                    if override_default {
-                        existing.default_value = default_value;
-                    } else if existing.default_value.is_none() {
+                    if override_default || existing.default_value.is_none() {
                         existing.default_value = default_value;
                     }
                     if override_disallow.is_some() {
@@ -11819,6 +11707,69 @@ impl MnemeStore {
             type_id,
             applies_to,
             fields,
+        })
+    }
+
+    async fn compile_effective_schema_with_conn<C: ConnectionTrait>(
+        &self,
+        conn: &C,
+        partition: PartitionId,
+        asserted_at: Hlc,
+        type_id: Id,
+    ) -> MnemeResult<SchemaVersion> {
+        let schema = self
+            .build_effective_schema_with_conn(conn, partition, type_id)
+            .await?;
+        let payload =
+            serde_json::to_vec(&schema).map_err(|err| MnemeError::storage(err.to_string()))?;
+        let hash = blake3::hash(&payload).to_hex().to_string();
+        let insert = Query::insert()
+            .into_table(AideonEffectiveSchemaCache::Table)
+            .columns([
+                AideonEffectiveSchemaCache::PartitionId,
+                AideonEffectiveSchemaCache::TypeId,
+                AideonEffectiveSchemaCache::SchemaVersionHash,
+                AideonEffectiveSchemaCache::Blob,
+                AideonEffectiveSchemaCache::BuiltAssertedAtHlc,
+            ])
+            .values_panic([
+                id_value(self.backend, partition.0).into(),
+                id_value(self.backend, type_id).into(),
+                hash.clone().into(),
+                payload.into(),
+                asserted_at.as_i64().into(),
+            ])
+            .to_owned();
+        exec(conn, &insert).await?;
+        let update_head = Query::insert()
+            .into_table(AideonTypeSchemaHead::Table)
+            .columns([
+                AideonTypeSchemaHead::PartitionId,
+                AideonTypeSchemaHead::TypeId,
+                AideonTypeSchemaHead::SchemaVersionHash,
+                AideonTypeSchemaHead::UpdatedAssertedAtHlc,
+            ])
+            .values_panic([
+                id_value(self.backend, partition.0).into(),
+                id_value(self.backend, type_id).into(),
+                hash.clone().into(),
+                asserted_at.as_i64().into(),
+            ])
+            .on_conflict(
+                OnConflict::columns([
+                    AideonTypeSchemaHead::PartitionId,
+                    AideonTypeSchemaHead::TypeId,
+                ])
+                .update_columns([
+                    AideonTypeSchemaHead::SchemaVersionHash,
+                    AideonTypeSchemaHead::UpdatedAssertedAtHlc,
+                ])
+                .to_owned(),
+            )
+            .to_owned();
+        exec(conn, &update_head).await?;
+        Ok(SchemaVersion {
+            schema_version_hash: hash,
         })
     }
 }
@@ -12052,4 +12003,190 @@ async fn fetch_op_deps(
     rows.into_iter()
         .map(|row| read_id(&row, AideonOpDeps::DepOpId))
         .collect()
+}
+
+#[cfg(test)]
+mod compaction_tests {
+    use super::*;
+    use crate::{FieldDef, SetEdgeExistenceIntervalInput, TypeDef, TypeFieldDef};
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn compaction_prunes_duplicate_intervals() -> MnemeResult<()> {
+        let dir = tempdir().expect("tempdir");
+        let base = dir.path();
+        let config = MnemeConfig::default_sqlite(base.join("compaction.sqlite").to_string_lossy());
+        let store = MnemeStore::connect(&config, base).await?;
+        let partition = PartitionId(Id::new());
+        let actor = ActorId(Id::new());
+        let type_id = Id::new();
+        let field_id = Id::new();
+
+        store
+            .upsert_metamodel_batch(
+                partition,
+                actor,
+                Hlc::now(),
+                MetamodelBatch {
+                    types: vec![TypeDef {
+                        type_id,
+                        applies_to: EntityKind::Node,
+                        label: "Service".to_string(),
+                        is_abstract: false,
+                        parent_type_id: None,
+                    }],
+                    fields: vec![FieldDef {
+                        field_id,
+                        label: "name".to_string(),
+                        value_type: ValueType::Str,
+                        cardinality_multi: false,
+                        merge_policy: MergePolicy::Lww,
+                        is_indexed: false,
+                        disallow_overlap: false,
+                    }],
+                    type_fields: vec![TypeFieldDef {
+                        type_id,
+                        field_id,
+                        is_required: false,
+                        default_value: None,
+                        override_default: false,
+                        tighten_required: false,
+                        disallow_overlap: None,
+                    }],
+                    edge_type_rules: vec![],
+                    metamodel_version: None,
+                    metamodel_source: None,
+                },
+            )
+            .await?;
+
+        let node_id = Id::new();
+        store
+            .create_node(CreateNodeInput {
+                partition,
+                scenario_id: None,
+                actor,
+                asserted_at: Hlc::now(),
+                node_id,
+                type_id: Some(type_id),
+                acl_group_id: None,
+                owner_actor_id: None,
+                visibility: None,
+                write_options: None,
+            })
+            .await?;
+
+        store
+            .set_property_interval(SetPropIntervalInput {
+                partition,
+                scenario_id: None,
+                actor,
+                asserted_at: Hlc::now(),
+                entity_id: node_id,
+                field_id,
+                value: Value::Str("alpha".to_string()),
+                valid_from: ValidTime(0),
+                valid_to: Some(ValidTime(10)),
+                layer: Layer::Actual,
+                write_options: None,
+            })
+            .await?;
+        store
+            .set_property_interval(SetPropIntervalInput {
+                partition,
+                scenario_id: None,
+                actor,
+                asserted_at: Hlc::now(),
+                entity_id: node_id,
+                field_id,
+                value: Value::Str("beta".to_string()),
+                valid_from: ValidTime(0),
+                valid_to: Some(ValidTime(10)),
+                layer: Layer::Actual,
+                write_options: None,
+            })
+            .await?;
+
+        let edge_id = Id::new();
+        store
+            .create_edge(CreateEdgeInput {
+                partition,
+                scenario_id: None,
+                actor,
+                asserted_at: Hlc::now(),
+                edge_id,
+                type_id: None,
+                src_id: node_id,
+                dst_id: node_id,
+                exists_valid_from: ValidTime(0),
+                exists_valid_to: Some(ValidTime(10)),
+                layer: Layer::Actual,
+                weight: None,
+                acl_group_id: None,
+                owner_actor_id: None,
+                visibility: None,
+                write_options: None,
+            })
+            .await?;
+        store
+            .set_edge_existence_interval(SetEdgeExistenceIntervalInput {
+                partition,
+                scenario_id: None,
+                actor,
+                asserted_at: Hlc::now(),
+                edge_id,
+                valid_from: ValidTime(0),
+                valid_to: Some(ValidTime(10)),
+                layer: Layer::Actual,
+                is_tombstone: false,
+                write_options: None,
+            })
+            .await?;
+
+        let before = store
+            .export_snapshot_stream(SnapshotOptions {
+                partition_id: partition,
+                scenario_id: None,
+                as_of_asserted_at: Hlc::now(),
+                include_facts: true,
+                include_entities: true,
+            })
+            .await?
+            .collect::<Vec<_>>();
+        let before_prop = before
+            .iter()
+            .filter(|rec| rec.record_type == "snapshot_fact_str")
+            .count();
+        let before_edge = before
+            .iter()
+            .filter(|rec| rec.record_type == "snapshot_edge_exists")
+            .count();
+
+        let tx = store.conn.begin().await?;
+        store.compact_partition(&tx, partition).await?;
+        tx.commit().await?;
+
+        let after = store
+            .export_snapshot_stream(SnapshotOptions {
+                partition_id: partition,
+                scenario_id: None,
+                as_of_asserted_at: Hlc::now(),
+                include_facts: true,
+                include_entities: true,
+            })
+            .await?
+            .collect::<Vec<_>>();
+        let after_prop = after
+            .iter()
+            .filter(|rec| rec.record_type == "snapshot_fact_str")
+            .count();
+        let after_edge = after
+            .iter()
+            .filter(|rec| rec.record_type == "snapshot_edge_exists")
+            .count();
+
+        assert!(before_prop > after_prop);
+        assert!(before_edge > after_edge);
+        Ok(())
+    }
 }

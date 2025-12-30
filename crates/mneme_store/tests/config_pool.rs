@@ -53,6 +53,8 @@ fn pool_config_roundtrip() {
         }),
         limits: None,
         integrity: None,
+        validation_mode: None,
+        failpoints: None,
     };
     let encoded = serde_json::to_string(&config).expect("encode");
     let decoded: MnemeConfig = serde_json::from_str(&encoded).expect("decode");

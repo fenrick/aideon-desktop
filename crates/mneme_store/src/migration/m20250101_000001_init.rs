@@ -245,181 +245,197 @@ impl MigrationTrait for Migration {
         create_property_fact_table(
             manager,
             backend,
-            AideonPropFactStr::Table,
-            AideonPropFactStr::PartitionId,
-            AideonPropFactStr::ScenarioId,
-            AideonPropFactStr::EntityId,
-            AideonPropFactStr::FieldId,
-            AideonPropFactStr::ValidFrom,
-            AideonPropFactStr::ValidTo,
-            AideonPropFactStr::ValidBucket,
-            AideonPropFactStr::Layer,
-            AideonPropFactStr::AssertedAtHlc,
-            AideonPropFactStr::OpId,
-            AideonPropFactStr::IsTombstone,
-            ColumnDef::new(AideonPropFactStr::ValueText)
-                .text()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_prop_fact_str",
+            PropertyFactTableSpec {
+                table: AideonPropFactStr::Table,
+                partition_col: AideonPropFactStr::PartitionId,
+                scenario_col: AideonPropFactStr::ScenarioId,
+                entity_col: AideonPropFactStr::EntityId,
+                field_col: AideonPropFactStr::FieldId,
+                valid_from_col: AideonPropFactStr::ValidFrom,
+                valid_to_col: AideonPropFactStr::ValidTo,
+                valid_bucket_col: AideonPropFactStr::ValidBucket,
+                layer_col: AideonPropFactStr::Layer,
+                asserted_col: AideonPropFactStr::AssertedAtHlc,
+                op_col: AideonPropFactStr::OpId,
+                tombstone_col: AideonPropFactStr::IsTombstone,
+                value_col: ColumnDef::new(AideonPropFactStr::ValueText)
+                    .text()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_prop_fact_str",
+            },
         )
         .await?;
 
         create_property_fact_table(
             manager,
             backend,
-            AideonPropFactI64::Table,
-            AideonPropFactI64::PartitionId,
-            AideonPropFactI64::ScenarioId,
-            AideonPropFactI64::EntityId,
-            AideonPropFactI64::FieldId,
-            AideonPropFactI64::ValidFrom,
-            AideonPropFactI64::ValidTo,
-            AideonPropFactI64::ValidBucket,
-            AideonPropFactI64::Layer,
-            AideonPropFactI64::AssertedAtHlc,
-            AideonPropFactI64::OpId,
-            AideonPropFactI64::IsTombstone,
-            ColumnDef::new(AideonPropFactI64::ValueI64)
-                .big_integer()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_prop_fact_i64",
+            PropertyFactTableSpec {
+                table: AideonPropFactI64::Table,
+                partition_col: AideonPropFactI64::PartitionId,
+                scenario_col: AideonPropFactI64::ScenarioId,
+                entity_col: AideonPropFactI64::EntityId,
+                field_col: AideonPropFactI64::FieldId,
+                valid_from_col: AideonPropFactI64::ValidFrom,
+                valid_to_col: AideonPropFactI64::ValidTo,
+                valid_bucket_col: AideonPropFactI64::ValidBucket,
+                layer_col: AideonPropFactI64::Layer,
+                asserted_col: AideonPropFactI64::AssertedAtHlc,
+                op_col: AideonPropFactI64::OpId,
+                tombstone_col: AideonPropFactI64::IsTombstone,
+                value_col: ColumnDef::new(AideonPropFactI64::ValueI64)
+                    .big_integer()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_prop_fact_i64",
+            },
         )
         .await?;
 
         create_property_fact_table(
             manager,
             backend,
-            AideonPropFactF64::Table,
-            AideonPropFactF64::PartitionId,
-            AideonPropFactF64::ScenarioId,
-            AideonPropFactF64::EntityId,
-            AideonPropFactF64::FieldId,
-            AideonPropFactF64::ValidFrom,
-            AideonPropFactF64::ValidTo,
-            AideonPropFactF64::ValidBucket,
-            AideonPropFactF64::Layer,
-            AideonPropFactF64::AssertedAtHlc,
-            AideonPropFactF64::OpId,
-            AideonPropFactF64::IsTombstone,
-            ColumnDef::new(AideonPropFactF64::ValueF64)
-                .double()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_prop_fact_f64",
+            PropertyFactTableSpec {
+                table: AideonPropFactF64::Table,
+                partition_col: AideonPropFactF64::PartitionId,
+                scenario_col: AideonPropFactF64::ScenarioId,
+                entity_col: AideonPropFactF64::EntityId,
+                field_col: AideonPropFactF64::FieldId,
+                valid_from_col: AideonPropFactF64::ValidFrom,
+                valid_to_col: AideonPropFactF64::ValidTo,
+                valid_bucket_col: AideonPropFactF64::ValidBucket,
+                layer_col: AideonPropFactF64::Layer,
+                asserted_col: AideonPropFactF64::AssertedAtHlc,
+                op_col: AideonPropFactF64::OpId,
+                tombstone_col: AideonPropFactF64::IsTombstone,
+                value_col: ColumnDef::new(AideonPropFactF64::ValueF64)
+                    .double()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_prop_fact_f64",
+            },
         )
         .await?;
 
         create_property_fact_table(
             manager,
             backend,
-            AideonPropFactBool::Table,
-            AideonPropFactBool::PartitionId,
-            AideonPropFactBool::ScenarioId,
-            AideonPropFactBool::EntityId,
-            AideonPropFactBool::FieldId,
-            AideonPropFactBool::ValidFrom,
-            AideonPropFactBool::ValidTo,
-            AideonPropFactBool::ValidBucket,
-            AideonPropFactBool::Layer,
-            AideonPropFactBool::AssertedAtHlc,
-            AideonPropFactBool::OpId,
-            AideonPropFactBool::IsTombstone,
-            ColumnDef::new(AideonPropFactBool::ValueBool)
-                .boolean()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_prop_fact_bool",
+            PropertyFactTableSpec {
+                table: AideonPropFactBool::Table,
+                partition_col: AideonPropFactBool::PartitionId,
+                scenario_col: AideonPropFactBool::ScenarioId,
+                entity_col: AideonPropFactBool::EntityId,
+                field_col: AideonPropFactBool::FieldId,
+                valid_from_col: AideonPropFactBool::ValidFrom,
+                valid_to_col: AideonPropFactBool::ValidTo,
+                valid_bucket_col: AideonPropFactBool::ValidBucket,
+                layer_col: AideonPropFactBool::Layer,
+                asserted_col: AideonPropFactBool::AssertedAtHlc,
+                op_col: AideonPropFactBool::OpId,
+                tombstone_col: AideonPropFactBool::IsTombstone,
+                value_col: ColumnDef::new(AideonPropFactBool::ValueBool)
+                    .boolean()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_prop_fact_bool",
+            },
         )
         .await?;
 
         create_property_fact_table(
             manager,
             backend,
-            AideonPropFactTime::Table,
-            AideonPropFactTime::PartitionId,
-            AideonPropFactTime::ScenarioId,
-            AideonPropFactTime::EntityId,
-            AideonPropFactTime::FieldId,
-            AideonPropFactTime::ValidFrom,
-            AideonPropFactTime::ValidTo,
-            AideonPropFactTime::ValidBucket,
-            AideonPropFactTime::Layer,
-            AideonPropFactTime::AssertedAtHlc,
-            AideonPropFactTime::OpId,
-            AideonPropFactTime::IsTombstone,
-            ColumnDef::new(AideonPropFactTime::ValueTime)
-                .big_integer()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_prop_fact_time",
+            PropertyFactTableSpec {
+                table: AideonPropFactTime::Table,
+                partition_col: AideonPropFactTime::PartitionId,
+                scenario_col: AideonPropFactTime::ScenarioId,
+                entity_col: AideonPropFactTime::EntityId,
+                field_col: AideonPropFactTime::FieldId,
+                valid_from_col: AideonPropFactTime::ValidFrom,
+                valid_to_col: AideonPropFactTime::ValidTo,
+                valid_bucket_col: AideonPropFactTime::ValidBucket,
+                layer_col: AideonPropFactTime::Layer,
+                asserted_col: AideonPropFactTime::AssertedAtHlc,
+                op_col: AideonPropFactTime::OpId,
+                tombstone_col: AideonPropFactTime::IsTombstone,
+                value_col: ColumnDef::new(AideonPropFactTime::ValueTime)
+                    .big_integer()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_prop_fact_time",
+            },
         )
         .await?;
 
         create_property_fact_table(
             manager,
             backend,
-            AideonPropFactRef::Table,
-            AideonPropFactRef::PartitionId,
-            AideonPropFactRef::ScenarioId,
-            AideonPropFactRef::EntityId,
-            AideonPropFactRef::FieldId,
-            AideonPropFactRef::ValidFrom,
-            AideonPropFactRef::ValidTo,
-            AideonPropFactRef::ValidBucket,
-            AideonPropFactRef::Layer,
-            AideonPropFactRef::AssertedAtHlc,
-            AideonPropFactRef::OpId,
-            AideonPropFactRef::IsTombstone,
-            id_col(backend, AideonPropFactRef::ValueRefEntityId, false),
-            "pk_aideon_prop_fact_ref",
+            PropertyFactTableSpec {
+                table: AideonPropFactRef::Table,
+                partition_col: AideonPropFactRef::PartitionId,
+                scenario_col: AideonPropFactRef::ScenarioId,
+                entity_col: AideonPropFactRef::EntityId,
+                field_col: AideonPropFactRef::FieldId,
+                valid_from_col: AideonPropFactRef::ValidFrom,
+                valid_to_col: AideonPropFactRef::ValidTo,
+                valid_bucket_col: AideonPropFactRef::ValidBucket,
+                layer_col: AideonPropFactRef::Layer,
+                asserted_col: AideonPropFactRef::AssertedAtHlc,
+                op_col: AideonPropFactRef::OpId,
+                tombstone_col: AideonPropFactRef::IsTombstone,
+                value_col: id_col(backend, AideonPropFactRef::ValueRefEntityId, false),
+                pk_name: "pk_aideon_prop_fact_ref",
+            },
         )
         .await?;
 
         create_property_fact_table(
             manager,
             backend,
-            AideonPropFactBlob::Table,
-            AideonPropFactBlob::PartitionId,
-            AideonPropFactBlob::ScenarioId,
-            AideonPropFactBlob::EntityId,
-            AideonPropFactBlob::FieldId,
-            AideonPropFactBlob::ValidFrom,
-            AideonPropFactBlob::ValidTo,
-            AideonPropFactBlob::ValidBucket,
-            AideonPropFactBlob::Layer,
-            AideonPropFactBlob::AssertedAtHlc,
-            AideonPropFactBlob::OpId,
-            AideonPropFactBlob::IsTombstone,
-            ColumnDef::new(AideonPropFactBlob::ValueBlob)
-                .blob()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_prop_fact_blob",
+            PropertyFactTableSpec {
+                table: AideonPropFactBlob::Table,
+                partition_col: AideonPropFactBlob::PartitionId,
+                scenario_col: AideonPropFactBlob::ScenarioId,
+                entity_col: AideonPropFactBlob::EntityId,
+                field_col: AideonPropFactBlob::FieldId,
+                valid_from_col: AideonPropFactBlob::ValidFrom,
+                valid_to_col: AideonPropFactBlob::ValidTo,
+                valid_bucket_col: AideonPropFactBlob::ValidBucket,
+                layer_col: AideonPropFactBlob::Layer,
+                asserted_col: AideonPropFactBlob::AssertedAtHlc,
+                op_col: AideonPropFactBlob::OpId,
+                tombstone_col: AideonPropFactBlob::IsTombstone,
+                value_col: ColumnDef::new(AideonPropFactBlob::ValueBlob)
+                    .blob()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_prop_fact_blob",
+            },
         )
         .await?;
 
         create_property_fact_table(
             manager,
             backend,
-            AideonPropFactJson::Table,
-            AideonPropFactJson::PartitionId,
-            AideonPropFactJson::ScenarioId,
-            AideonPropFactJson::EntityId,
-            AideonPropFactJson::FieldId,
-            AideonPropFactJson::ValidFrom,
-            AideonPropFactJson::ValidTo,
-            AideonPropFactJson::ValidBucket,
-            AideonPropFactJson::Layer,
-            AideonPropFactJson::AssertedAtHlc,
-            AideonPropFactJson::OpId,
-            AideonPropFactJson::IsTombstone,
-            ColumnDef::new(AideonPropFactJson::ValueJson)
-                .text()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_prop_fact_json",
+            PropertyFactTableSpec {
+                table: AideonPropFactJson::Table,
+                partition_col: AideonPropFactJson::PartitionId,
+                scenario_col: AideonPropFactJson::ScenarioId,
+                entity_col: AideonPropFactJson::EntityId,
+                field_col: AideonPropFactJson::FieldId,
+                valid_from_col: AideonPropFactJson::ValidFrom,
+                valid_to_col: AideonPropFactJson::ValidTo,
+                valid_bucket_col: AideonPropFactJson::ValidBucket,
+                layer_col: AideonPropFactJson::Layer,
+                asserted_col: AideonPropFactJson::AssertedAtHlc,
+                op_col: AideonPropFactJson::OpId,
+                tombstone_col: AideonPropFactJson::IsTombstone,
+                value_col: ColumnDef::new(AideonPropFactJson::ValueJson)
+                    .text()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_prop_fact_json",
+            },
         )
         .await?;
 
@@ -1139,272 +1155,300 @@ impl MigrationTrait for Migration {
         create_computed_cache_table(
             manager,
             backend,
-            AideonComputedCacheStr::Table,
-            AideonComputedCacheStr::PartitionId,
-            AideonComputedCacheStr::EntityId,
-            AideonComputedCacheStr::FieldId,
-            AideonComputedCacheStr::ValidFrom,
-            AideonComputedCacheStr::ValidTo,
-            AideonComputedCacheStr::RuleVersionHash,
-            AideonComputedCacheStr::ComputedAssertedAtHlc,
-            ColumnDef::new(AideonComputedCacheStr::ValueText)
-                .text()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_computed_cache_str",
+            ComputedCacheTableSpec {
+                table: AideonComputedCacheStr::Table,
+                partition_col: AideonComputedCacheStr::PartitionId,
+                entity_col: AideonComputedCacheStr::EntityId,
+                field_col: AideonComputedCacheStr::FieldId,
+                valid_from_col: AideonComputedCacheStr::ValidFrom,
+                valid_to_col: AideonComputedCacheStr::ValidTo,
+                rule_hash_col: AideonComputedCacheStr::RuleVersionHash,
+                computed_at_col: AideonComputedCacheStr::ComputedAssertedAtHlc,
+                value_col: ColumnDef::new(AideonComputedCacheStr::ValueText)
+                    .text()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_computed_cache_str",
+            },
         )
         .await?;
 
         create_computed_cache_table(
             manager,
             backend,
-            AideonComputedCacheI64::Table,
-            AideonComputedCacheI64::PartitionId,
-            AideonComputedCacheI64::EntityId,
-            AideonComputedCacheI64::FieldId,
-            AideonComputedCacheI64::ValidFrom,
-            AideonComputedCacheI64::ValidTo,
-            AideonComputedCacheI64::RuleVersionHash,
-            AideonComputedCacheI64::ComputedAssertedAtHlc,
-            ColumnDef::new(AideonComputedCacheI64::ValueI64)
-                .big_integer()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_computed_cache_i64",
+            ComputedCacheTableSpec {
+                table: AideonComputedCacheI64::Table,
+                partition_col: AideonComputedCacheI64::PartitionId,
+                entity_col: AideonComputedCacheI64::EntityId,
+                field_col: AideonComputedCacheI64::FieldId,
+                valid_from_col: AideonComputedCacheI64::ValidFrom,
+                valid_to_col: AideonComputedCacheI64::ValidTo,
+                rule_hash_col: AideonComputedCacheI64::RuleVersionHash,
+                computed_at_col: AideonComputedCacheI64::ComputedAssertedAtHlc,
+                value_col: ColumnDef::new(AideonComputedCacheI64::ValueI64)
+                    .big_integer()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_computed_cache_i64",
+            },
         )
         .await?;
 
         create_computed_cache_table(
             manager,
             backend,
-            AideonComputedCacheF64::Table,
-            AideonComputedCacheF64::PartitionId,
-            AideonComputedCacheF64::EntityId,
-            AideonComputedCacheF64::FieldId,
-            AideonComputedCacheF64::ValidFrom,
-            AideonComputedCacheF64::ValidTo,
-            AideonComputedCacheF64::RuleVersionHash,
-            AideonComputedCacheF64::ComputedAssertedAtHlc,
-            ColumnDef::new(AideonComputedCacheF64::ValueF64)
-                .double()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_computed_cache_f64",
+            ComputedCacheTableSpec {
+                table: AideonComputedCacheF64::Table,
+                partition_col: AideonComputedCacheF64::PartitionId,
+                entity_col: AideonComputedCacheF64::EntityId,
+                field_col: AideonComputedCacheF64::FieldId,
+                valid_from_col: AideonComputedCacheF64::ValidFrom,
+                valid_to_col: AideonComputedCacheF64::ValidTo,
+                rule_hash_col: AideonComputedCacheF64::RuleVersionHash,
+                computed_at_col: AideonComputedCacheF64::ComputedAssertedAtHlc,
+                value_col: ColumnDef::new(AideonComputedCacheF64::ValueF64)
+                    .double()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_computed_cache_f64",
+            },
         )
         .await?;
 
         create_computed_cache_table(
             manager,
             backend,
-            AideonComputedCacheBool::Table,
-            AideonComputedCacheBool::PartitionId,
-            AideonComputedCacheBool::EntityId,
-            AideonComputedCacheBool::FieldId,
-            AideonComputedCacheBool::ValidFrom,
-            AideonComputedCacheBool::ValidTo,
-            AideonComputedCacheBool::RuleVersionHash,
-            AideonComputedCacheBool::ComputedAssertedAtHlc,
-            ColumnDef::new(AideonComputedCacheBool::ValueBool)
-                .boolean()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_computed_cache_bool",
+            ComputedCacheTableSpec {
+                table: AideonComputedCacheBool::Table,
+                partition_col: AideonComputedCacheBool::PartitionId,
+                entity_col: AideonComputedCacheBool::EntityId,
+                field_col: AideonComputedCacheBool::FieldId,
+                valid_from_col: AideonComputedCacheBool::ValidFrom,
+                valid_to_col: AideonComputedCacheBool::ValidTo,
+                rule_hash_col: AideonComputedCacheBool::RuleVersionHash,
+                computed_at_col: AideonComputedCacheBool::ComputedAssertedAtHlc,
+                value_col: ColumnDef::new(AideonComputedCacheBool::ValueBool)
+                    .boolean()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_computed_cache_bool",
+            },
         )
         .await?;
 
         create_computed_cache_table(
             manager,
             backend,
-            AideonComputedCacheTime::Table,
-            AideonComputedCacheTime::PartitionId,
-            AideonComputedCacheTime::EntityId,
-            AideonComputedCacheTime::FieldId,
-            AideonComputedCacheTime::ValidFrom,
-            AideonComputedCacheTime::ValidTo,
-            AideonComputedCacheTime::RuleVersionHash,
-            AideonComputedCacheTime::ComputedAssertedAtHlc,
-            ColumnDef::new(AideonComputedCacheTime::ValueTime)
-                .big_integer()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_computed_cache_time",
+            ComputedCacheTableSpec {
+                table: AideonComputedCacheTime::Table,
+                partition_col: AideonComputedCacheTime::PartitionId,
+                entity_col: AideonComputedCacheTime::EntityId,
+                field_col: AideonComputedCacheTime::FieldId,
+                valid_from_col: AideonComputedCacheTime::ValidFrom,
+                valid_to_col: AideonComputedCacheTime::ValidTo,
+                rule_hash_col: AideonComputedCacheTime::RuleVersionHash,
+                computed_at_col: AideonComputedCacheTime::ComputedAssertedAtHlc,
+                value_col: ColumnDef::new(AideonComputedCacheTime::ValueTime)
+                    .big_integer()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_computed_cache_time",
+            },
         )
         .await?;
 
         create_computed_cache_table(
             manager,
             backend,
-            AideonComputedCacheRef::Table,
-            AideonComputedCacheRef::PartitionId,
-            AideonComputedCacheRef::EntityId,
-            AideonComputedCacheRef::FieldId,
-            AideonComputedCacheRef::ValidFrom,
-            AideonComputedCacheRef::ValidTo,
-            AideonComputedCacheRef::RuleVersionHash,
-            AideonComputedCacheRef::ComputedAssertedAtHlc,
-            id_col(backend, AideonComputedCacheRef::ValueRefEntityId, false),
-            "pk_aideon_computed_cache_ref",
+            ComputedCacheTableSpec {
+                table: AideonComputedCacheRef::Table,
+                partition_col: AideonComputedCacheRef::PartitionId,
+                entity_col: AideonComputedCacheRef::EntityId,
+                field_col: AideonComputedCacheRef::FieldId,
+                valid_from_col: AideonComputedCacheRef::ValidFrom,
+                valid_to_col: AideonComputedCacheRef::ValidTo,
+                rule_hash_col: AideonComputedCacheRef::RuleVersionHash,
+                computed_at_col: AideonComputedCacheRef::ComputedAssertedAtHlc,
+                value_col: id_col(backend, AideonComputedCacheRef::ValueRefEntityId, false),
+                pk_name: "pk_aideon_computed_cache_ref",
+            },
         )
         .await?;
 
         create_computed_cache_table(
             manager,
             backend,
-            AideonComputedCacheBlob::Table,
-            AideonComputedCacheBlob::PartitionId,
-            AideonComputedCacheBlob::EntityId,
-            AideonComputedCacheBlob::FieldId,
-            AideonComputedCacheBlob::ValidFrom,
-            AideonComputedCacheBlob::ValidTo,
-            AideonComputedCacheBlob::RuleVersionHash,
-            AideonComputedCacheBlob::ComputedAssertedAtHlc,
-            ColumnDef::new(AideonComputedCacheBlob::ValueBlob)
-                .blob()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_computed_cache_blob",
+            ComputedCacheTableSpec {
+                table: AideonComputedCacheBlob::Table,
+                partition_col: AideonComputedCacheBlob::PartitionId,
+                entity_col: AideonComputedCacheBlob::EntityId,
+                field_col: AideonComputedCacheBlob::FieldId,
+                valid_from_col: AideonComputedCacheBlob::ValidFrom,
+                valid_to_col: AideonComputedCacheBlob::ValidTo,
+                rule_hash_col: AideonComputedCacheBlob::RuleVersionHash,
+                computed_at_col: AideonComputedCacheBlob::ComputedAssertedAtHlc,
+                value_col: ColumnDef::new(AideonComputedCacheBlob::ValueBlob)
+                    .blob()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_computed_cache_blob",
+            },
         )
         .await?;
 
         create_computed_cache_table(
             manager,
             backend,
-            AideonComputedCacheJson::Table,
-            AideonComputedCacheJson::PartitionId,
-            AideonComputedCacheJson::EntityId,
-            AideonComputedCacheJson::FieldId,
-            AideonComputedCacheJson::ValidFrom,
-            AideonComputedCacheJson::ValidTo,
-            AideonComputedCacheJson::RuleVersionHash,
-            AideonComputedCacheJson::ComputedAssertedAtHlc,
-            ColumnDef::new(AideonComputedCacheJson::ValueJson)
-                .text()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_computed_cache_json",
+            ComputedCacheTableSpec {
+                table: AideonComputedCacheJson::Table,
+                partition_col: AideonComputedCacheJson::PartitionId,
+                entity_col: AideonComputedCacheJson::EntityId,
+                field_col: AideonComputedCacheJson::FieldId,
+                valid_from_col: AideonComputedCacheJson::ValidFrom,
+                valid_to_col: AideonComputedCacheJson::ValidTo,
+                rule_hash_col: AideonComputedCacheJson::RuleVersionHash,
+                computed_at_col: AideonComputedCacheJson::ComputedAssertedAtHlc,
+                value_col: ColumnDef::new(AideonComputedCacheJson::ValueJson)
+                    .text()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_computed_cache_json",
+            },
         )
         .await?;
 
         create_index_field_table(
             manager,
             backend,
-            AideonIdxFieldStr::Table,
-            AideonIdxFieldStr::PartitionId,
-            AideonIdxFieldStr::ScenarioId,
-            AideonIdxFieldStr::FieldId,
-            AideonIdxFieldStr::EntityId,
-            AideonIdxFieldStr::ValidFrom,
-            AideonIdxFieldStr::ValidTo,
-            AideonIdxFieldStr::ValidBucket,
-            AideonIdxFieldStr::AssertedAtHlc,
-            AideonIdxFieldStr::Layer,
-            ColumnDef::new(AideonIdxFieldStr::ValueTextNorm)
-                .text()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_idx_field_str",
+            IndexFieldTableSpec {
+                table: AideonIdxFieldStr::Table,
+                partition_col: AideonIdxFieldStr::PartitionId,
+                scenario_col: AideonIdxFieldStr::ScenarioId,
+                field_col: AideonIdxFieldStr::FieldId,
+                entity_col: AideonIdxFieldStr::EntityId,
+                valid_from_col: AideonIdxFieldStr::ValidFrom,
+                valid_to_col: AideonIdxFieldStr::ValidTo,
+                valid_bucket_col: AideonIdxFieldStr::ValidBucket,
+                asserted_col: AideonIdxFieldStr::AssertedAtHlc,
+                layer_col: AideonIdxFieldStr::Layer,
+                value_col: ColumnDef::new(AideonIdxFieldStr::ValueTextNorm)
+                    .text()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_idx_field_str",
+            },
         )
         .await?;
 
         create_index_field_table(
             manager,
             backend,
-            AideonIdxFieldI64::Table,
-            AideonIdxFieldI64::PartitionId,
-            AideonIdxFieldI64::ScenarioId,
-            AideonIdxFieldI64::FieldId,
-            AideonIdxFieldI64::EntityId,
-            AideonIdxFieldI64::ValidFrom,
-            AideonIdxFieldI64::ValidTo,
-            AideonIdxFieldI64::ValidBucket,
-            AideonIdxFieldI64::AssertedAtHlc,
-            AideonIdxFieldI64::Layer,
-            ColumnDef::new(AideonIdxFieldI64::ValueI64)
-                .big_integer()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_idx_field_i64",
+            IndexFieldTableSpec {
+                table: AideonIdxFieldI64::Table,
+                partition_col: AideonIdxFieldI64::PartitionId,
+                scenario_col: AideonIdxFieldI64::ScenarioId,
+                field_col: AideonIdxFieldI64::FieldId,
+                entity_col: AideonIdxFieldI64::EntityId,
+                valid_from_col: AideonIdxFieldI64::ValidFrom,
+                valid_to_col: AideonIdxFieldI64::ValidTo,
+                valid_bucket_col: AideonIdxFieldI64::ValidBucket,
+                asserted_col: AideonIdxFieldI64::AssertedAtHlc,
+                layer_col: AideonIdxFieldI64::Layer,
+                value_col: ColumnDef::new(AideonIdxFieldI64::ValueI64)
+                    .big_integer()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_idx_field_i64",
+            },
         )
         .await?;
 
         create_index_field_table(
             manager,
             backend,
-            AideonIdxFieldF64::Table,
-            AideonIdxFieldF64::PartitionId,
-            AideonIdxFieldF64::ScenarioId,
-            AideonIdxFieldF64::FieldId,
-            AideonIdxFieldF64::EntityId,
-            AideonIdxFieldF64::ValidFrom,
-            AideonIdxFieldF64::ValidTo,
-            AideonIdxFieldF64::ValidBucket,
-            AideonIdxFieldF64::AssertedAtHlc,
-            AideonIdxFieldF64::Layer,
-            ColumnDef::new(AideonIdxFieldF64::ValueF64)
-                .double()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_idx_field_f64",
+            IndexFieldTableSpec {
+                table: AideonIdxFieldF64::Table,
+                partition_col: AideonIdxFieldF64::PartitionId,
+                scenario_col: AideonIdxFieldF64::ScenarioId,
+                field_col: AideonIdxFieldF64::FieldId,
+                entity_col: AideonIdxFieldF64::EntityId,
+                valid_from_col: AideonIdxFieldF64::ValidFrom,
+                valid_to_col: AideonIdxFieldF64::ValidTo,
+                valid_bucket_col: AideonIdxFieldF64::ValidBucket,
+                asserted_col: AideonIdxFieldF64::AssertedAtHlc,
+                layer_col: AideonIdxFieldF64::Layer,
+                value_col: ColumnDef::new(AideonIdxFieldF64::ValueF64)
+                    .double()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_idx_field_f64",
+            },
         )
         .await?;
 
         create_index_field_table(
             manager,
             backend,
-            AideonIdxFieldBool::Table,
-            AideonIdxFieldBool::PartitionId,
-            AideonIdxFieldBool::ScenarioId,
-            AideonIdxFieldBool::FieldId,
-            AideonIdxFieldBool::EntityId,
-            AideonIdxFieldBool::ValidFrom,
-            AideonIdxFieldBool::ValidTo,
-            AideonIdxFieldBool::ValidBucket,
-            AideonIdxFieldBool::AssertedAtHlc,
-            AideonIdxFieldBool::Layer,
-            ColumnDef::new(AideonIdxFieldBool::ValueBool)
-                .boolean()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_idx_field_bool",
+            IndexFieldTableSpec {
+                table: AideonIdxFieldBool::Table,
+                partition_col: AideonIdxFieldBool::PartitionId,
+                scenario_col: AideonIdxFieldBool::ScenarioId,
+                field_col: AideonIdxFieldBool::FieldId,
+                entity_col: AideonIdxFieldBool::EntityId,
+                valid_from_col: AideonIdxFieldBool::ValidFrom,
+                valid_to_col: AideonIdxFieldBool::ValidTo,
+                valid_bucket_col: AideonIdxFieldBool::ValidBucket,
+                asserted_col: AideonIdxFieldBool::AssertedAtHlc,
+                layer_col: AideonIdxFieldBool::Layer,
+                value_col: ColumnDef::new(AideonIdxFieldBool::ValueBool)
+                    .boolean()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_idx_field_bool",
+            },
         )
         .await?;
 
         create_index_field_table(
             manager,
             backend,
-            AideonIdxFieldTime::Table,
-            AideonIdxFieldTime::PartitionId,
-            AideonIdxFieldTime::ScenarioId,
-            AideonIdxFieldTime::FieldId,
-            AideonIdxFieldTime::EntityId,
-            AideonIdxFieldTime::ValidFrom,
-            AideonIdxFieldTime::ValidTo,
-            AideonIdxFieldTime::ValidBucket,
-            AideonIdxFieldTime::AssertedAtHlc,
-            AideonIdxFieldTime::Layer,
-            ColumnDef::new(AideonIdxFieldTime::ValueTime)
-                .big_integer()
-                .not_null()
-                .to_owned(),
-            "pk_aideon_idx_field_time",
+            IndexFieldTableSpec {
+                table: AideonIdxFieldTime::Table,
+                partition_col: AideonIdxFieldTime::PartitionId,
+                scenario_col: AideonIdxFieldTime::ScenarioId,
+                field_col: AideonIdxFieldTime::FieldId,
+                entity_col: AideonIdxFieldTime::EntityId,
+                valid_from_col: AideonIdxFieldTime::ValidFrom,
+                valid_to_col: AideonIdxFieldTime::ValidTo,
+                valid_bucket_col: AideonIdxFieldTime::ValidBucket,
+                asserted_col: AideonIdxFieldTime::AssertedAtHlc,
+                layer_col: AideonIdxFieldTime::Layer,
+                value_col: ColumnDef::new(AideonIdxFieldTime::ValueTime)
+                    .big_integer()
+                    .not_null()
+                    .to_owned(),
+                pk_name: "pk_aideon_idx_field_time",
+            },
         )
         .await?;
 
         create_index_field_table(
             manager,
             backend,
-            AideonIdxFieldRef::Table,
-            AideonIdxFieldRef::PartitionId,
-            AideonIdxFieldRef::ScenarioId,
-            AideonIdxFieldRef::FieldId,
-            AideonIdxFieldRef::EntityId,
-            AideonIdxFieldRef::ValidFrom,
-            AideonIdxFieldRef::ValidTo,
-            AideonIdxFieldRef::ValidBucket,
-            AideonIdxFieldRef::AssertedAtHlc,
-            AideonIdxFieldRef::Layer,
-            id_col(backend, AideonIdxFieldRef::ValueRefEntityId, false),
-            "pk_aideon_idx_field_ref",
+            IndexFieldTableSpec {
+                table: AideonIdxFieldRef::Table,
+                partition_col: AideonIdxFieldRef::PartitionId,
+                scenario_col: AideonIdxFieldRef::ScenarioId,
+                field_col: AideonIdxFieldRef::FieldId,
+                entity_col: AideonIdxFieldRef::EntityId,
+                valid_from_col: AideonIdxFieldRef::ValidFrom,
+                valid_to_col: AideonIdxFieldRef::ValidTo,
+                valid_bucket_col: AideonIdxFieldRef::ValidBucket,
+                asserted_col: AideonIdxFieldRef::AssertedAtHlc,
+                layer_col: AideonIdxFieldRef::Layer,
+                value_col: id_col(backend, AideonIdxFieldRef::ValueRefEntityId, false),
+                pk_name: "pk_aideon_idx_field_ref",
+            },
         )
         .await?;
 
@@ -1682,58 +1726,70 @@ impl MigrationTrait for Migration {
     }
 }
 
-async fn create_property_fact_table(
+struct PropertyFactTableSpec<T: Iden + Clone> {
+    table: T,
+    partition_col: T,
+    scenario_col: T,
+    entity_col: T,
+    field_col: T,
+    valid_from_col: T,
+    valid_to_col: T,
+    valid_bucket_col: T,
+    layer_col: T,
+    asserted_col: T,
+    op_col: T,
+    tombstone_col: T,
+    value_col: ColumnDef,
+    pk_name: &'static str,
+}
+
+async fn create_property_fact_table<T: Iden + Clone>(
     manager: &SchemaManager<'_>,
     backend: DatabaseBackend,
-    table: impl Iden + Clone,
-    partition_col: impl Iden + Clone,
-    scenario_col: impl Iden + Clone,
-    entity_col: impl Iden + Clone,
-    field_col: impl Iden + Clone,
-    valid_from_col: impl Iden + Clone,
-    valid_to_col: impl Iden + Clone,
-    valid_bucket_col: impl Iden + Clone,
-    layer_col: impl Iden + Clone,
-    asserted_col: impl Iden + Clone,
-    op_col: impl Iden + Clone,
-    tombstone_col: impl Iden + Clone,
-    value_col: ColumnDef,
-    pk_name: &str,
+    spec: PropertyFactTableSpec<T>,
 ) -> Result<(), DbErr> {
     manager
         .create_table(
             Table::create()
-                .table(table.clone())
+                .table(spec.table.clone())
                 .if_not_exists()
-                .col(id_col(backend, partition_col.clone(), false))
-                .col(id_col(backend, scenario_col.clone(), true))
-                .col(id_col(backend, entity_col.clone(), false))
-                .col(id_col(backend, field_col.clone(), false))
+                .col(id_col(backend, spec.partition_col.clone(), false))
+                .col(id_col(backend, spec.scenario_col.clone(), true))
+                .col(id_col(backend, spec.entity_col.clone(), false))
+                .col(id_col(backend, spec.field_col.clone(), false))
                 .col(
-                    ColumnDef::new(valid_from_col.clone())
+                    ColumnDef::new(spec.valid_from_col.clone())
                         .big_integer()
                         .not_null(),
                 )
-                .col(ColumnDef::new(valid_to_col.clone()).big_integer())
-                .col(ColumnDef::new(valid_bucket_col.clone()).integer())
-                .col(ColumnDef::new(layer_col.clone()).tiny_integer().not_null())
+                .col(ColumnDef::new(spec.valid_to_col.clone()).big_integer())
+                .col(ColumnDef::new(spec.valid_bucket_col.clone()).integer())
                 .col(
-                    ColumnDef::new(asserted_col.clone())
+                    ColumnDef::new(spec.layer_col.clone())
+                        .tiny_integer()
+                        .not_null(),
+                )
+                .col(
+                    ColumnDef::new(spec.asserted_col.clone())
                         .big_integer()
                         .not_null(),
                 )
-                .col(id_col(backend, op_col.clone(), false))
-                .col(ColumnDef::new(tombstone_col.clone()).boolean().not_null())
-                .col(value_col)
+                .col(id_col(backend, spec.op_col.clone(), false))
+                .col(
+                    ColumnDef::new(spec.tombstone_col.clone())
+                        .boolean()
+                        .not_null(),
+                )
+                .col(spec.value_col)
                 .primary_key(
                     Index::create()
-                        .name(pk_name)
-                        .col(partition_col)
-                        .col(entity_col)
-                        .col(field_col)
-                        .col(valid_from_col)
-                        .col(asserted_col)
-                        .col(op_col),
+                        .name(spec.pk_name)
+                        .col(spec.partition_col)
+                        .col(spec.entity_col)
+                        .col(spec.field_col)
+                        .col(spec.valid_from_col)
+                        .col(spec.asserted_col)
+                        .col(spec.op_col),
                 )
                 .to_owned(),
         )
@@ -1741,53 +1797,61 @@ async fn create_property_fact_table(
     Ok(())
 }
 
-async fn create_index_field_table(
+struct IndexFieldTableSpec<T: Iden + Clone> {
+    table: T,
+    partition_col: T,
+    scenario_col: T,
+    field_col: T,
+    entity_col: T,
+    valid_from_col: T,
+    valid_to_col: T,
+    valid_bucket_col: T,
+    asserted_col: T,
+    layer_col: T,
+    value_col: ColumnDef,
+    pk_name: &'static str,
+}
+
+async fn create_index_field_table<T: Iden + Clone>(
     manager: &SchemaManager<'_>,
     backend: DatabaseBackend,
-    table: impl Iden + Clone,
-    partition_col: impl Iden + Clone,
-    scenario_col: impl Iden + Clone,
-    field_col: impl Iden + Clone,
-    entity_col: impl Iden + Clone,
-    valid_from_col: impl Iden + Clone,
-    valid_to_col: impl Iden + Clone,
-    valid_bucket_col: impl Iden + Clone,
-    asserted_col: impl Iden + Clone,
-    layer_col: impl Iden + Clone,
-    value_col: ColumnDef,
-    pk_name: &str,
+    spec: IndexFieldTableSpec<T>,
 ) -> Result<(), DbErr> {
     manager
         .create_table(
             Table::create()
-                .table(table.clone())
+                .table(spec.table.clone())
                 .if_not_exists()
-                .col(id_col(backend, partition_col.clone(), false))
-                .col(id_col(backend, scenario_col.clone(), true))
-                .col(id_col(backend, field_col.clone(), false))
-                .col(value_col)
-                .col(id_col(backend, entity_col.clone(), false))
+                .col(id_col(backend, spec.partition_col.clone(), false))
+                .col(id_col(backend, spec.scenario_col.clone(), true))
+                .col(id_col(backend, spec.field_col.clone(), false))
+                .col(spec.value_col)
+                .col(id_col(backend, spec.entity_col.clone(), false))
                 .col(
-                    ColumnDef::new(valid_from_col.clone())
+                    ColumnDef::new(spec.valid_from_col.clone())
                         .big_integer()
                         .not_null(),
                 )
-                .col(ColumnDef::new(valid_to_col.clone()).big_integer())
-                .col(ColumnDef::new(valid_bucket_col.clone()).integer())
+                .col(ColumnDef::new(spec.valid_to_col.clone()).big_integer())
+                .col(ColumnDef::new(spec.valid_bucket_col.clone()).integer())
                 .col(
-                    ColumnDef::new(asserted_col.clone())
+                    ColumnDef::new(spec.asserted_col.clone())
                         .big_integer()
                         .not_null(),
                 )
-                .col(ColumnDef::new(layer_col.clone()).tiny_integer().not_null())
+                .col(
+                    ColumnDef::new(spec.layer_col.clone())
+                        .tiny_integer()
+                        .not_null(),
+                )
                 .primary_key(
                     Index::create()
-                        .name(pk_name)
-                        .col(partition_col)
-                        .col(field_col)
-                        .col(entity_col)
-                        .col(valid_from_col)
-                        .col(asserted_col),
+                        .name(spec.pk_name)
+                        .col(spec.partition_col)
+                        .col(spec.field_col)
+                        .col(spec.entity_col)
+                        .col(spec.valid_from_col)
+                        .col(spec.asserted_col),
                 )
                 .to_owned(),
         )
@@ -1795,49 +1859,57 @@ async fn create_index_field_table(
     Ok(())
 }
 
-async fn create_computed_cache_table(
+struct ComputedCacheTableSpec<T: Iden + Clone> {
+    table: T,
+    partition_col: T,
+    entity_col: T,
+    field_col: T,
+    valid_from_col: T,
+    valid_to_col: T,
+    rule_hash_col: T,
+    computed_at_col: T,
+    value_col: ColumnDef,
+    pk_name: &'static str,
+}
+
+async fn create_computed_cache_table<T: Iden + Clone>(
     manager: &SchemaManager<'_>,
     backend: DatabaseBackend,
-    table: impl Iden + Clone,
-    partition_col: impl Iden + Clone,
-    entity_col: impl Iden + Clone,
-    field_col: impl Iden + Clone,
-    valid_from_col: impl Iden + Clone,
-    valid_to_col: impl Iden + Clone,
-    rule_hash_col: impl Iden + Clone,
-    computed_at_col: impl Iden + Clone,
-    value_col: ColumnDef,
-    pk_name: &str,
+    spec: ComputedCacheTableSpec<T>,
 ) -> Result<(), DbErr> {
     manager
         .create_table(
             Table::create()
-                .table(table)
+                .table(spec.table)
                 .if_not_exists()
-                .col(id_col(backend, partition_col.clone(), false))
-                .col(id_col(backend, entity_col.clone(), false))
-                .col(id_col(backend, field_col.clone(), false))
+                .col(id_col(backend, spec.partition_col.clone(), false))
+                .col(id_col(backend, spec.entity_col.clone(), false))
+                .col(id_col(backend, spec.field_col.clone(), false))
                 .col(
-                    ColumnDef::new(valid_from_col.clone())
+                    ColumnDef::new(spec.valid_from_col.clone())
                         .big_integer()
                         .not_null(),
                 )
-                .col(ColumnDef::new(valid_to_col.clone()).big_integer())
-                .col(value_col)
-                .col(ColumnDef::new(rule_hash_col.clone()).string().not_null())
+                .col(ColumnDef::new(spec.valid_to_col.clone()).big_integer())
+                .col(spec.value_col)
                 .col(
-                    ColumnDef::new(computed_at_col.clone())
+                    ColumnDef::new(spec.rule_hash_col.clone())
+                        .string()
+                        .not_null(),
+                )
+                .col(
+                    ColumnDef::new(spec.computed_at_col.clone())
                         .big_integer()
                         .not_null(),
                 )
                 .primary_key(
                     Index::create()
-                        .name(pk_name)
-                        .col(partition_col)
-                        .col(entity_col)
-                        .col(field_col)
-                        .col(valid_from_col)
-                        .col(rule_hash_col),
+                        .name(spec.pk_name)
+                        .col(spec.partition_col)
+                        .col(spec.entity_col)
+                        .col(spec.field_col)
+                        .col(spec.valid_from_col)
+                        .col(spec.rule_hash_col),
                 )
                 .to_owned(),
         )

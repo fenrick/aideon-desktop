@@ -1,9 +1,9 @@
 use aideon_mneme_store::ops::{CreateEdgeInput, CreateNodeInput};
 use aideon_mneme_store::{
-    ActorId, AnalyticsApi, AnalyticsResultsApi, GetGraphDegreeStatsInput,
+    ActorId, AnalyticsApi, AnalyticsResultsApi, EntityKind, GetGraphDegreeStatsInput,
     GetGraphEdgeTypeCountsInput, GetProjectionEdgesInput, GraphWriteApi, Hlc, Id, Layer,
-    MnemeConfig, MnemeProcessingApi, MnemeStore, PageRankRunSpec, PartitionId, RunWorkerInput,
-    TriggerProcessingInput, ValidTime,
+    MetamodelApi, MetamodelBatch, MnemeConfig, MnemeProcessingApi, MnemeStore, PageRankRunSpec,
+    PartitionId, PoolConfig, RunWorkerInput, TriggerProcessingInput, TypeDef, ValidTime,
 };
 use tempfile::tempdir;
 
@@ -15,7 +15,14 @@ fn new_ids() -> (PartitionId, ActorId) {
 async fn degree_stats_and_edge_type_counts_refresh() -> aideon_mneme_store::MnemeResult<()> {
     let dir = tempdir().expect("tempdir");
     let base = dir.path();
-    let config = MnemeConfig::default_sqlite(base.join("analytics.sqlite").to_string_lossy());
+    let mut config = MnemeConfig::default_sqlite(base.join("analytics.sqlite").to_string_lossy());
+    config.pool = Some(PoolConfig {
+        max_connections: Some(5),
+        min_connections: Some(1),
+        connect_timeout_ms: Some(5_000),
+        acquire_timeout_ms: Some(5_000),
+        idle_timeout_ms: Some(60_000),
+    });
     let store = MnemeStore::connect(&config, base).await?;
     let (partition, actor) = new_ids();
 
@@ -41,6 +48,37 @@ async fn degree_stats_and_edge_type_counts_refresh() -> aideon_mneme_store::Mnem
 
     let edge_type_a = Id::new();
     let edge_type_b = Id::new();
+
+    store
+        .upsert_metamodel_batch(
+            partition,
+            actor,
+            Hlc::now(),
+            MetamodelBatch {
+                types: vec![
+                    TypeDef {
+                        type_id: edge_type_a,
+                        applies_to: EntityKind::Edge,
+                        label: "edge-type-a".to_string(),
+                        is_abstract: false,
+                        parent_type_id: None,
+                    },
+                    TypeDef {
+                        type_id: edge_type_b,
+                        applies_to: EntityKind::Edge,
+                        label: "edge-type-b".to_string(),
+                        is_abstract: false,
+                        parent_type_id: None,
+                    },
+                ],
+                fields: Vec::new(),
+                type_fields: Vec::new(),
+                edge_type_rules: Vec::new(),
+                metamodel_version: None,
+                metamodel_source: None,
+            },
+        )
+        .await?;
 
     store
         .create_edge(CreateEdgeInput {

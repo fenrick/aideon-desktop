@@ -41,29 +41,23 @@ fn remote_config(database: DatabaseConfig) -> MnemeConfig {
 
 async fn populate_store(
     store: &MnemeStore,
-    partition: PartitionId,
-    actor: ActorId,
-    type_id: Id,
-    field_id: Id,
-    node_a: Id,
-    node_b: Id,
-    edge_id: Id,
+    input: ParityInput,
 ) -> aideon_mneme_store::MnemeResult<()> {
     store
         .upsert_metamodel_batch(
-            partition,
-            actor,
+            input.partition,
+            input.actor,
             Hlc::now(),
             MetamodelBatch {
                 types: vec![TypeDef {
-                    type_id,
+                    type_id: input.type_id,
                     applies_to: EntityKind::Node,
                     label: "Service".to_string(),
                     is_abstract: false,
                     parent_type_id: None,
                 }],
                 fields: vec![aideon_mneme_store::FieldDef {
-                    field_id,
+                    field_id: input.field_id,
                     label: "name".to_string(),
                     value_type: ValueType::Str,
                     cardinality_multi: false,
@@ -72,8 +66,8 @@ async fn populate_store(
                     disallow_overlap: false,
                 }],
                 type_fields: vec![TypeFieldDef {
-                    type_id,
-                    field_id,
+                    type_id: input.type_id,
+                    field_id: input.field_id,
                     is_required: false,
                     default_value: None,
                     override_default: false,
@@ -89,12 +83,12 @@ async fn populate_store(
 
     store
         .create_node(CreateNodeInput {
-            partition,
+            partition: input.partition,
             scenario_id: None,
-            actor,
+            actor: input.actor,
             asserted_at: Hlc::now(),
-            node_id: node_a,
-            type_id: Some(type_id),
+            node_id: input.node_a,
+            type_id: Some(input.type_id),
             acl_group_id: None,
             owner_actor_id: None,
             visibility: None,
@@ -103,12 +97,12 @@ async fn populate_store(
         .await?;
     store
         .create_node(CreateNodeInput {
-            partition,
+            partition: input.partition,
             scenario_id: None,
-            actor,
+            actor: input.actor,
             asserted_at: Hlc::now(),
-            node_id: node_b,
-            type_id: Some(type_id),
+            node_id: input.node_b,
+            type_id: Some(input.type_id),
             acl_group_id: None,
             owner_actor_id: None,
             visibility: None,
@@ -117,12 +111,12 @@ async fn populate_store(
         .await?;
     store
         .set_property_interval(SetPropIntervalInput {
-            partition,
+            partition: input.partition,
             scenario_id: None,
-            actor,
+            actor: input.actor,
             asserted_at: Hlc::now(),
-            entity_id: node_a,
-            field_id,
+            entity_id: input.node_a,
+            field_id: input.field_id,
             value: Value::Str("alpha".to_string()),
             valid_from: ValidTime(0),
             valid_to: None,
@@ -132,14 +126,14 @@ async fn populate_store(
         .await?;
     store
         .create_edge(CreateEdgeInput {
-            partition,
+            partition: input.partition,
             scenario_id: None,
-            actor,
+            actor: input.actor,
             asserted_at: Hlc::now(),
-            edge_id,
+            edge_id: input.edge_id,
             type_id: None,
-            src_id: node_a,
-            dst_id: node_b,
+            src_id: input.node_a,
+            dst_id: input.node_b,
             exists_valid_from: ValidTime(0),
             exists_valid_to: None,
             layer: Layer::Actual,
@@ -235,17 +229,7 @@ async fn run_parity_test(
     let dir = tempdir().expect("tempdir");
     let base = dir.path();
     let store = MnemeStore::connect(&config, base).await?;
-    populate_store(
-        &store,
-        input.partition,
-        input.actor,
-        input.type_id,
-        input.field_id,
-        input.node_a,
-        input.node_b,
-        input.edge_id,
-    )
-    .await?;
+    populate_store(&store, input).await?;
     snapshot_store(
         &store,
         input.partition,

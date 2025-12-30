@@ -44,6 +44,12 @@ import {
   mnemeExportApi,
   mnemeImportApi,
   mnemeSnapshotApi,
+  mnemeMetamodelApi,
+  mnemeWriteApi,
+  mnemeReadApi,
+  mnemeAnalyticsApi,
+  mnemeSyncApi,
+  mnemeProcessingApi,
   onChangeEvents,
   orSetUpdate,
   readEntityAtTime,
@@ -686,6 +692,15 @@ describe('mneme-api metamodel bindings', () => {
       snapshotExported.push(record);
     }
     expect(snapshotExported).toEqual([]);
+  });
+
+  it('exposes core api wrapper objects', () => {
+    expect(mnemeMetamodelApi.upsertMetamodelBatch).toBe(upsertMetamodelBatch);
+    expect(mnemeWriteApi.createNode).toBe(createNode);
+    expect(mnemeReadApi.readEntityAtTime).toBe(readEntityAtTime);
+    expect(mnemeAnalyticsApi.getProjectionEdges).toBe(getProjectionEdges);
+    expect(mnemeSyncApi.getPartitionHead).toBe(getPartitionHead);
+    expect(mnemeProcessingApi.listJobs).toBe(listJobs);
   });
 
   it('ingests ops with byte payload conversion', async () => {

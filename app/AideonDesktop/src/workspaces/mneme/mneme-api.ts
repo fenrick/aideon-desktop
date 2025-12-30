@@ -721,6 +721,52 @@ export const mnemeSnapshotApi = {
   importSnapshotStream,
 };
 
+export const mnemeMetamodelApi = {
+  upsertMetamodelBatch,
+  compileEffectiveSchema,
+};
+
+export const mnemeWriteApi = {
+  createNode,
+  createEdge,
+  setEdgeExistenceInterval,
+  tombstoneEntity,
+  setPropertyInterval,
+  clearPropertyInterval,
+  orSetUpdate,
+  counterUpdate,
+};
+
+export const mnemeReadApi = {
+  readEntityAtTime,
+  traverseAtTime,
+  listEntities,
+};
+
+export const mnemeAnalyticsApi = {
+  getProjectionEdges,
+  getGraphDegreeStats,
+  getGraphEdgeTypeCounts,
+  storePageRankRun,
+  getPageRankScores,
+};
+
+export const mnemeSyncApi = {
+  exportOps,
+  ingestOps,
+  getPartitionHead,
+};
+
+export const mnemeProcessingApi = {
+  triggerRebuildEffectiveSchema,
+  triggerRefreshIntegrity,
+  triggerRefreshAnalyticsProjections,
+  triggerRetention,
+  triggerCompaction,
+  runProcessingWorker,
+  listJobs,
+};
+
 /**
  * Upsert validation rules for a partition.
  */

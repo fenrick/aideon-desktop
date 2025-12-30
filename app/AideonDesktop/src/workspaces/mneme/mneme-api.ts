@@ -1,7 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type {
-  AssertedTime,
   ChangeEvent,
   ClearPropertyIntervalInput,
   ComputedCacheEntry,
@@ -26,6 +25,7 @@ import type {
   GetGraphDegreeStatsInput,
   GetGraphEdgeTypeCountsInput,
   GetPageRankScoresInput,
+  GetPartitionHeadInput,
   GetProjectionEdgesInput,
   GraphDegreeStat,
   GraphEdgeTypeCount,
@@ -37,13 +37,13 @@ import type {
   ListComputedCacheInput,
   ListEntitiesInput,
   ListEntitiesResultItem,
+  ListJobsInput,
   MetamodelBatch,
   OpEnvelope,
   OrSetUpdateInput,
-  PageRankRunParams,
+  PageRankRunParameters,
   PageRankRunResult,
   PageRankScore,
-  GetPartitionHeadInput,
   PartitionHeadResult,
   ProjectionEdge,
   ReadEntityAtTimeInput,
@@ -73,7 +73,6 @@ import type {
   UpsertComputedRulesInput,
   UpsertValidationRulesInput,
   ValidationRule,
-  ValidTime,
   Value,
 } from 'dtos';
 
@@ -144,7 +143,7 @@ function toInvokeArguments(value: object): Record<string, unknown> {
 export interface UpsertMetamodelBatchInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   batch: MetamodelBatch;
   scenarioId?: string;
 }
@@ -152,7 +151,7 @@ export interface UpsertMetamodelBatchInput {
 export interface CompileEffectiveSchemaInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   typeId: string;
   scenarioId?: string;
 }
@@ -388,7 +387,10 @@ export async function readEntityAtTime(
     };
   }
   try {
-    const raw = await invoke<RustReadEntityAtTimeResult>(COMMANDS.readEntityAtTime, input);
+    const raw = await invoke<RustReadEntityAtTimeResult>(
+      COMMANDS.readEntityAtTime,
+      toInvokeArguments(input),
+    );
     return fromRustReadEntityAtTime(raw);
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.readEntityAtTime}' failed: ${String(error)}`, {
@@ -406,7 +408,10 @@ export async function traverseAtTime(input: TraverseAtTimeInput): Promise<Traver
     return [];
   }
   try {
-    const raw = await invoke<RustTraverseEdgeItem[]>(COMMANDS.traverseAtTime, input);
+    const raw = await invoke<RustTraverseEdgeItem[]>(
+      COMMANDS.traverseAtTime,
+      toInvokeArguments(input),
+    );
     return raw.map((edge) => ({
       edgeId: edge.edge_id,
       srcId: edge.src_id,
@@ -431,7 +436,7 @@ export async function listEntities(input: ListEntitiesInput): Promise<ListEntiti
   try {
     const raw = await invoke<RustListEntitiesResultItem[]>(COMMANDS.listEntities, {
       ...input,
-      filters: (input.filters ?? []).map(toRustFieldFilter),
+      filters: (input.filters ?? []).map((item) => toRustFieldFilter(item)),
     });
     return raw.map((item) => ({
       entityId: item.entity_id,
@@ -447,6 +452,7 @@ export async function listEntities(input: ListEntitiesInput): Promise<ListEntiti
 
 /**
  * Fetch projection edges for analytics.
+ * @param input
  */
 export async function getProjectionEdges(
   input: GetProjectionEdgesInput,
@@ -455,8 +461,11 @@ export async function getProjectionEdges(
     return [];
   }
   try {
-    const raw = await invoke<RustProjectionEdge[]>(COMMANDS.getProjectionEdges, input);
-    return raw.map(fromRustProjectionEdge);
+    const raw = await invoke<RustProjectionEdge[]>(
+      COMMANDS.getProjectionEdges,
+      toInvokeArguments(input),
+    );
+    return raw.map((item) => fromRustProjectionEdge(item));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.getProjectionEdges}' failed: ${String(error)}`, {
       cause: error,
@@ -466,6 +475,7 @@ export async function getProjectionEdges(
 
 /**
  * Fetch graph degree stats.
+ * @param input
  */
 export async function getGraphDegreeStats(
   input: GetGraphDegreeStatsInput,
@@ -474,8 +484,11 @@ export async function getGraphDegreeStats(
     return [];
   }
   try {
-    const raw = await invoke<RustGraphDegreeStat[]>(COMMANDS.getGraphDegreeStats, input);
-    return raw.map(fromRustGraphDegreeStat);
+    const raw = await invoke<RustGraphDegreeStat[]>(
+      COMMANDS.getGraphDegreeStats,
+      toInvokeArguments(input),
+    );
+    return raw.map((item) => fromRustGraphDegreeStat(item));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.getGraphDegreeStats}' failed: ${String(error)}`, {
       cause: error,
@@ -485,6 +498,7 @@ export async function getGraphDegreeStats(
 
 /**
  * Fetch edge type counts.
+ * @param input
  */
 export async function getGraphEdgeTypeCounts(
   input: GetGraphEdgeTypeCountsInput,
@@ -493,8 +507,11 @@ export async function getGraphEdgeTypeCounts(
     return [];
   }
   try {
-    const raw = await invoke<RustGraphEdgeTypeCount[]>(COMMANDS.getGraphEdgeTypeCounts, input);
-    return raw.map(fromRustGraphEdgeTypeCount);
+    const raw = await invoke<RustGraphEdgeTypeCount[]>(
+      COMMANDS.getGraphEdgeTypeCounts,
+      toInvokeArguments(input),
+    );
+    return raw.map((item) => fromRustGraphEdgeTypeCount(item));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.getGraphEdgeTypeCounts}' failed: ${String(error)}`, {
       cause: error,
@@ -504,6 +521,7 @@ export async function getGraphEdgeTypeCounts(
 
 /**
  * Store PageRank scores in Mneme.
+ * @param input
  */
 export async function storePageRankRun(input: StorePageRankRunInput): Promise<PageRankRunResult> {
   if (!isTauri()) {
@@ -512,7 +530,7 @@ export async function storePageRankRun(input: StorePageRankRunInput): Promise<Pa
   try {
     return await invoke<PageRankRunResult>(COMMANDS.storePageRankRun, {
       ...input,
-      params: toRustPageRankParams(input.params),
+      params: toRustPageRankParameters(input.params),
     });
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.storePageRankRun}' failed: ${String(error)}`, {
@@ -523,13 +541,14 @@ export async function storePageRankRun(input: StorePageRankRunInput): Promise<Pa
 
 /**
  * Fetch PageRank scores.
+ * @param input
  */
 export async function getPageRankScores(input: GetPageRankScoresInput): Promise<PageRankScore[]> {
   if (!isTauri()) {
     return [];
   }
   try {
-    return await invoke<PageRankScore[]>(COMMANDS.getPageRankScores, input);
+    return await invoke<PageRankScore[]>(COMMANDS.getPageRankScores, toInvokeArguments(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.getPageRankScores}' failed: ${String(error)}`, {
       cause: error,
@@ -539,14 +558,15 @@ export async function getPageRankScores(input: GetPageRankScoresInput): Promise<
 
 /**
  * Export op log entries.
+ * @param input
  */
 export async function exportOps(input: ExportOpsInput): Promise<ExportOpsResult> {
   if (!isTauri()) {
     return { ops: [] };
   }
   try {
-    const raw = await invoke<RustOpEnvelope[]>(COMMANDS.exportOps, input);
-    return { ops: raw.map(fromRustOpEnvelope) };
+    const raw = await invoke<RustOpEnvelope[]>(COMMANDS.exportOps, toInvokeArguments(input));
+    return { ops: raw.map((item) => fromRustOpEnvelope(item)) };
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.exportOps}' failed: ${String(error)}`, {
       cause: error,
@@ -556,15 +576,16 @@ export async function exportOps(input: ExportOpsInput): Promise<ExportOpsResult>
 
 /**
  * Ingest op log entries.
+ * @param input
  */
 export async function ingestOps(input: IngestOpsInput): Promise<void> {
   if (!isTauri()) {
     return;
   }
   try {
-    await invoke<void>(COMMANDS.ingestOps, {
+    await invoke(COMMANDS.ingestOps, {
       ...input,
-      ops: input.ops.map(toRustOpEnvelope),
+      ops: input.ops.map((item) => toRustOpEnvelope(item)),
     });
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.ingestOps}' failed: ${String(error)}`, {
@@ -575,15 +596,14 @@ export async function ingestOps(input: IngestOpsInput): Promise<void> {
 
 /**
  * Fetch the partition head.
+ * @param input
  */
-export async function getPartitionHead(
-  input: GetPartitionHeadInput,
-): Promise<PartitionHeadResult> {
+export async function getPartitionHead(input: GetPartitionHeadInput): Promise<PartitionHeadResult> {
   if (!isTauri()) {
     return { head: '0' };
   }
   try {
-    return await invoke<PartitionHeadResult>(COMMANDS.getPartitionHead, input);
+    return await invoke<PartitionHeadResult>(COMMANDS.getPartitionHead, toInvokeArguments(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.getPartitionHead}' failed: ${String(error)}`, {
       cause: error,
@@ -593,6 +613,7 @@ export async function getPartitionHead(
 
 /**
  * Create a scenario overlay.
+ * @param input
  */
 export async function createScenario(input: CreateScenarioInput): Promise<string> {
   if (!isTauri()) {
@@ -609,13 +630,14 @@ export async function createScenario(input: CreateScenarioInput): Promise<string
 
 /**
  * Delete a scenario overlay.
+ * @param input
  */
 export async function deleteScenario(input: DeleteScenarioInput): Promise<void> {
   if (!isTauri()) {
     return;
   }
   try {
-    await invoke<void>(COMMANDS.deleteScenario, toInvokeArguments(input));
+    await invoke(COMMANDS.deleteScenario, toInvokeArguments(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.deleteScenario}' failed: ${String(error)}`, {
       cause: error,
@@ -625,6 +647,7 @@ export async function deleteScenario(input: DeleteScenarioInput): Promise<void> 
 
 /**
  * Export a streaming op log payload.
+ * @param options
  */
 export async function exportOpsStream(
   options: ExportOptions,
@@ -633,8 +656,11 @@ export async function exportOpsStream(
     return toAsyncIterable([]);
   }
   try {
-    const raw = await invoke<RustExportRecord[]>(COMMANDS.exportOpsStream, options);
-    return toAsyncIterable(raw.map(fromRustExportRecord));
+    const raw = await invoke<RustExportRecord[]>(
+      COMMANDS.exportOpsStream,
+      toInvokeArguments(options),
+    );
+    return toAsyncIterable(raw.map((item) => fromRustExportRecord(item)));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.exportOpsStream}' failed: ${String(error)}`, {
       cause: error,
@@ -644,6 +670,8 @@ export async function exportOpsStream(
 
 /**
  * Import a streaming op log payload.
+ * @param options
+ * @param records
  */
 export async function importOpsStream(
   options: ImportOptions,
@@ -656,7 +684,7 @@ export async function importOpsStream(
     const collected = await collectAsyncIterable(records);
     const raw = await invoke<RustImportReport>(COMMANDS.importOpsStream, {
       ...options,
-      records: collected.map(toRustExportRecord),
+      records: collected.map((item) => toRustExportRecord(item)),
     });
     return fromRustImportReport(raw);
   } catch (error) {
@@ -668,6 +696,7 @@ export async function importOpsStream(
 
 /**
  * Export a snapshot stream.
+ * @param options
  */
 export async function exportSnapshotStream(
   options: SnapshotOptions,
@@ -676,8 +705,11 @@ export async function exportSnapshotStream(
     return toAsyncIterable([]);
   }
   try {
-    const raw = await invoke<RustExportRecord[]>(COMMANDS.exportSnapshotStream, options);
-    return toAsyncIterable(raw.map(fromRustExportRecord));
+    const raw = await invoke<RustExportRecord[]>(
+      COMMANDS.exportSnapshotStream,
+      toInvokeArguments(options),
+    );
+    return toAsyncIterable(raw.map((item) => fromRustExportRecord(item)));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.exportSnapshotStream}' failed: ${String(error)}`, {
       cause: error,
@@ -687,6 +719,8 @@ export async function exportSnapshotStream(
 
 /**
  * Import a snapshot stream.
+ * @param options
+ * @param records
  */
 export async function importSnapshotStream(
   options: ImportOptions,
@@ -697,9 +731,9 @@ export async function importSnapshotStream(
   }
   try {
     const collected = await collectAsyncIterable(records);
-    await invoke<void>(COMMANDS.importSnapshotStream, {
+    await invoke(COMMANDS.importSnapshotStream, {
       ...options,
-      records: collected.map(toRustExportRecord),
+      records: collected.map((item) => toRustExportRecord(item)),
     });
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.importSnapshotStream}' failed: ${String(error)}`, {
@@ -769,15 +803,16 @@ export const mnemeProcessingApi = {
 
 /**
  * Upsert validation rules for a partition.
+ * @param input
  */
 export async function upsertValidationRules(input: UpsertValidationRulesInput): Promise<void> {
   if (!isTauri()) {
     return;
   }
   try {
-    await invoke<void>(COMMANDS.upsertValidationRules, {
+    await invoke(COMMANDS.upsertValidationRules, {
       ...input,
-      rules: input.rules.map(toRustValidationRule),
+      rules: input.rules.map((item) => toRustValidationRule(item)),
     });
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.upsertValidationRules}' failed: ${String(error)}`, {
@@ -788,6 +823,7 @@ export async function upsertValidationRules(input: UpsertValidationRulesInput): 
 
 /**
  * List validation rules for a partition.
+ * @param partitionId
  */
 export async function listValidationRules(partitionId: string): Promise<ValidationRule[]> {
   if (!isTauri()) {
@@ -795,7 +831,7 @@ export async function listValidationRules(partitionId: string): Promise<Validati
   }
   try {
     const raw = await invoke<RustValidationRule[]>(COMMANDS.listValidationRules, { partitionId });
-    return raw.map(fromRustValidationRule);
+    return raw.map((item) => fromRustValidationRule(item));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.listValidationRules}' failed: ${String(error)}`, {
       cause: error,
@@ -805,15 +841,16 @@ export async function listValidationRules(partitionId: string): Promise<Validati
 
 /**
  * Upsert computed rules for a partition.
+ * @param input
  */
 export async function upsertComputedRules(input: UpsertComputedRulesInput): Promise<void> {
   if (!isTauri()) {
     return;
   }
   try {
-    await invoke<void>(COMMANDS.upsertComputedRules, {
+    await invoke(COMMANDS.upsertComputedRules, {
       ...input,
-      rules: input.rules.map(toRustComputedRule),
+      rules: input.rules.map((item) => toRustComputedRule(item)),
     });
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.upsertComputedRules}' failed: ${String(error)}`, {
@@ -824,6 +861,7 @@ export async function upsertComputedRules(input: UpsertComputedRulesInput): Prom
 
 /**
  * List computed rules for a partition.
+ * @param partitionId
  */
 export async function listComputedRules(partitionId: string): Promise<ComputedRule[]> {
   if (!isTauri()) {
@@ -831,7 +869,7 @@ export async function listComputedRules(partitionId: string): Promise<ComputedRu
   }
   try {
     const raw = await invoke<RustComputedRule[]>(COMMANDS.listComputedRules, { partitionId });
-    return raw.map(fromRustComputedRule);
+    return raw.map((item) => fromRustComputedRule(item));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.listComputedRules}' failed: ${String(error)}`, {
       cause: error,
@@ -841,15 +879,16 @@ export async function listComputedRules(partitionId: string): Promise<ComputedRu
 
 /**
  * Upsert computed cache entries for a partition.
+ * @param input
  */
 export async function upsertComputedCache(input: UpsertComputedCacheInput): Promise<void> {
   if (!isTauri()) {
     return;
   }
   try {
-    await invoke<void>(COMMANDS.upsertComputedCache, {
+    await invoke(COMMANDS.upsertComputedCache, {
       partitionId: input.partitionId,
-      entries: input.entries.map(toRustComputedCacheEntry),
+      entries: input.entries.map((item) => toRustComputedCacheEntry(item)),
     });
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.upsertComputedCache}' failed: ${String(error)}`, {
@@ -860,6 +899,7 @@ export async function upsertComputedCache(input: UpsertComputedCacheInput): Prom
 
 /**
  * List computed cache entries.
+ * @param input
  */
 export async function listComputedCache(
   input: ListComputedCacheInput,
@@ -868,8 +908,11 @@ export async function listComputedCache(
     return [];
   }
   try {
-    const raw = await invoke<RustComputedCacheEntry[]>(COMMANDS.listComputedCache, input);
-    return raw.map(fromRustComputedCacheEntry);
+    const raw = await invoke<RustComputedCacheEntry[]>(
+      COMMANDS.listComputedCache,
+      toInvokeArguments(input),
+    );
+    return raw.map((item) => fromRustComputedCacheEntry(item));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.listComputedCache}' failed: ${String(error)}`, {
       cause: error,
@@ -877,12 +920,16 @@ export async function listComputedCache(
   }
 }
 
+/**
+ *
+ * @param input
+ */
 export async function triggerRebuildEffectiveSchema(input: TriggerProcessingInput): Promise<void> {
   if (!isTauri()) {
     return;
   }
   try {
-    await invoke<void>(COMMANDS.triggerRebuildEffectiveSchema, input);
+    await invoke(COMMANDS.triggerRebuildEffectiveSchema, toInvokeArguments(input));
   } catch (error) {
     throw new Error(
       `Host command '${COMMANDS.triggerRebuildEffectiveSchema}' failed: ${String(error)}`,
@@ -891,12 +938,16 @@ export async function triggerRebuildEffectiveSchema(input: TriggerProcessingInpu
   }
 }
 
+/**
+ *
+ * @param input
+ */
 export async function triggerRefreshIntegrity(input: TriggerProcessingInput): Promise<void> {
   if (!isTauri()) {
     return;
   }
   try {
-    await invoke<void>(COMMANDS.triggerRefreshIntegrity, input);
+    await invoke(COMMANDS.triggerRefreshIntegrity, toInvokeArguments(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.triggerRefreshIntegrity}' failed: ${String(error)}`, {
       cause: error,
@@ -904,6 +955,10 @@ export async function triggerRefreshIntegrity(input: TriggerProcessingInput): Pr
   }
 }
 
+/**
+ *
+ * @param input
+ */
 export async function triggerRefreshAnalyticsProjections(
   input: TriggerProcessingInput,
 ): Promise<void> {
@@ -911,7 +966,7 @@ export async function triggerRefreshAnalyticsProjections(
     return;
   }
   try {
-    await invoke<void>(COMMANDS.triggerRefreshAnalyticsProjections, input);
+    await invoke(COMMANDS.triggerRefreshAnalyticsProjections, toInvokeArguments(input));
   } catch (error) {
     throw new Error(
       `Host command '${COMMANDS.triggerRefreshAnalyticsProjections}' failed: ${String(error)}`,
@@ -920,12 +975,16 @@ export async function triggerRefreshAnalyticsProjections(
   }
 }
 
+/**
+ *
+ * @param input
+ */
 export async function triggerRetention(input: TriggerRetentionInput): Promise<void> {
   if (!isTauri()) {
     return;
   }
   try {
-    await invoke<void>(COMMANDS.triggerRetention, input);
+    await invoke(COMMANDS.triggerRetention, toInvokeArguments(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.triggerRetention}' failed: ${String(error)}`, {
       cause: error,
@@ -933,12 +992,16 @@ export async function triggerRetention(input: TriggerRetentionInput): Promise<vo
   }
 }
 
+/**
+ *
+ * @param input
+ */
 export async function triggerCompaction(input: TriggerCompactionInput): Promise<void> {
   if (!isTauri()) {
     return;
   }
   try {
-    await invoke<void>(COMMANDS.triggerCompaction, input);
+    await invoke(COMMANDS.triggerCompaction, toInvokeArguments(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.triggerCompaction}' failed: ${String(error)}`, {
       cause: error,
@@ -946,6 +1009,10 @@ export async function triggerCompaction(input: TriggerCompactionInput): Promise<
   }
 }
 
+/**
+ *
+ * @param input
+ */
 export async function runProcessingWorker(
   input: RunProcessingWorkerInput,
 ): Promise<RunProcessingWorkerResult> {
@@ -953,7 +1020,10 @@ export async function runProcessingWorker(
     return { jobsProcessed: 0 };
   }
   try {
-    return await invoke<RunProcessingWorkerResult>(COMMANDS.runProcessingWorker, input);
+    return await invoke<RunProcessingWorkerResult>(
+      COMMANDS.runProcessingWorker,
+      toInvokeArguments(input),
+    );
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.runProcessingWorker}' failed: ${String(error)}`, {
       cause: error,
@@ -961,13 +1031,17 @@ export async function runProcessingWorker(
   }
 }
 
+/**
+ *
+ * @param input
+ */
 export async function listJobs(input: ListJobsInput): Promise<JobSummary[]> {
   if (!isTauri()) {
     return [];
   }
   try {
-    const raw = await invoke<RustJobSummary[]>(COMMANDS.listJobs, input);
-    return raw.map(fromRustJobSummary);
+    const raw = await invoke<RustJobSummary[]>(COMMANDS.listJobs, toInvokeArguments(input));
+    return raw.map((item) => fromRustJobSummary(item));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.listJobs}' failed: ${String(error)}`, {
       cause: error,
@@ -975,13 +1049,17 @@ export async function listJobs(input: ListJobsInput): Promise<JobSummary[]> {
   }
 }
 
+/**
+ *
+ * @param input
+ */
 export async function getChangesSince(input: GetChangesSinceInput): Promise<ChangeEvent[]> {
   if (!isTauri()) {
     return [];
   }
   try {
-    const raw = await invoke<RustChangeEvent[]>(COMMANDS.getChangesSince, input);
-    return raw.map(fromRustChangeEvent);
+    const raw = await invoke<RustChangeEvent[]>(COMMANDS.getChangesSince, toInvokeArguments(input));
+    return raw.map((item) => fromRustChangeEvent(item));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.getChangesSince}' failed: ${String(error)}`, {
       cause: error,
@@ -989,6 +1067,10 @@ export async function getChangesSince(input: GetChangesSinceInput): Promise<Chan
   }
 }
 
+/**
+ *
+ * @param input
+ */
 export async function subscribePartition(
   input: SubscribePartitionInput,
 ): Promise<SubscriptionResult> {
@@ -996,7 +1078,7 @@ export async function subscribePartition(
     return { subscriptionId: 'mock-sub' };
   }
   try {
-    return await invoke<SubscriptionResult>(COMMANDS.subscribePartition, input);
+    return await invoke<SubscriptionResult>(COMMANDS.subscribePartition, toInvokeArguments(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.subscribePartition}' failed: ${String(error)}`, {
       cause: error,
@@ -1004,12 +1086,16 @@ export async function subscribePartition(
   }
 }
 
+/**
+ *
+ * @param input
+ */
 export async function unsubscribePartition(input: UnsubscribePartitionInput): Promise<boolean> {
   if (!isTauri()) {
     return true;
   }
   try {
-    return await invoke<boolean>(COMMANDS.unsubscribePartition, input);
+    return await invoke<boolean>(COMMANDS.unsubscribePartition, toInvokeArguments(input));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.unsubscribePartition}' failed: ${String(error)}`, {
       cause: error,
@@ -1017,9 +1103,15 @@ export async function unsubscribePartition(input: UnsubscribePartitionInput): Pr
   }
 }
 
+/**
+ *
+ * @param handler
+ */
 export async function onChangeEvents(handler: (event: ChangeEvent) => void): Promise<() => void> {
   if (!isTauri()) {
-    return async () => {};
+    return () => {
+      return;
+    };
   }
   const unlisten = await listen<RustChangeEvent>('mneme_change_event', (event) => {
     handler(fromRustChangeEvent(event.payload));
@@ -1027,6 +1119,11 @@ export async function onChangeEvents(handler: (event: ChangeEvent) => void): Pro
   return unlisten;
 }
 
+/**
+ *
+ * @param partitionId
+ * @param scenarioId
+ */
 export async function getIntegrityHead(
   partitionId: string,
   scenarioId?: string,
@@ -1047,6 +1144,11 @@ export async function getIntegrityHead(
   }
 }
 
+/**
+ *
+ * @param partitionId
+ * @param typeId
+ */
 export async function getLastSchemaCompile(
   partitionId: string,
   typeId: string,
@@ -1067,13 +1169,18 @@ export async function getLastSchemaCompile(
   }
 }
 
+/**
+ *
+ * @param partitionId
+ * @param limit
+ */
 export async function listFailedJobs(partitionId: string, limit: number): Promise<JobSummary[]> {
   if (!isTauri()) {
     return [];
   }
   try {
     const raw = await invoke<RustJobSummary[]>(COMMANDS.listFailedJobs, { partitionId, limit });
-    return raw.map(fromRustJobSummary);
+    return raw.map((item) => fromRustJobSummary(item));
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.listFailedJobs}' failed: ${String(error)}`, {
       cause: error,
@@ -1081,6 +1188,9 @@ export async function listFailedJobs(partitionId: string, limit: number): Promis
   }
 }
 
+/**
+ *
+ */
 export async function getSchemaManifest(): Promise<SchemaManifest> {
   if (!isTauri()) {
     return { manifestVersion: '0', migrations: [], tables: [] };
@@ -1095,6 +1205,10 @@ export async function getSchemaManifest(): Promise<SchemaManifest> {
   }
 }
 
+/**
+ *
+ * @param input
+ */
 export async function explainResolution(
   input: ExplainResolutionInput,
 ): Promise<ExplainResolutionResult> {
@@ -1106,7 +1220,10 @@ export async function explainResolution(
     };
   }
   try {
-    const raw = await invoke<RustExplainResolutionResult>(COMMANDS.explainResolution, input);
+    const raw = await invoke<RustExplainResolutionResult>(
+      COMMANDS.explainResolution,
+      toInvokeArguments(input),
+    );
     return fromRustExplainResolution(raw);
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.explainResolution}' failed: ${String(error)}`, {
@@ -1115,6 +1232,10 @@ export async function explainResolution(
   }
 }
 
+/**
+ *
+ * @param input
+ */
 export async function explainTraversal(
   input: ExplainTraversalInput,
 ): Promise<ExplainTraversalResult> {
@@ -1126,7 +1247,10 @@ export async function explainTraversal(
     };
   }
   try {
-    const raw = await invoke<RustExplainTraversalResult>(COMMANDS.explainTraversal, input);
+    const raw = await invoke<RustExplainTraversalResult>(
+      COMMANDS.explainTraversal,
+      toInvokeArguments(input),
+    );
     return fromRustExplainTraversal(raw);
   } catch (error) {
     throw new Error(`Host command '${COMMANDS.explainTraversal}' failed: ${String(error)}`, {
@@ -1295,7 +1419,7 @@ interface RustPageRankSeed {
   weight: number;
 }
 
-interface RustPageRankParams {
+interface RustPageRankParameters {
   damping: number;
   maxIters: number;
   tol: number;
@@ -1511,11 +1635,11 @@ const MERGE_POLICY_MAP: Record<EffectiveSchema['fields'][number]['mergePolicy'],
  */
 function toRustValueType(
   valueType: RustValueType | EffectiveSchema['fields'][number]['valueType'],
-) {
+): RustValueType {
   if (valueType in VALUE_TYPE_MAP) {
     return VALUE_TYPE_MAP[valueType as EffectiveSchema['fields'][number]['valueType']];
   }
-  return valueType;
+  return valueType as RustValueType;
 }
 
 /**
@@ -1524,11 +1648,11 @@ function toRustValueType(
  */
 function toRustMergePolicy(
   mergePolicy: RustMergePolicy | EffectiveSchema['fields'][number]['mergePolicy'],
-) {
+): RustMergePolicy {
   if (mergePolicy in MERGE_POLICY_MAP) {
     return MERGE_POLICY_MAP[mergePolicy as EffectiveSchema['fields'][number]['mergePolicy']];
   }
-  return mergePolicy;
+  return mergePolicy as RustMergePolicy;
 }
 
 /**
@@ -1594,8 +1718,8 @@ function toRustEdgeTypeRule(definition: EdgeTypeRuleDefinition): RustEdgeTypeRul
  */
 function toRustMetamodelBatch(batch: MetamodelBatch): RustMetamodelBatch {
   return {
-    types: batch.types.map((typeDef) => toRustType(typeDef)),
-    fields: batch.fields.map((fieldDef) => toRustField(fieldDef)),
+    types: batch.types.map((typeDefinition) => toRustType(typeDefinition)),
+    fields: batch.fields.map((fieldDefinition) => toRustField(fieldDefinition)),
     type_fields: batch.typeFields.map((typeField) => toRustTypeField(typeField)),
     edge_type_rules: (batch.edgeTypeRules ?? []).map((rule) => toRustEdgeTypeRule(rule)),
     metamodel_version: undefined,
@@ -1660,7 +1784,7 @@ function toRustValue(value: Value): RustValue {
  * Convert an ISO timestamp to microseconds.
  * @param value - ISO-8601 timestamp.
  */
-function toValidTimeMicros(value: ValidTime): number {
+function toValidTimeMicros(value: string): number {
   const parsed = Date.parse(value);
   if (Number.isNaN(parsed)) {
     throw new TypeError(`Invalid ISO-8601 timestamp: ${value}`);
@@ -1668,27 +1792,35 @@ function toValidTimeMicros(value: ValidTime): number {
   return parsed * 1000;
 }
 
-function fromValidTimeMicros(value?: number | null): ValidTime | undefined {
+/**
+ *
+ * @param value
+ */
+function fromValidTimeMicros(value?: number | null): string | undefined {
   if (value === undefined || value === null) {
     return undefined;
   }
-  return new Date(value / 1000).toISOString() as ValidTime;
+  return new Date(value / 1000).toISOString();
 }
 
-function hlcToString(value: number): AssertedTime {
-  return `${value}` as AssertedTime;
-}
-
-function toRustPageRankParams(params: PageRankRunParams): RustPageRankParams {
+/**
+ *
+ * @param parameters
+ */
+function toRustPageRankParameters(parameters: PageRankRunParameters): RustPageRankParameters {
   return {
-    ...params,
-    personalisedSeed: params.personalisedSeed?.map((seed) => ({
+    ...parameters,
+    personalisedSeed: parameters.personalisedSeed?.map((seed) => ({
       id: seed.id,
       weight: seed.w,
     })),
   };
 }
 
+/**
+ *
+ * @param payload
+ */
 function normalizeBytes(payload: Uint8Array | number[]): Uint8Array {
   if (payload instanceof Uint8Array) {
     return payload;
@@ -1696,28 +1828,40 @@ function normalizeBytes(payload: Uint8Array | number[]): Uint8Array {
   return Uint8Array.from(payload);
 }
 
+/**
+ *
+ * @param op
+ */
 function fromRustOpEnvelope(op: RustOpEnvelope): OpEnvelope {
   return {
     opId: op.op_id,
     actorId: op.actor_id,
-    assertedAt: hlcToString(op.asserted_at),
+    assertedAt: String(op.asserted_at),
     opType: op.op_type,
     payload: normalizeBytes(op.payload),
     deps: op.deps,
   };
 }
 
+/**
+ *
+ * @param op
+ */
 function toRustOpEnvelope(op: OpEnvelope) {
   return {
     opId: op.opId,
     actorId: op.actorId,
     assertedAt: op.assertedAt,
     opType: op.opType,
-    payload: Array.from(op.payload),
+    payload: [...op.payload],
     deps: op.deps,
   };
 }
 
+/**
+ *
+ * @param record
+ */
 function fromRustExportRecord(record: RustExportRecord): ExportRecord {
   return {
     recordType: record.record_type,
@@ -1725,6 +1869,10 @@ function fromRustExportRecord(record: RustExportRecord): ExportRecord {
   };
 }
 
+/**
+ *
+ * @param record
+ */
 function toRustExportRecord(record: ExportRecord): RustExportRecord {
   return {
     record_type: record.recordType,
@@ -1732,6 +1880,10 @@ function toRustExportRecord(record: ExportRecord): RustExportRecord {
   };
 }
 
+/**
+ *
+ * @param report
+ */
 function fromRustImportReport(report: RustImportReport): ImportReport {
   return {
     opsImported: report.ops_imported,
@@ -1740,6 +1892,10 @@ function fromRustImportReport(report: RustImportReport): ImportReport {
   };
 }
 
+/**
+ *
+ * @param rule
+ */
 function fromRustValidationRule(rule: RustValidationRule): ValidationRule {
   return {
     ruleId: rule.rule_id,
@@ -1751,17 +1907,25 @@ function fromRustValidationRule(rule: RustValidationRule): ValidationRule {
   };
 }
 
+/**
+ *
+ * @param rule
+ */
 function toRustValidationRule(rule: ValidationRule): RustValidationRule {
   return {
     rule_id: rule.ruleId,
     scope_kind: rule.scopeKind,
-    scope_id: rule.scopeId ?? null,
+    scope_id: rule.scopeId ?? undefined,
     severity: rule.severity,
     template_kind: rule.templateKind,
     params: rule.params,
   };
 }
 
+/**
+ *
+ * @param rule
+ */
 function fromRustComputedRule(rule: RustComputedRule): ComputedRule {
   return {
     ruleId: rule.rule_id,
@@ -1772,16 +1936,24 @@ function fromRustComputedRule(rule: RustComputedRule): ComputedRule {
   };
 }
 
+/**
+ *
+ * @param rule
+ */
 function toRustComputedRule(rule: ComputedRule): RustComputedRule {
   return {
     rule_id: rule.ruleId,
-    target_type_id: rule.targetTypeId ?? null,
-    output_field_id: rule.outputFieldId ?? null,
+    target_type_id: rule.targetTypeId ?? undefined,
+    output_field_id: rule.outputFieldId ?? undefined,
     template_kind: rule.templateKind,
     params: rule.params,
   };
 }
 
+/**
+ *
+ * @param entry
+ */
 function fromRustComputedCacheEntry(entry: RustComputedCacheEntry): ComputedCacheEntry {
   return {
     entityId: entry.entity_id,
@@ -1790,28 +1962,42 @@ function fromRustComputedCacheEntry(entry: RustComputedCacheEntry): ComputedCach
     validTo: fromValidTimeMicros(entry.valid_to),
     value: fromRustValue(entry.value),
     ruleVersionHash: entry.rule_version_hash,
-    computedAssertedAt: hlcToString(entry.computed_asserted_at),
+    computedAssertedAt: String(entry.computed_asserted_at),
   };
 }
 
+/**
+ *
+ * @param entry
+ */
 function toRustComputedCacheEntry(entry: ComputedCacheEntry): RustComputedCacheEntryPayload {
   return {
     entity_id: entry.entityId,
     field_id: entry.fieldId,
     valid_from: entry.validFrom,
-    valid_to: entry.validTo ?? null,
+    valid_to: entry.validTo ?? undefined,
     value: toRustValue(entry.value),
     rule_version_hash: entry.ruleVersionHash,
     computed_asserted_at: entry.computedAssertedAt,
   };
 }
 
+/**
+ *
+ * @param items
+ * @yields {T} item from the input list
+ */
 async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
   for (const item of items) {
+    await Promise.resolve();
     yield item;
   }
 }
 
+/**
+ *
+ * @param items
+ */
 async function collectAsyncIterable<T>(items: AsyncIterable<T>): Promise<T[]> {
   const collected: T[] = [];
   for await (const item of items) {
@@ -1820,6 +2006,10 @@ async function collectAsyncIterable<T>(items: AsyncIterable<T>): Promise<T[]> {
   return collected;
 }
 
+/**
+ *
+ * @param job
+ */
 function fromRustJobSummary(job: RustJobSummary): JobSummary {
   return {
     partitionId: job.partition,
@@ -1831,43 +2021,59 @@ function fromRustJobSummary(job: RustJobSummary): JobSummary {
     maxAttempts: job.max_attempts,
     leaseExpiresAt: job.lease_expires_at ?? undefined,
     nextRunAfter: job.next_run_after ?? undefined,
-    createdAssertedAt: hlcToString(job.created_asserted_at),
-    updatedAssertedAt: hlcToString(job.updated_asserted_at),
+    createdAssertedAt: String(job.created_asserted_at),
+    updatedAssertedAt: String(job.updated_asserted_at),
     dedupeKey: job.dedupe_key ?? undefined,
     lastError: job.last_error ?? undefined,
   };
 }
 
+/**
+ *
+ * @param event
+ */
 function fromRustChangeEvent(event: RustChangeEvent): ChangeEvent {
   return {
     partitionId: event.partition,
     sequence: event.sequence,
     opId: event.op_id,
-    assertedAt: hlcToString(event.asserted_at),
+    assertedAt: String(event.asserted_at),
     entityId: event.entity_id ?? undefined,
     changeKind: event.change_kind,
     payload: event.payload,
   };
 }
 
+/**
+ *
+ * @param head
+ */
 function fromRustIntegrityHead(head: RustIntegrityHead): IntegrityHead {
   return {
     partitionId: head.partition,
     scenarioId: head.scenario_id ?? undefined,
     runId: head.run_id,
-    updatedAssertedAt: hlcToString(head.updated_asserted_at),
+    updatedAssertedAt: String(head.updated_asserted_at),
   };
 }
 
+/**
+ *
+ * @param head
+ */
 function fromRustSchemaHead(head: RustSchemaHead): SchemaHead {
   return {
     partitionId: head.partition,
     typeId: head.type_id,
     schemaVersionHash: head.schema_version_hash,
-    updatedAssertedAt: hlcToString(head.updated_asserted_at),
+    updatedAssertedAt: String(head.updated_asserted_at),
   };
 }
 
+/**
+ *
+ * @param manifest
+ */
 function fromRustSchemaManifest(manifest: RustSchemaManifest): SchemaManifest {
   return {
     manifestVersion: manifest.manifest_version,
@@ -1888,28 +2094,40 @@ function fromRustSchemaManifest(manifest: RustSchemaManifest): SchemaManifest {
   };
 }
 
+/**
+ *
+ * @param precedence
+ */
 function fromRustExplainPrecedence(precedence: RustExplainPrecedence) {
   return {
     layer: precedence.layer,
     intervalWidth: precedence.interval_width,
-    assertedAt: hlcToString(precedence.asserted_at),
+    assertedAt: String(precedence.asserted_at),
     opId: precedence.op_id,
   };
 }
 
+/**
+ *
+ * @param fact
+ */
 function fromRustExplainPropertyFact(fact: RustExplainPropertyFact) {
   return {
     value: fromRustValue(fact.value),
     validFrom: fromValidTimeMicros(fact.valid_from) ?? '',
     validTo: fromValidTimeMicros(fact.valid_to),
     layer: fact.layer,
-    assertedAt: hlcToString(fact.asserted_at),
+    assertedAt: String(fact.asserted_at),
     opId: fact.op_id,
     isTombstone: fact.is_tombstone,
     precedence: fromRustExplainPrecedence(fact.precedence),
   };
 }
 
+/**
+ *
+ * @param fact
+ */
 function fromRustExplainEdgeFact(fact: RustExplainEdgeFact) {
   return {
     edgeId: fact.edge_id,
@@ -1919,29 +2137,37 @@ function fromRustExplainEdgeFact(fact: RustExplainEdgeFact) {
     validFrom: fromValidTimeMicros(fact.valid_from) ?? '',
     validTo: fromValidTimeMicros(fact.valid_to),
     layer: fact.layer,
-    assertedAt: hlcToString(fact.asserted_at),
+    assertedAt: String(fact.asserted_at),
     opId: fact.op_id,
     isTombstone: fact.is_tombstone,
     precedence: fromRustExplainPrecedence(fact.precedence),
   };
 }
 
+/**
+ *
+ * @param result
+ */
 function fromRustExplainResolution(result: RustExplainResolutionResult): ExplainResolutionResult {
   return {
     entityId: result.entity_id,
     fieldId: result.field_id,
     resolved: result.resolved ? toReadValue(result.resolved) : undefined,
     winner: result.winner ? fromRustExplainPropertyFact(result.winner) : undefined,
-    candidates: result.candidates.map(fromRustExplainPropertyFact),
+    candidates: result.candidates.map((item) => fromRustExplainPropertyFact(item)),
   };
 }
 
+/**
+ *
+ * @param result
+ */
 function fromRustExplainTraversal(result: RustExplainTraversalResult): ExplainTraversalResult {
   return {
     edgeId: result.edge_id,
     active: result.active,
     winner: result.winner ? fromRustExplainEdgeFact(result.winner) : undefined,
-    candidates: result.candidates.map(fromRustExplainEdgeFact),
+    candidates: result.candidates.map((item) => fromRustExplainEdgeFact(item)),
   };
 }
 
@@ -1950,32 +2176,41 @@ function fromRustExplainTraversal(result: RustExplainTraversalResult): ExplainTr
  * @param value - Rust value to convert.
  */
 function fromRustValue(value: RustValue): Value {
-  if ('Str' in value) {
-    return { t: 'str', v: value.Str };
+  const [kind, payload] = Object.entries(value)[0] ?? [];
+  if (!kind) {
+    throw new TypeError('Unsupported Rust value variant');
   }
-  if ('I64' in value) {
-    return { t: 'i64', v: BigInt(value.I64) };
+  switch (kind) {
+    case 'Str': {
+      return { t: 'str', v: payload as string };
+    }
+    case 'I64': {
+      return { t: 'i64', v: BigInt(payload as number) };
+    }
+    case 'F64': {
+      return { t: 'f64', v: payload as number };
+    }
+    case 'Bool': {
+      return { t: 'bool', v: payload as boolean };
+    }
+    case 'Time': {
+      return { t: 'time', v: new Date((payload as number) / 1000).toISOString() };
+    }
+    case 'Ref': {
+      return { t: 'ref', v: payload as string };
+    }
+    case 'Blob': {
+      const blobPayload = payload as Uint8Array | number[];
+      const blob = blobPayload instanceof Uint8Array ? blobPayload : Uint8Array.from(blobPayload);
+      return { t: 'blob', v: blob };
+    }
+    case 'Json': {
+      return { t: 'json', v: payload };
+    }
+    default: {
+      throw new TypeError('Unsupported Rust value variant');
+    }
   }
-  if ('F64' in value) {
-    return { t: 'f64', v: value.F64 };
-  }
-  if ('Bool' in value) {
-    return { t: 'bool', v: value.Bool };
-  }
-  if ('Time' in value) {
-    return { t: 'time', v: new Date(value.Time / 1000).toISOString() };
-  }
-  if ('Ref' in value) {
-    return { t: 'ref', v: value.Ref };
-  }
-  if ('Blob' in value) {
-    const blob = value.Blob instanceof Uint8Array ? value.Blob : Uint8Array.from(value.Blob);
-    return { t: 'blob', v: blob };
-  }
-  if ('Json' in value) {
-    return { t: 'json', v: value.Json };
-  }
-  throw new TypeError('Unsupported Rust value variant');
 }
 
 /**
@@ -1983,10 +2218,9 @@ function fromRustValue(value: RustValue): Value {
  * @param raw - Rust payload.
  */
 function fromRustReadEntityAtTime(raw: RustReadEntityAtTimeResult): ReadEntityAtTimeResult {
-  const properties: Record<string, ReadValue> = {};
-  Object.entries(raw.properties).forEach(([fieldId, value]) => {
-    properties[fieldId] = toReadValue(value);
-  });
+  const properties = Object.fromEntries(
+    Object.entries(raw.properties).map(([fieldId, value]) => [fieldId, toReadValue(value)]),
+  ) as Record<string, ReadValue>;
   return {
     entityId: raw.entity_id,
     kind: raw.kind,
@@ -2016,6 +2250,10 @@ function toReadValue(value: RustReadValue): ReadValue {
   };
 }
 
+/**
+ *
+ * @param edge
+ */
 function fromRustProjectionEdge(edge: RustProjectionEdge): ProjectionEdge {
   return {
     edgeId: edge.edge_id,
@@ -2026,21 +2264,29 @@ function fromRustProjectionEdge(edge: RustProjectionEdge): ProjectionEdge {
   };
 }
 
+/**
+ *
+ * @param stat
+ */
 function fromRustGraphDegreeStat(stat: RustGraphDegreeStat): GraphDegreeStat {
   return {
     entityId: stat.entity_id,
     outDegree: stat.out_degree,
     inDegree: stat.in_degree,
     asOfValidTime: fromValidTimeMicros(stat.as_of_valid_time),
-    computedAssertedAt: hlcToString(stat.computed_asserted_at),
+    computedAssertedAt: String(stat.computed_asserted_at),
   };
 }
 
+/**
+ *
+ * @param count
+ */
 function fromRustGraphEdgeTypeCount(count: RustGraphEdgeTypeCount): GraphEdgeTypeCount {
   return {
     edgeTypeId: count.edge_type_id ?? undefined,
     count: count.count,
-    computedAssertedAt: hlcToString(count.computed_asserted_at),
+    computedAssertedAt: String(count.computed_asserted_at),
   };
 }
 

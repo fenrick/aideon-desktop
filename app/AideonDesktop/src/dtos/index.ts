@@ -29,7 +29,6 @@ export type {
 
 export type { WorkerHealth } from './health';
 export type {
-  AssertedTime,
   ChangeEvent,
   ClearPropertyIntervalInput,
   ColumnManifest,
@@ -60,6 +59,7 @@ export type {
   GetGraphDegreeStatsInput,
   GetGraphEdgeTypeCountsInput,
   GetPageRankScoresInput,
+  GetPartitionHeadInput,
   GetProjectionEdgesInput,
   GraphDegreeStat,
   GraphEdgeTypeCount,
@@ -77,11 +77,10 @@ export type {
   MetamodelBatch,
   OpEnvelope,
   OrSetUpdateInput,
-  PageRankRunParams,
+  PageRankRunParameters,
   PageRankRunResult,
   PageRankScore,
   PageRankSeed,
-  GetPartitionHeadInput,
   PartitionHeadResult,
   ProjectionEdge,
   ReadEntityAtTimeInput,
@@ -90,7 +89,6 @@ export type {
   RetentionPolicy,
   RunProcessingWorkerInput,
   RunProcessingWorkerResult,
-  ScenarioId,
   SchemaCompileResult,
   SchemaHead,
   SchemaManifest,
@@ -113,7 +111,6 @@ export type {
   UpsertComputedCacheInput,
   UpsertComputedRulesInput,
   UpsertValidationRulesInput,
-  ValidTime,
   ValidationRule,
   Value,
 } from './mneme';

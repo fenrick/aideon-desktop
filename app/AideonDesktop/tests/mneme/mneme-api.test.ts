@@ -4,9 +4,9 @@ vi.mock('@/workspaces/mneme/platform', () => ({ isTauri: vi.fn() }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn() }));
 
+import { isTauri } from '@/workspaces/mneme/platform';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { isTauri } from '@/workspaces/mneme/platform';
 
 import {
   clearPropertyInterval,
@@ -41,15 +41,15 @@ import {
   listFailedJobs,
   listJobs,
   listValidationRules,
+  mnemeAnalyticsApi,
   mnemeExportApi,
   mnemeImportApi,
-  mnemeSnapshotApi,
   mnemeMetamodelApi,
-  mnemeWriteApi,
-  mnemeReadApi,
-  mnemeAnalyticsApi,
-  mnemeSyncApi,
   mnemeProcessingApi,
+  mnemeReadApi,
+  mnemeSnapshotApi,
+  mnemeSyncApi,
+  mnemeWriteApi,
   onChangeEvents,
   orSetUpdate,
   readEntityAtTime,
@@ -75,6 +75,17 @@ import {
 const isTauriMock = vi.mocked(isTauri);
 const invokeMock = vi.mocked(invoke);
 const listenMock = vi.mocked(listen);
+
+/**
+ * @param records
+ * @yields {T} record from the input list
+ */
+async function* yieldRecords<T>(records: T[]): AsyncIterable<T> {
+  for (const record of records) {
+    await Promise.resolve();
+    yield record;
+  }
+}
 
 describe('mneme-api metamodel bindings', () => {
   beforeEach(() => {
@@ -555,7 +566,7 @@ describe('mneme-api metamodel bindings', () => {
         entity_id: 'n-1',
         out_degree: 2,
         in_degree: 1,
-        as_of_valid_time: 1735689600000000,
+        as_of_valid_time: 1_735_689_600_000_000,
         computed_asserted_at: 555,
       },
     ]);
@@ -592,7 +603,7 @@ describe('mneme-api metamodel bindings', () => {
         tol: 0.0001,
         personalisedSeed: [{ id: 'n-1', w: 0.5 }],
       },
-      scores: [{ id: 'n-1', score: 1.0 }],
+      scores: [{ id: 'n-1', score: 1 }],
     });
 
     expect(result.runId).toBe('r-1');
@@ -606,7 +617,7 @@ describe('mneme-api metamodel bindings', () => {
         tol: 0.0001,
         personalisedSeed: [{ id: 'n-1', weight: 0.5 }],
       },
-      scores: [{ id: 'n-1', score: 1.0 }],
+      scores: [{ id: 'n-1', score: 1 }],
     });
   });
 
@@ -639,7 +650,7 @@ describe('mneme-api metamodel bindings', () => {
       opType: 7,
       deps: ['op-0'],
     });
-    expect(Array.from(result.ops[0]?.payload ?? [])).toEqual([1, 2, 3]);
+    expect([...(result.ops[0]?.payload ?? [])]).toEqual([1, 2, 3]);
   });
 
   it('exports op streams and yields records', async () => {
@@ -649,7 +660,7 @@ describe('mneme-api metamodel bindings', () => {
     ]);
 
     const iterable = await exportOpsStream({ partitionId: 'p-1' });
-    const records: Array<{ recordType: string; data: unknown }> = [];
+    const records: { recordType: string; data: unknown }[] = [];
     for await (const record of iterable) {
       records.push(record);
     }
@@ -670,24 +681,23 @@ describe('mneme-api metamodel bindings', () => {
       .mockResolvedValueOnce([]);
 
     const records = await mnemeExportApi.exportOps({ partitionId: 'p-1' });
-    const exported: Array<{ recordType: string; data: unknown }> = [];
+    const exported: { recordType: string; data: unknown }[] = [];
     for await (const record of records) {
       exported.push(record);
     }
     expect(exported).toEqual([]);
 
-    async function* importRecords() {
-      yield { recordType: 'op', data: { opId: 'o-1' } };
-    }
-
-    const report = await mnemeImportApi.importOps({ targetPartition: 'p-1' }, importRecords());
+    const report = await mnemeImportApi.importOps(
+      { targetPartition: 'p-1' },
+      yieldRecords([{ recordType: 'op', data: { opId: 'o-1' } }]),
+    );
     expect(report).toEqual({ opsImported: 0, opsSkipped: 0, errors: 0 });
 
     const snapshotRecords = await mnemeSnapshotApi.exportSnapshotStream({
       partitionId: 'p-1',
       asOfAssertedAt: '123',
     });
-    const snapshotExported: Array<{ recordType: string; data: unknown }> = [];
+    const snapshotExported: { recordType: string; data: unknown }[] = [];
     for await (const record of snapshotRecords) {
       snapshotExported.push(record);
     }
@@ -704,7 +714,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('ingests ops with byte payload conversion', async () => {
-    invokeMock.mockResolvedValue(undefined);
+    invokeMock.mockResolvedValue({});
 
     await ingestOps({
       partitionId: 'p-1',
@@ -738,17 +748,13 @@ describe('mneme-api metamodel bindings', () => {
   it('imports op streams and maps reports', async () => {
     invokeMock.mockResolvedValue({ ops_imported: 2, ops_skipped: 1, errors: 0 });
 
-    async function* records() {
-      yield { recordType: 'op', data: { opId: 'o-1' } };
-    }
-
     const report = await importOpsStream(
       {
         targetPartition: 'p-1',
         allowPartitionCreate: true,
         strictSchema: true,
       },
-      records(),
+      yieldRecords([{ recordType: 'op', data: { opId: 'o-1' } }]),
     );
 
     expect(report).toEqual({ opsImported: 2, opsSkipped: 1, errors: 0 });
@@ -767,7 +773,7 @@ describe('mneme-api metamodel bindings', () => {
       partitionId: 'p-1',
       asOfAssertedAt: '123',
     });
-    const records: Array<{ recordType: string; data: unknown }> = [];
+    const records: { recordType: string; data: unknown }[] = [];
     for await (const record of iterable) {
       records.push(record);
     }
@@ -780,18 +786,14 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('imports snapshot streams', async () => {
-    invokeMock.mockResolvedValue(undefined);
-
-    async function* records() {
-      yield { recordType: 'header', data: { snap: true } };
-    }
+    invokeMock.mockResolvedValue({});
 
     await importSnapshotStream(
       {
         targetPartition: 'p-1',
         allowPartitionCreate: false,
       },
-      records(),
+      yieldRecords([{ recordType: 'header', data: { snap: true } }]),
     );
 
     expect(invokeMock).toHaveBeenCalledWith('mneme_import_snapshot_stream', {
@@ -802,7 +804,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('upserts and lists validation rules', async () => {
-    invokeMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce([
+    invokeMock.mockResolvedValueOnce({}).mockResolvedValueOnce([
       {
         rule_id: 'r-1',
         scope_kind: 2,
@@ -862,7 +864,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('upserts and lists computed rules', async () => {
-    invokeMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce([
+    invokeMock.mockResolvedValueOnce({}).mockResolvedValueOnce([
       {
         rule_id: 'c-1',
         target_type_id: 't-1',
@@ -918,12 +920,12 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('upserts and lists computed cache entries', async () => {
-    invokeMock.mockResolvedValueOnce(undefined).mockResolvedValueOnce([
+    invokeMock.mockResolvedValueOnce({}).mockResolvedValueOnce([
       {
         entity_id: 'n-1',
         field_id: 'f-1',
         valid_from: 1_000_000,
-        valid_to: null,
+        valid_to: undefined,
         value: { Str: 'value' },
         rule_version_hash: 'hash-1',
         computed_asserted_at: 321,
@@ -968,7 +970,7 @@ describe('mneme-api metamodel bindings', () => {
           entity_id: 'n-1',
           field_id: 'f-1',
           valid_from: '2024-01-01T00:00:00.000Z',
-          valid_to: null,
+          valid_to: undefined,
           value: { Str: 'value' },
           rule_version_hash: 'hash-1',
           computed_asserted_at: '321',
@@ -995,7 +997,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('creates and deletes scenarios', async () => {
-    invokeMock.mockResolvedValueOnce('s-1').mockResolvedValueOnce(undefined);
+    invokeMock.mockResolvedValueOnce('s-1').mockResolvedValueOnce({});
 
     const scenarioId = await createScenario({
       partitionId: 'p-1',
@@ -1026,7 +1028,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('triggers processing jobs', async () => {
-    invokeMock.mockResolvedValue(undefined);
+    invokeMock.mockResolvedValue({});
 
     await triggerRebuildEffectiveSchema({ partitionId: 'p-1', reason: 'rebuild' });
     await triggerRefreshIntegrity({ partitionId: 'p-1', reason: 'integrity' });
@@ -1071,12 +1073,12 @@ describe('mneme-api metamodel bindings', () => {
         priority: 5,
         attempts: 0,
         max_attempts: 3,
-        lease_expires_at: null,
-        next_run_after: null,
+        lease_expires_at: undefined,
+        next_run_after: undefined,
         created_asserted_at: 11,
         updated_asserted_at: 22,
-        dedupe_key: null,
-        last_error: null,
+        dedupe_key: undefined,
+        last_error: undefined,
       },
     ]);
 
@@ -1142,9 +1144,13 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('registers change event listeners', async () => {
-    listenMock.mockResolvedValue(() => {});
+    listenMock.mockResolvedValue(() => {
+      return;
+    });
 
-    const unlisten = await onChangeEvents(() => {});
+    const unlisten = await onChangeEvents(() => {
+      return;
+    });
 
     expect(listenMock).toHaveBeenCalledWith('mneme_change_event', expect.any(Function));
     expect(typeof unlisten).toBe('function');
@@ -1153,9 +1159,9 @@ describe('mneme-api metamodel bindings', () => {
   it('maps integrity heads from rust', async () => {
     invokeMock.mockResolvedValue({
       partition: 'p-1',
-      scenario_id: null,
+      scenario_id: undefined,
       run_id: 'run-1',
-      updated_asserted_at: 90210,
+      updated_asserted_at: 90_210,
     });
 
     const result = await getIntegrityHead('p-1');
@@ -1204,8 +1210,8 @@ describe('mneme-api metamodel bindings', () => {
         priority: 1,
         attempts: 2,
         max_attempts: 3,
-        lease_expires_at: null,
-        next_run_after: null,
+        lease_expires_at: undefined,
+        next_run_after: undefined,
         created_asserted_at: 11,
         updated_asserted_at: 22,
         dedupe_key: 'key',
@@ -1276,7 +1282,7 @@ describe('mneme-api metamodel bindings', () => {
       winner: {
         value: { Str: 'ok' },
         valid_from: 1_000_000,
-        valid_to: null,
+        valid_to: undefined,
         layer: 2,
         asserted_at: 100,
         op_id: 'op-1',

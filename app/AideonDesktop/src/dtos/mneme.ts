@@ -2,12 +2,6 @@
  * Mneme DTOs and shared primitives for IPC bindings.
  */
 
-// ISO-8601 UTC
-export type ValidTime = string;
-// HLC encoded as string
-export type AssertedTime = string;
-export type ScenarioId = string;
-
 export type Layer = 'Plan' | 'Actual';
 
 export type Value =
@@ -15,7 +9,7 @@ export type Value =
   | { t: 'i64'; v: bigint }
   | { t: 'f64'; v: number }
   | { t: 'bool'; v: boolean }
-  | { t: 'time'; v: ValidTime }
+  | { t: 'time'; v: string }
   | { t: 'ref'; v: string }
   | { t: 'blob'; v: Uint8Array }
   | { t: 'json'; v: unknown };
@@ -72,7 +66,7 @@ export interface SchemaCompileResult {
 export interface CreateNodeInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   nodeId: string;
   typeId?: string;
   scenarioId?: string;
@@ -81,13 +75,13 @@ export interface CreateNodeInput {
 export interface CreateEdgeInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   edgeId: string;
   typeId?: string;
   srcId: string;
   dstId: string;
-  existsValidFrom: ValidTime;
-  existsValidTo?: ValidTime;
+  existsValidFrom: string;
+  existsValidTo?: string;
   layer?: Layer;
   weight?: number;
   scenarioId?: string;
@@ -96,10 +90,10 @@ export interface CreateEdgeInput {
 export interface SetEdgeExistenceIntervalInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   edgeId: string;
-  validFrom: ValidTime;
-  validTo?: ValidTime;
+  validFrom: string;
+  validTo?: string;
   layer?: Layer;
   isTombstone?: boolean;
   scenarioId?: string;
@@ -108,7 +102,7 @@ export interface SetEdgeExistenceIntervalInput {
 export interface TombstoneEntityInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   entityId: string;
   scenarioId?: string;
 }
@@ -116,12 +110,12 @@ export interface TombstoneEntityInput {
 export interface SetPropertyIntervalInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   entityId: string;
   fieldId: string;
   value: Value;
-  validFrom: ValidTime;
-  validTo?: ValidTime;
+  validFrom: string;
+  validTo?: string;
   layer?: Layer;
   scenarioId?: string;
 }
@@ -129,11 +123,11 @@ export interface SetPropertyIntervalInput {
 export interface ClearPropertyIntervalInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   entityId: string;
   fieldId: string;
-  validFrom: ValidTime;
-  validTo?: ValidTime;
+  validFrom: string;
+  validTo?: string;
   layer?: Layer;
   scenarioId?: string;
 }
@@ -141,13 +135,13 @@ export interface ClearPropertyIntervalInput {
 export interface OrSetUpdateInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   entityId: string;
   fieldId: string;
   op: 'Add' | 'Remove';
   element: Value;
-  validFrom: ValidTime;
-  validTo?: ValidTime;
+  validFrom: string;
+  validTo?: string;
   layer?: Layer;
   scenarioId?: string;
 }
@@ -155,12 +149,12 @@ export interface OrSetUpdateInput {
 export interface CounterUpdateInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   entityId: string;
   fieldId: string;
   delta: number;
-  validFrom: ValidTime;
-  validTo?: ValidTime;
+  validFrom: string;
+  validTo?: string;
   layer?: Layer;
   scenarioId?: string;
 }
@@ -176,8 +170,8 @@ export interface FieldFilter {
 export interface ReadEntityAtTimeInput {
   partitionId: string;
   entityId: string;
-  at: ValidTime;
-  asOfAssertedAt?: AssertedTime;
+  at: string;
+  asOfAssertedAt?: string;
   fieldIds?: string[];
   includeDefaults?: boolean;
   scenarioId?: string;
@@ -198,8 +192,8 @@ export interface TraverseAtTimeInput {
   fromEntityId: string;
   direction: Direction;
   edgeTypeId?: string;
-  at: ValidTime;
-  asOfAssertedAt?: AssertedTime;
+  at: string;
+  asOfAssertedAt?: string;
   limit?: number;
   scenarioId?: string;
 }
@@ -213,8 +207,8 @@ export interface TraverseEdgeItem {
 
 export interface ListEntitiesInput {
   partitionId: string;
-  at: ValidTime;
-  asOfAssertedAt?: AssertedTime;
+  at: string;
+  asOfAssertedAt?: string;
   kind?: 'Node' | 'Edge';
   typeId?: string;
   filters?: FieldFilter[];
@@ -239,8 +233,8 @@ export interface ProjectionEdge {
 
 export interface GetProjectionEdgesInput {
   partitionId: string;
-  at?: ValidTime;
-  asOfAssertedAt?: AssertedTime;
+  at?: string;
+  asOfAssertedAt?: string;
   edgeTypeFilter?: string[];
   limit?: number;
   scenarioId?: string;
@@ -250,13 +244,13 @@ export interface GraphDegreeStat {
   entityId: string;
   outDegree: number;
   inDegree: number;
-  asOfValidTime?: ValidTime;
-  computedAssertedAt: AssertedTime;
+  asOfValidTime?: string;
+  computedAssertedAt: string;
 }
 
 export interface GetGraphDegreeStatsInput {
   partitionId: string;
-  asOfValidTime?: ValidTime;
+  asOfValidTime?: string;
   entityIds?: string[];
   limit?: number;
   scenarioId?: string;
@@ -265,7 +259,7 @@ export interface GetGraphDegreeStatsInput {
 export interface GraphEdgeTypeCount {
   edgeTypeId?: string;
   count: number;
-  computedAssertedAt: AssertedTime;
+  computedAssertedAt: string;
 }
 
 export interface GetGraphEdgeTypeCountsInput {
@@ -280,7 +274,7 @@ export interface PageRankSeed {
   w: number;
 }
 
-export interface PageRankRunParams {
+export interface PageRankRunParameters {
   damping: number;
   maxIters: number;
   tol: number;
@@ -295,10 +289,10 @@ export interface PageRankScore {
 export interface StorePageRankRunInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
-  asOfValidTime?: ValidTime;
-  asOfAssertedAt?: AssertedTime;
-  params: PageRankRunParams;
+  assertedAt: string;
+  asOfValidTime?: string;
+  asOfAssertedAt?: string;
+  params: PageRankRunParameters;
   scores: PageRankScore[];
   scenarioId?: string;
 }
@@ -317,7 +311,7 @@ export interface GetPageRankScoresInput {
 export interface OpEnvelope {
   opId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   opType: number;
   payload: Uint8Array;
   deps: string[];
@@ -325,7 +319,7 @@ export interface OpEnvelope {
 
 export interface ExportOpsInput {
   partitionId: string;
-  sinceAssertedAt?: AssertedTime;
+  sinceAssertedAt?: string;
   limit?: number;
   scenarioId?: string;
 }
@@ -337,8 +331,8 @@ export interface ExportOpsResult {
 export interface ExportOptions {
   partitionId: string;
   scenarioId?: string;
-  sinceAssertedAt?: AssertedTime;
-  untilAssertedAt?: AssertedTime;
+  sinceAssertedAt?: string;
+  untilAssertedAt?: string;
   includeSchema?: boolean;
   includeDataOps?: boolean;
   includeScenarios?: boolean;
@@ -372,7 +366,7 @@ export interface IngestOpsInput {
 export interface SnapshotOptions {
   partitionId: string;
   scenarioId?: string;
-  asOfAssertedAt: AssertedTime;
+  asOfAssertedAt: string;
   includeFacts?: boolean;
   includeEntities?: boolean;
 }
@@ -389,7 +383,7 @@ export interface ValidationRule {
 export interface UpsertValidationRulesInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   rules: ValidationRule[];
 }
 
@@ -404,18 +398,18 @@ export interface ComputedRule {
 export interface UpsertComputedRulesInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   rules: ComputedRule[];
 }
 
 export interface ComputedCacheEntry {
   entityId: string;
   fieldId: string;
-  validFrom: ValidTime;
-  validTo?: ValidTime;
+  validFrom: string;
+  validTo?: string;
   value: Value;
   ruleVersionHash: string;
-  computedAssertedAt: AssertedTime;
+  computedAssertedAt: string;
 }
 
 export interface UpsertComputedCacheInput {
@@ -427,12 +421,12 @@ export interface ListComputedCacheInput {
   partitionId: string;
   entityId?: string;
   fieldId: string;
-  atValidTime?: ValidTime;
+  atValidTime?: string;
   limit?: number;
 }
 
 export interface PartitionHeadResult {
-  head: AssertedTime;
+  head: string;
 }
 
 export interface GetPartitionHeadInput {
@@ -443,15 +437,15 @@ export interface GetPartitionHeadInput {
 export interface CreateScenarioInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   name: string;
 }
 
 export interface DeleteScenarioInput {
   partitionId: string;
   actorId: string;
-  assertedAt: AssertedTime;
-  scenarioId: ScenarioId;
+  assertedAt: string;
+  scenarioId: string;
 }
 
 export interface TriggerProcessingInput {
@@ -505,8 +499,8 @@ export interface JobSummary {
   maxAttempts: number;
   leaseExpiresAt?: number;
   nextRunAfter?: number;
-  createdAssertedAt: AssertedTime;
-  updatedAssertedAt: AssertedTime;
+  createdAssertedAt: string;
+  updatedAssertedAt: string;
   dedupeKey?: string;
   lastError?: string;
 }
@@ -515,7 +509,7 @@ export interface ChangeEvent {
   partitionId: string;
   sequence: number;
   opId: string;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   entityId?: string;
   changeKind: number;
   payload?: unknown;
@@ -545,14 +539,14 @@ export interface IntegrityHead {
   partitionId: string;
   scenarioId?: string;
   runId: string;
-  updatedAssertedAt: AssertedTime;
+  updatedAssertedAt: string;
 }
 
 export interface SchemaHead {
   partitionId: string;
   typeId: string;
   schemaVersionHash: string;
-  updatedAssertedAt: AssertedTime;
+  updatedAssertedAt: string;
 }
 
 export interface SchemaManifest {
@@ -582,16 +576,16 @@ export interface IndexManifest {
 export interface ExplainPrecedence {
   layer: number;
   intervalWidth: number;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   opId: string;
 }
 
 export interface ExplainPropertyFact {
   value: Value;
-  validFrom: ValidTime;
-  validTo?: ValidTime;
+  validFrom: string;
+  validTo?: string;
   layer: number;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   opId: string;
   isTombstone: boolean;
   precedence: ExplainPrecedence;
@@ -602,10 +596,10 @@ export interface ExplainEdgeFact {
   srcId: string;
   dstId: string;
   edgeTypeId?: string;
-  validFrom: ValidTime;
-  validTo?: ValidTime;
+  validFrom: string;
+  validTo?: string;
   layer: number;
-  assertedAt: AssertedTime;
+  assertedAt: string;
   opId: string;
   isTombstone: boolean;
   precedence: ExplainPrecedence;
@@ -615,8 +609,8 @@ export interface ExplainResolutionInput {
   partitionId: string;
   entityId: string;
   fieldId: string;
-  at: ValidTime;
-  asOfAssertedAt?: AssertedTime;
+  at: string;
+  asOfAssertedAt?: string;
   scenarioId?: string;
 }
 
@@ -631,8 +625,8 @@ export interface ExplainResolutionResult {
 export interface ExplainTraversalInput {
   partitionId: string;
   edgeId: string;
-  at: ValidTime;
-  asOfAssertedAt?: AssertedTime;
+  at: string;
+  asOfAssertedAt?: string;
   scenarioId?: string;
 }
 

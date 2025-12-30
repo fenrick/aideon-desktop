@@ -67,7 +67,7 @@ describe('ActivityFeedCard', () => {
   it('shows empty state when no commits exist', () => {
     mockState = { ...mockState, commits: [] };
     render(<ActivityFeedCard />);
-    expect(screen.getByText('No commits recorded yet for this branch.')).toBeInTheDocument();
+    expect(screen.getByText('No moments recorded yet for this timeline.')).toBeInTheDocument();
   });
 
   it('handles refresh control', () => {

@@ -16,7 +16,7 @@ interface ActivityTimelinePanelProperties {
 }
 
 /**
- * Timeline panel surfacing branch commits with quick actions.
+ * Timeline panel surfacing moments with quick actions.
  * @param root0 - Panel properties.
  * @param root0.title - Heading text.
  * @param root0.description - Helper text.

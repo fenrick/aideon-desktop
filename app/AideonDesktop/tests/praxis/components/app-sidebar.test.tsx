@@ -35,7 +35,7 @@ describe('AppSidebar', () => {
     expect(screen.getByText('Overview')).toBeInTheDocument();
     expect(screen.getByText('Mainline')).toBeInTheDocument();
     expect(screen.getByText('Primary plan')).toBeInTheDocument();
-    expect(screen.getByText(/main - updated recently/i)).toBeInTheDocument();
+    expect(screen.getByText(/timeline main · updated recently/i)).toBeInTheDocument();
   });
 
   it('indicates when scenarios are loading and no data exists yet', () => {

@@ -29,7 +29,7 @@ describe('SearchBar', () => {
     const searchSpy = vi.spyOn(searchStore, 'search');
     render(<SearchBar />);
 
-    const input = screen.getByPlaceholderText(/search branches/i);
+    const input = screen.getByPlaceholderText(/search timelines/i);
     fireEvent.change(input, { target: { value: 'Node' } });
     expect(searchSpy).not.toHaveBeenCalled();
 
@@ -46,7 +46,7 @@ describe('SearchBar', () => {
     searchStore.setSidebarItems(sidebarItems, onSelect);
     render(<SearchBar />);
 
-    const input = screen.getByPlaceholderText(/search branches/i);
+    const input = screen.getByPlaceholderText(/search timelines/i);
     fireEvent.change(input, { target: { value: 'Node' } });
     vi.advanceTimersByTime(200);
     fireEvent.focus(input);
@@ -58,7 +58,7 @@ describe('SearchBar', () => {
 
   it('clears results on escape', () => {
     render(<SearchBar />);
-    const input = screen.getByPlaceholderText(/search branches/i);
+    const input = screen.getByPlaceholderText(/search timelines/i);
     fireEvent.change(input, { target: { value: 'Node' } });
     vi.advanceTimersByTime(200);
     fireEvent.focus(input);

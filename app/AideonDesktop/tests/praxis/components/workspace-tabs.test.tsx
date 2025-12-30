@@ -228,7 +228,7 @@ describe('WorkspaceTabs', () => {
       />,
     );
 
-    expect(screen.getByText(/Loading commits/)).toBeInTheDocument();
+    expect(screen.getByText(/Loading moments/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Canvas' }));
     await waitFor(() => {
@@ -246,7 +246,7 @@ describe('WorkspaceTabs', () => {
       />,
     );
     expect(screen.getAllByText('Boom').length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Temporal branches pending/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Temporal timelines pending/).length).toBeGreaterThan(0);
 
     mockUseTemporalPanel.mockReturnValueOnce([
       {
@@ -273,7 +273,7 @@ describe('WorkspaceTabs', () => {
       />,
     );
     await waitFor(() => {
-      expect(screen.getByText(/No commits recorded yet/i)).toBeInTheDocument();
+      expect(screen.getByText(/No moments recorded yet/i)).toBeInTheDocument();
     });
   });
 });

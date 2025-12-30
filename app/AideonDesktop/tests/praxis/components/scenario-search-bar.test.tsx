@@ -12,7 +12,7 @@ describe('ScenarioSearchBar', () => {
     searchStore.clear();
     render(<ScenarioSearchBar onSearch={handleSearch} />);
 
-    const input = screen.getByRole('searchbox', { name: /search branches, nodes, catalogues/i });
+    const input = screen.getByRole('searchbox', { name: /search timelines, nodes, catalogues/i });
     fireEvent.change(input, { target: { value: 'resilience' } });
 
     vi.runAllTimers();

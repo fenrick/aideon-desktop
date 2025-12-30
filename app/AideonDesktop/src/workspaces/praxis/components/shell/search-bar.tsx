@@ -8,7 +8,7 @@ import type { SearchResult } from 'praxis/lib/search/types';
 const KIND_LABEL: Record<SearchResult['kind'], string> = {
   sidebar: 'Navigation',
   catalog: 'Catalogue',
-  commit: 'Commit',
+  commit: 'Moment',
 };
 
 const DEBOUNCE_MS = 180;
@@ -124,7 +124,7 @@ export function SearchBar() {
     <form className="relative w-full" role="search" onBlur={handleBlur}>
       <Input
         ref={inputReference}
-        placeholder="Search branches, nodes, catalogues…"
+        placeholder="Search timelines, nodes, catalogues…"
         value={query}
         onChange={handleInputChange}
         onFocus={handleFocus}

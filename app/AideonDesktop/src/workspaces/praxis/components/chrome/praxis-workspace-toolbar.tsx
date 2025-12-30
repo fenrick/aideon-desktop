@@ -1,5 +1,5 @@
-import { createPortal } from 'react-dom';
 import { useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 import { isTauri } from 'praxis/platform';
 import type { CanvasTemplate } from 'praxis/templates';
@@ -20,13 +20,7 @@ import {
   SelectValue,
 } from 'design-system/components/ui/select';
 import { cn } from 'design-system/lib/utilities';
-import {
-  Command,
-  Clock,
-  LayoutGrid,
-  MoreHorizontal,
-  RefreshCw,
-} from 'lucide-react';
+import { Clock, Command, LayoutGrid, MoreHorizontal, RefreshCw } from 'lucide-react';
 
 import { TimeControlPanel } from '../blocks/time-control-panel';
 
@@ -47,8 +41,28 @@ const COMMAND_PALETTE_EVENT = 'aideon.workspace.open-command-palette';
 const HEADER_PAGES = ['Canvas', 'Overview', 'Timeline', 'Activity'] as const;
 
 /**
+ *
+ */
+function dispatchCommandPaletteEvent() {
+  if (typeof globalThis === 'undefined') {
+    return;
+  }
+  globalThis.dispatchEvent(new CustomEvent(COMMAND_PALETTE_EVENT));
+}
+
+/**
  * Compact page header for the Praxis workspace, with template selection and actions.
  * @param props - Workspace toolbar props.
+ * @param props.scenarioName
+ * @param props.templates
+ * @param props.activeTemplateId
+ * @param props.templateName
+ * @param props.onTemplateChange
+ * @param props.onTemplateSave
+ * @param props.onCreateWidget
+ * @param props.temporalState
+ * @param props.temporalActions
+ * @param props.loading
  */
 export function PraxisWorkspaceToolbar({
   scenarioName,
@@ -66,8 +80,9 @@ export function PraxisWorkspaceToolbar({
   const [pagesDialogOpen, setPagesDialogOpen] = useState(false);
   const shouldUseNativeSelect = isTauri();
 
-  const headerTitle = scenarioName ?? 'Mainline FY25';
-  const headerSubtitle = templateName ?? 'Executive overview';
+  const headerEyebrow = scenarioName ?? 'Mainline FY25';
+  const headerTitle = templateName ?? 'Executive overview';
+  const headerDescription = 'Graph + KPI + catalogue snapshot for leadership reviews';
   const activeTemplateExists = templates.some((template) => template.id === activeTemplateId);
   const templateSelectValue = activeTemplateExists ? activeTemplateId : '';
 
@@ -79,22 +94,20 @@ export function PraxisWorkspaceToolbar({
     setTimeDialogOpen(true);
   };
 
-  const handleCommandsMenuSelect = () => {
-    if (typeof globalThis === 'undefined') {
-      return;
-    }
-    globalThis.dispatchEvent(new CustomEvent(COMMAND_PALETTE_EVENT));
-  };
+  const handleCommandsMenuSelect = dispatchCommandPaletteEvent;
 
   return (
     <>
-      <div className="border-b border-border/70 bg-background/80 px-4 py-4">
+      <div className="border-t border-border/60 bg-background/90 px-3 pb-3 pt-3 md:px-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="text-lg font-semibold leading-tight text-foreground">{headerTitle}</h1>
-            <p className="text-sm text-muted-foreground">{headerSubtitle}</p>
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+              {headerEyebrow}
+            </p>
+            <h1 className="text-xl font-semibold leading-tight text-foreground">{headerTitle}</h1>
+            <p className="text-sm text-muted-foreground line-clamp-1">{headerDescription}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
             <div className="min-w-[200px]">
               {shouldUseNativeSelect ? (
                 <select
@@ -137,7 +150,9 @@ export function PraxisWorkspaceToolbar({
                       <SelectItem key={template.id} value={template.id}>
                         <div className="flex flex-col">
                           <span className="font-medium">{template.name}</span>
-                          <span className="text-xs text-muted-foreground">{template.description}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {template.description}
+                          </span>
                         </div>
                       </SelectItem>
                     ))}
@@ -145,25 +160,20 @@ export function PraxisWorkspaceToolbar({
                 </Select>
               )}
             </div>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={onCreateWidget}
-              disabled={loading}
-            >
+            <Button variant="default" size="sm" onClick={onCreateWidget} disabled={loading}>
               Add widget
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onTemplateSave}
-              disabled={loading}
-            >
+            <Button variant="secondary" size="sm" onClick={onTemplateSave} disabled={loading}>
               Save
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="More workspace actions">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  aria-label="More workspace actions"
+                >
                   <MoreHorizontal />
                 </Button>
               </DropdownMenuTrigger>
@@ -205,15 +215,19 @@ export function PraxisWorkspaceToolbar({
       </div>
       <PageOverlay
         open={timeDialogOpen}
-        onClose={() => setTimeDialogOpen(false)}
+        onClose={() => {
+          setTimeDialogOpen(false);
+        }}
         title="Time controls"
-        description="Manage branches, commits, and snapshots."
+        description="Manage timelines, moments, and snapshots."
       >
         <TimeControlPanel state={temporalState} actions={temporalActions} />
       </PageOverlay>
       <PageOverlay
         open={pagesDialogOpen}
-        onClose={() => setPagesDialogOpen(false)}
+        onClose={() => {
+          setPagesDialogOpen(false);
+        }}
         title="Pages"
         description="Jump to a workspace page."
       >
@@ -229,6 +243,15 @@ export function PraxisWorkspaceToolbar({
   );
 }
 
+/**
+ *
+ * @param root0
+ * @param root0.open
+ * @param root0.onClose
+ * @param root0.title
+ * @param root0.description
+ * @param root0.children
+ */
 function PageOverlay({
   open,
   onClose,
@@ -243,22 +266,24 @@ function PageOverlay({
   readonly children: ReactNode;
 }) {
   if (!open || typeof document === 'undefined') {
-    return null;
+    return;
   }
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      onClick={onClose}
-    >
-      <div
-        className="h-full w-full max-w-3xl overflow-auto rounded-2xl bg-background p-6 shadow-2xl"
-        style={{ maxHeight: '90vh' }}
-        onClick={(event) => {
-          event.stopPropagation();
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/60"
+        aria-label="Close overlay"
+        onClick={onClose}
+      />
+      <dialog
+        open
+        className="relative h-full w-full max-w-3xl max-h-[90vh] overflow-auto rounded-2xl bg-background p-6 shadow-2xl"
+        aria-label={title}
+        onCancel={(event) => {
+          event.preventDefault();
+          onClose();
         }}
       >
         <div className="flex items-start justify-between gap-4">
@@ -271,7 +296,7 @@ function PageOverlay({
           </Button>
         </div>
         <div className="mt-4 text-xs/relaxed">{children}</div>
-      </div>
+      </dialog>
     </div>,
     document.body,
   );

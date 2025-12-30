@@ -146,7 +146,9 @@ function OverviewTab({ state }: OverviewTabProperties) {
       <CardHeader className="space-y-2">
         <CardTitle>Snapshot overview</CardTitle>
         <CardDescription>
-          {state.branch ? `Branch · ${state.branch.toUpperCase()}` : 'Temporal branches pending.'}
+          {state.branch
+            ? `Timeline · ${state.branch.toUpperCase()}`
+            : 'Temporal timelines pending.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -191,7 +193,7 @@ function OverviewTab({ state }: OverviewTabProperties) {
         </div>
         {state.mergeConflicts && state.mergeConflicts.length > 0 && (
           <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-xs">
-            <p className="text-destructive font-semibold">Merge conflicts detected</p>
+            <p className="text-destructive font-semibold">Overlap conflicts detected</p>
             <ul className="mt-2 space-y-2">
               {state.mergeConflicts.map((conflict) => (
                 <li key={conflict.reference}>
@@ -224,7 +226,7 @@ function TimelineTab({ state, actions }: TimelineTabProperties) {
   let content: ReactNode;
 
   if (state.loading) {
-    content = <p className="text-sm text-muted-foreground">Loading commits…</p>;
+    content = <p className="text-sm text-muted-foreground">Loading moments…</p>;
   } else if (hasCommits) {
     content = (
       <CommitTimelineList
@@ -235,7 +237,9 @@ function TimelineTab({ state, actions }: TimelineTabProperties) {
     );
   } else {
     content = (
-      <p className="text-xs text-muted-foreground">No commits recorded yet for this branch.</p>
+      <p className="text-xs text-muted-foreground">
+        No moments recorded yet for this timeline.
+      </p>
     );
   }
 
@@ -243,8 +247,8 @@ function TimelineTab({ state, actions }: TimelineTabProperties) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <div>
-          <CardTitle>Commit timeline</CardTitle>
-          <CardDescription>Select a commit to pivot the workspace.</CardDescription>
+          <CardTitle>Timeline moments</CardTitle>
+          <CardDescription>Select a moment to pivot the workspace.</CardDescription>
         </div>
         <div className="flex flex-wrap gap-2 text-xs">
           <Button
@@ -254,7 +258,7 @@ function TimelineTab({ state, actions }: TimelineTabProperties) {
               void actions.refreshBranches();
             }}
           >
-            Refresh timeline
+            Refresh timelines
           </Button>
           <Button
             size="sm"

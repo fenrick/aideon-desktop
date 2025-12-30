@@ -85,7 +85,7 @@ describe('CommitTimelineCard', () => {
 
     render(<CommitTimelineCard />);
 
-    expect(screen.getByText('Merge conflicts')).toBeInTheDocument();
+    expect(screen.getByText('Overlap conflicts')).toBeInTheDocument();
     expect(screen.getByText(/cap-1/)).toBeInTheDocument();
   });
 

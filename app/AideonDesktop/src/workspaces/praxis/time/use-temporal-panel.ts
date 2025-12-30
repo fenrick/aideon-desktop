@@ -47,7 +47,7 @@ const INITIAL_STATE: TemporalPanelState = {
 };
 
 /**
- * Hook backing the temporal panel: branches, commits, snapshots, merges, and diff preview.
+ * Hook backing the temporal panel: timelines, moments, snapshots, apply-to-primary, and diff preview.
  * @returns {[TemporalPanelState, TemporalPanelActions]} current state and actions
  */
 export function useTemporalPanel(): [TemporalPanelState, TemporalPanelActions] {
@@ -259,9 +259,9 @@ export function useTemporalPanel(): [TemporalPanelState, TemporalPanelActions] {
 }
 
 /**
- * Picks the preferred initial branch (main if available, otherwise first entry).
- * @param {TemporalBranchSummary[]} branches available branch summaries
- * @returns {string | undefined} chosen branch name
+ * Picks the preferred initial timeline (main if available, otherwise first entry).
+ * @param {TemporalBranchSummary[]} branches available timeline summaries
+ * @returns {string | undefined} chosen timeline name
  */
 export function pickInitialBranch(branches: TemporalBranchSummary[]): string | undefined {
   if (branches.length === 0) {

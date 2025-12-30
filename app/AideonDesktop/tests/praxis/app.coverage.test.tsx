@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { SelectionState } from 'aideon/canvas/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { TemporalPanelActions, TemporalPanelState } from 'praxis/time/use-temporal-panel';
@@ -87,17 +88,19 @@ vi.mock('praxis/components/template-screen/properties-inspector', () => ({
   PropertiesInspector: ({
     selectionKind,
     selectionId,
+    selection,
     onSave,
     onReset,
   }: {
     selectionKind: string;
     selectionId?: string;
+    selection: SelectionState;
     onSave?: (payload: { name: string; dataSource: string }) => void;
     onReset?: () => void;
   }) => (
     <div data-testid="inspector">
       <div data-testid="selection-kind">
-        {selectionKind}:{selectionId ?? ''}
+        {selectionKind}:{selectionId ?? ''}:{selection.nodeIds.length + selection.edgeIds.length}
       </div>
       <button
         data-testid="inspector-save"

@@ -36,11 +36,11 @@ export function SnapshotOverviewCard({ state }: SnapshotOverviewCardProperties) 
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="space-y-2 p-4">
         <CardTitle>{copy.snapshotTitle}</CardTitle>
         <CardDescription>{copy.snapshotDescription}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4 p-4">
         <div className="grid grid-cols-2 gap-4">
           {metrics.map((metric) => (
             <div
@@ -53,7 +53,7 @@ export function SnapshotOverviewCard({ state }: SnapshotOverviewCardProperties) 
             </div>
           ))}
         </div>
-        {state.error && <p className="mt-3 text-xs text-destructive">{state.error}</p>}
+        {state.error ? <p className="text-xs text-destructive">{state.error}</p> : undefined}
       </CardContent>
     </Card>
   );

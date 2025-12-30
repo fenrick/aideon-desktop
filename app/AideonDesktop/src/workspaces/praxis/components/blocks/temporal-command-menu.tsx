@@ -49,13 +49,13 @@ export interface MetaModelCommandEntry {
  * @param root0 - Command menu properties.
  * @param root0.open - Whether the dialog is open.
  * @param root0.onOpenChange - Toggle handler.
- * @param root0.branches - Available branches.
- * @param root0.activeBranch - Current branch name.
- * @param root0.commits - Commits to list.
+ * @param root0.branches - Available timelines.
+ * @param root0.activeBranch - Current timeline name.
+ * @param root0.commits - Moments to list.
  * @param root0.loading - Loading indicator.
- * @param root0.onSelectBranch - Handler when a branch is chosen.
- * @param root0.onSelectCommit - Handler when a commit is chosen.
- * @param root0.onRefreshBranches - Handler to refresh branches.
+ * @param root0.onSelectBranch - Handler when a timeline is chosen.
+ * @param root0.onSelectCommit - Handler when a moment is chosen.
+ * @param root0.onRefreshBranches - Handler to refresh timelines.
  * @param root0.catalogueEntries - Catalogue entries to search.
  * @param root0.metaModelEntries - Meta-model entries to search.
  * @param root0.onSelectCatalogueEntry - Handler for catalogue selection.
@@ -98,9 +98,9 @@ export function TemporalCommandMenu({
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <DialogTitle className="sr-only">Temporal command palette</DialogTitle>
       <DialogDescription className="sr-only">
-        Search branches, commits, catalogue entries, and meta-model references.
+        Search timelines, moments, catalogue entries, and meta-model references.
       </DialogDescription>
-      <CommandInput placeholder="Search branches, commits, tags" />
+      <CommandInput placeholder="Search timelines, moments, tags" />
       <CommandList>
         <CommandEmpty>{loading ? 'Loading twin data…' : 'No results found.'}</CommandEmpty>
         <CommandGroup heading="Actions">
@@ -110,12 +110,12 @@ export function TemporalCommandMenu({
               closeAfter(onRefreshBranches);
             }}
           >
-            Refresh branches
+            Refresh timelines
             <CommandShortcut>R</CommandShortcut>
           </CommandItem>
         </CommandGroup>
         {sortedBranches.length > 0 && (
-          <CommandGroup heading="Branches">
+          <CommandGroup heading="Timelines">
             {sortedBranches.map((branch) => (
               <CommandItem
                 key={branch.name}
@@ -136,7 +136,7 @@ export function TemporalCommandMenu({
         {commitItems.length > 0 && (
           <>
             <CommandSeparator />
-            <CommandGroup heading="Commits">
+            <CommandGroup heading="Moments">
               {commitItems.slice(0, 25).map((commit) => (
                 <CommandItem
                   key={commit.id}

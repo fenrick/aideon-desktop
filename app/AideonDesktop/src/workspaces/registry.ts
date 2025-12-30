@@ -1,7 +1,7 @@
 import { METIS_WORKSPACE } from './metis/module';
 import { MNEME_WORKSPACE } from './mneme/module';
 import { PRAXIS_WORKSPACE } from './praxis/module';
-import type { WorkspaceModule } from './types';
+import type { WorkspaceModule, WorkspaceNavigationProperties } from './types';
 
 export const WORKSPACES: WorkspaceModule[] = [PRAXIS_WORKSPACE, METIS_WORKSPACE, MNEME_WORKSPACE];
 
@@ -16,7 +16,7 @@ export function getWorkspace(id: WorkspaceModule['id']): WorkspaceModule {
 /**
  *
  */
-export function getWorkspaceOptions(): { id: string; label: string; disabled: boolean }[] {
+export function getWorkspaceOptions(): WorkspaceNavigationProperties['workspaceOptions'] {
   return WORKSPACES.map((workspace) => ({
     id: workspace.id,
     label: workspace.label,

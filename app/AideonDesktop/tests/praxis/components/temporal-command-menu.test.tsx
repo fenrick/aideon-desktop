@@ -56,7 +56,7 @@ describe('TemporalCommandMenu', () => {
     );
 
     expect(screen.getByText(/Loading twin data/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Refresh branches'));
+    fireEvent.click(screen.getByText('Refresh timelines'));
     expect(onRefreshBranches).toHaveBeenCalled();
     expect(onOpenChange).toHaveBeenCalledWith(false);
 
@@ -128,7 +128,7 @@ describe('TemporalCommandMenu', () => {
       />,
     );
 
-    expect(screen.getByText('Branches')).toBeInTheDocument();
+    expect(screen.getByText('Timelines')).toBeInTheDocument();
     expect(screen.getAllByText('main').length).toBeGreaterThan(0);
     expect(screen.getAllByTestId('shortcut').some((node) => node.textContent === 'Active')).toBe(
       true,

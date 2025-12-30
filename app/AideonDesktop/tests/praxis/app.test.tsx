@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { SelectionState } from 'aideon/canvas/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('praxis/components/template-screen/projects-sidebar', () => ({
@@ -68,14 +69,17 @@ vi.mock('praxis/components/template-screen/properties-inspector', () => ({
   PropertiesInspector: ({
     selectionKind,
     selectionId,
+    selection,
     saving,
   }: {
     selectionKind: string;
     selectionId?: string;
+    selection: SelectionState;
     saving?: boolean;
   }) => (
     <div data-testid="inspector">
-      {selectionKind}:{selectionId}:{saving ? 'saving' : 'idle'}
+      {selectionKind}:{selectionId}:{selection.nodeIds.length + selection.edgeIds.length}:
+      {saving ? 'saving' : 'idle'}
     </div>
   ),
 }));

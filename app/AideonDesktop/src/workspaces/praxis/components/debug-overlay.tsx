@@ -34,8 +34,8 @@ export const DebugOverlay = memo(function DebugOverlay({
       <dl className="space-y-1">
         <DebugRow label="Scenario" value={scenarioName ?? '—'} />
         <DebugRow label="Template" value={templateName ?? '—'} />
-        <DebugRow label="Branch" value={branch ?? '—'} />
-        <DebugRow label="Commit" value={commitId ?? '—'} />
+        <DebugRow label="Timeline" value={branch ?? '—'} />
+        <DebugRow label="Moment" value={commitId ?? '—'} />
         <DebugRow label="Selection" value={formatSelection(selection)} />
       </dl>
       <div className="mt-3 space-y-1">

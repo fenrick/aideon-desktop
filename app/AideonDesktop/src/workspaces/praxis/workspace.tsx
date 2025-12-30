@@ -52,6 +52,7 @@ import type {
   PraxisWidgetKind as WidgetKind,
 } from 'praxis/types';
 import { listWidgetRegistry, type WidgetRegistryEntry } from 'praxis/widgets/registry';
+import type { WorkspaceNavigationProperties } from 'workspaces/types';
 import {
   SelectionProvider,
   deriveSelectionKind,
@@ -60,7 +61,6 @@ import {
   type SelectionProperties,
 } from './stores/selection-store';
 import { useTemporalPanel } from './time/use-temporal-panel';
-
 const debugEnabled = isDevelopmentBuild();
 
 /**
@@ -169,9 +169,17 @@ export function PraxisWorkspaceSurface({
 }: {
   readonly onSelectionChange?: (selection: SelectionState) => void;
 } = {}) {
+  const navigationProperties: WorkspaceNavigationProperties = {
+    activeWorkspaceId: 'praxis',
+    workspaceOptions: [{ id: 'praxis', label: 'Praxis', disabled: false }],
+    onWorkspaceSelect: () => {
+      return;
+    },
+  };
+
   return (
     <PraxisWorkspaceProvider onSelectionChange={onSelectionChange}>
-      <PraxisWorkspaceNavigation />
+      <PraxisWorkspaceNavigation {...navigationProperties} />
       <PraxisWorkspaceToolbar />
       <PraxisWorkspaceContent />
       <PraxisWorkspaceInspector />
@@ -637,8 +645,9 @@ function PraxisWorkspaceStateProvider({
 
 /**
  *
+ * @param _
  */
-export function PraxisWorkspaceNavigation() {
+export function PraxisWorkspaceNavigation(_: Readonly<WorkspaceNavigationProperties>) {
   const { projectState, scenarioState, activeScenarioId, onSelectScenario, onRetryProjects } =
     usePraxisWorkspaceContext();
 
@@ -669,7 +678,6 @@ export function PraxisWorkspaceToolbar() {
     onCreateWidget,
     temporalState,
     temporalActions,
-    branchSelectReferenceCallback,
   } = usePraxisWorkspaceContext();
 
   return (
@@ -683,7 +691,6 @@ export function PraxisWorkspaceToolbar() {
       onCreateWidget={onCreateWidget}
       temporalState={temporalState}
       temporalActions={temporalActions}
-      timeTriggerRef={branchSelectReferenceCallback}
       loading={templatesState.loading}
     />
   );
@@ -725,7 +732,9 @@ export function PraxisWorkspaceContent() {
           }}
           reloadSignal={propertyState.reloadTick}
           branchTriggerRef={branchSelectReferenceCallback}
-          onAddWidget={() => onToggleWidgetLibrary(true)}
+          onAddWidget={() => {
+            onToggleWidgetLibrary(true);
+          }}
         />
       </div>
       <DebugOverlay
@@ -751,6 +760,7 @@ export function PraxisWorkspaceContent() {
  */
 export function PraxisWorkspaceInspector() {
   const {
+    selection,
     selectionKind,
     selectionId,
     selectedProperties,
@@ -762,6 +772,7 @@ export function PraxisWorkspaceInspector() {
   return (
     <PropertiesInspector
       key={selectionId ?? 'none'}
+      selection={selection}
       selectionKind={(selectionKind ?? 'none') as SelectionKind}
       selectionId={selectionId}
       properties={selectedProperties}

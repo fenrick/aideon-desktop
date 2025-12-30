@@ -130,7 +130,7 @@ export function GlobalSearchCard({
         <CardHeader className="space-y-1">
           <CardTitle>Command palette</CardTitle>
           <CardDescription>
-            Use ⌘K / Ctrl+K to switch branches, jump to commits, or run actions.
+            Use ⌘K / Ctrl+K to switch timelines, jump to moments, or run actions.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
@@ -146,7 +146,7 @@ export function GlobalSearchCard({
             <ShortcutHint keys={['⌘', 'K']} />
             <ShortcutHint keys={['Ctrl', 'K']} />
           </div>
-          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Recent commits</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Recent moments</p>
           {commandStatus ? (
             <p className="text-xs text-muted-foreground">Last command ·{commandStatus}</p>
           ) : undefined}
@@ -155,7 +155,7 @@ export function GlobalSearchCard({
           ) : undefined}
           {recentCommits.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              No recent commits available. Start by creating a branch.
+              No recent moments available. Start by creating a timeline.
             </p>
           ) : (
             <div className="space-y-2">
@@ -294,7 +294,7 @@ function CommitPreview({
             onSelectBranch(commit.branch);
           }}
         >
-          Switch branch
+          Switch timeline
         </Button>
         <Button
           variant="outline"
@@ -303,7 +303,7 @@ function CommitPreview({
             onSelectCommit(commit.id);
           }}
         >
-          Jump to commit
+          Jump to moment
         </Button>
       </div>
     </div>

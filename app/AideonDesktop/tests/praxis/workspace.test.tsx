@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import type { SelectionState } from 'aideon/canvas/types';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('praxis/components/chrome/praxis-workspace-toolbar', () => ({
@@ -14,7 +15,9 @@ vi.mock('praxis/components/template-screen/projects-sidebar', () => ({
 }));
 
 vi.mock('praxis/components/template-screen/properties-inspector', () => ({
-  PropertiesInspector: () => <div>Properties Inspector</div>,
+  PropertiesInspector: ({ selection }: { selection: SelectionState }) => (
+    <div>Properties Inspector ({selection.nodeIds.length + selection.edgeIds.length})</div>
+  ),
 }));
 
 vi.mock('praxis/domain-data', () => ({

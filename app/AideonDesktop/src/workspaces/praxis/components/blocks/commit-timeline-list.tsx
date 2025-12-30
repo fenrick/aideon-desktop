@@ -8,10 +8,10 @@ interface CommitTimelineListProperties {
 }
 
 /**
- * Render a vertical list of commits with quick-select actions.
+ * Render a vertical list of moments with quick-select actions.
  * @param root0 - List properties.
- * @param root0.commits - Commits to display.
- * @param root0.activeCommitId - Currently selected commit id.
+ * @param root0.commits - Moments to display.
+ * @param root0.activeCommitId - Currently selected moment id.
  * @param root0.onSelect - Selection callback.
  * @returns Ordered list element.
  */
@@ -22,7 +22,7 @@ export function CommitTimelineList({
 }: CommitTimelineListProperties) {
   if (commits.length === 0) {
     return (
-      <p className="text-xs text-muted-foreground">No commits recorded yet for this branch.</p>
+      <p className="text-xs text-muted-foreground">No moments recorded yet for this timeline.</p>
     );
   }
 

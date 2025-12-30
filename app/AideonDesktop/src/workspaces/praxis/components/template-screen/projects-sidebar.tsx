@@ -13,7 +13,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from 'design-system/components/ui/dropdown-menu';
 import { Skeleton } from 'design-system/components/ui/skeleton';
@@ -31,13 +30,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
-  SidebarRail,
   useSidebar,
 } from 'design-system/desktop-shell';
 
 import { Button } from 'design-system/components/ui/button';
+import { Separator } from 'design-system/components/ui/separator';
 import {
-  AudioWaveform,
   ChevronRight,
   File,
   Folder,
@@ -52,11 +50,6 @@ import {
 } from 'lucide-react';
 import type { ProjectSummary } from 'praxis/domain-data';
 import type { ScenarioSummary } from 'praxis/praxis-api';
-
-const TEAMS = [
-  { name: 'Aideon Core', plan: 'Enterprise', logo: Frame },
-  { name: 'Praxis Lab', plan: 'Studio', logo: AudioWaveform },
-] as const;
 
 const NAV_SECTIONS = [
   { id: 'overview', label: 'Overview', icon: Frame },
@@ -88,7 +81,7 @@ function renderProjectScenarioMenuItems(parameters: {
 
   if (project.scenarios.length === 0) {
     return [
-      <SidebarMenuItem key={headerId} className="mt-2">
+      <SidebarMenuItem key={headerId}>
         <SidebarMenuButton disabled className="text-left text-xs font-semibold">
           {project.name}
         </SidebarMenuButton>
@@ -102,7 +95,7 @@ function renderProjectScenarioMenuItems(parameters: {
   }
 
   return [
-    <SidebarMenuItem key={headerId} className="mt-2">
+    <SidebarMenuItem key={headerId}>
       <SidebarMenuButton disabled className="text-left text-xs font-semibold">
         {project.name}
       </SidebarMenuButton>
@@ -125,7 +118,7 @@ function renderProjectScenarioMenuItems(parameters: {
               {scenario.isDefault ? <Badge variant="outline">Default</Badge> : undefined}
             </div>
             <p className="text-xs text-muted-foreground">
-              Branch {scenario.branch} · Updated {formatDate(scenario.updatedAt)}
+              Timeline {scenario.branch} · Updated {formatDate(scenario.updatedAt)}
             </p>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -241,60 +234,6 @@ function renderProjectsSidebarMenu(parameters: {
 /**
  * Team/workspace switcher aligned to shadcn sidebar blocks.
  */
-function TeamSwitcher() {
-  const [activeTeam, setActiveTeam] = useState<(typeof TEAMS)[number]>(TEAMS[0]);
-
-  return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton className="w-fit px-1.5">
-              <div className="flex aspect-square size-5 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-                <activeTeam.logo className="size-3" />
-              </div>
-              <span className="truncate font-medium">{activeTeam.name}</span>
-              <ChevronRight className="ml-auto size-4 rotate-90 opacity-50" />
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="w-64 rounded-lg"
-            align="start"
-            side="bottom"
-            sideOffset={4}
-          >
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Workspaces
-            </DropdownMenuLabel>
-            {TEAMS.map((team, index) => (
-              <DropdownMenuItem
-                key={team.name}
-                onClick={() => {
-                  setActiveTeam(team);
-                }}
-                className="gap-2 p-2"
-              >
-                <div className="flex size-6 items-center justify-center rounded-xs border">
-                  <team.logo className="size-4 shrink-0" />
-                </div>
-                <span>{team.name}</span>
-                <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2">
-              <div className="flex size-6 items-center justify-center rounded-md border bg-background">
-                <Users className="size-4" />
-              </div>
-              <span className="font-medium text-muted-foreground">Add workspace</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
-    </SidebarMenu>
-  );
-}
-
 /**
  * Favorites group for quick links.
  * @param root0
@@ -470,102 +409,96 @@ export function ProjectsSidebar({
     NAV_SECTIONS.find((section) => section.id === activeSection)?.label ?? 'Scenarios';
 
   return (
-    <Sidebar
-      variant="inset"
-      collapsible="icon"
-      className="overflow-hidden *:data-[sidebar=sidebar]:flex-row"
-    >
-      <Sidebar collapsible="none" className="w-[calc(var(--sidebar-width-icon)+1px)]! border-r">
-        <SidebarHeader>
-          <TeamSwitcher />
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupContent className="px-1.5 md:px-0">
-              <SidebarMenu>
-                {NAV_SECTIONS.map((item) => (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton
-                      tooltip={{ children: item.label, hidden: false }}
-                      isActive={activeSection === item.id}
-                      onClick={() => {
-                        setActiveSection(item.id);
-                        setOpen(true);
-                      }}
-                      className="px-2.5 md:px-2"
-                    >
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-        <SidebarFooter>
-          <SidebarFooterMenu />
-        </SidebarFooter>
-      </Sidebar>
-
-      <Sidebar collapsible="none" className="hidden flex-1 md:flex">
-        <SidebarHeader className="gap-3.5 border-b p-4">
-          <div className="flex w-full items-center justify-between">
-            <div className="text-base font-medium text-foreground">{activeSectionLabel}</div>
-            <Badge variant="secondary" className="text-xs">
-              {scenarioCount.toString()} scenarios
-            </Badge>
-          </div>
-          <SidebarInput
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-            }}
-            placeholder={`Filter ${scenarioCount.toString()} scenarios…`}
-            aria-label="Filter scenarios"
-            className="bg-background"
-          />
-        </SidebarHeader>
-        <SidebarContent>
-          {favoriteItems.length > 0 ? <FavoritesList items={favoriteItems} /> : undefined}
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-              Projects
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {renderProjectsSidebarMenu({
-                  loading,
-                  errorMessage,
-                  projectList,
-                  filteredProjects,
-                  query,
-                  activeScenarioId,
-                  onSelectScenario,
-                  onRetry,
-                  onRevealSidebar: () => {
-                    setActiveSection('scenarios');
-                    setOpen(true);
-                  },
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-              Files
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {treeItems.map((item, index) => (
-                  <Tree key={`${activeSection}-${index.toString()}`} item={item} />
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-        <SidebarRail />
-      </Sidebar>
+    <Sidebar variant="inset" collapsible="icon" className="overflow-hidden">
+      <div className="flex min-h-screen">
+        <Sidebar collapsible="none" className="flex-1">
+          <SidebarHeader className="gap-3.5 border-b p-4">
+            <div className="flex w-full items-center justify-between">
+              <div className="text-base font-medium text-foreground">{activeSectionLabel}</div>
+              <Badge variant="secondary" className="text-xs">
+                {scenarioCount.toString()} scenarios
+              </Badge>
+            </div>
+            <SidebarInput
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+              }}
+              placeholder={`Filter ${scenarioCount.toString()} scenarios…`}
+              aria-label="Filter scenarios"
+              className="bg-background"
+            />
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup className="space-y-1">
+              <SidebarGroupLabel className="text-xs uppercase tracking-[0.08em] text-muted-foreground">
+                Navigation
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {NAV_SECTIONS.map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        tooltip={{ children: item.label, hidden: false }}
+                        isActive={activeSection === item.id}
+                        onClick={() => {
+                          setActiveSection(item.id);
+                          setOpen(true);
+                        }}
+                        className="px-3"
+                        data-state={activeSection === item.id ? 'active' : undefined}
+                      >
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <Separator />
+            {favoriteItems.length > 0 ? <FavoritesList items={favoriteItems} /> : undefined}
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                Projects
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {renderProjectsSidebarMenu({
+                    loading,
+                    errorMessage,
+                    projectList,
+                    filteredProjects,
+                    query,
+                    activeScenarioId,
+                    onSelectScenario,
+                    onRetry,
+                    onRevealSidebar: () => {
+                      setActiveSection('scenarios');
+                      setOpen(true);
+                    },
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                Files
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {treeItems.map((item, index) => (
+                    <Tree key={`${activeSection}-${index.toString()}`} item={item} />
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarFooter>
+            <SidebarFooterMenu />
+          </SidebarFooter>
+        </Sidebar>
+      </div>
     </Sidebar>
   );
 }

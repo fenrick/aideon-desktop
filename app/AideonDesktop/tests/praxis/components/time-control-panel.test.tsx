@@ -112,13 +112,13 @@ describe('TimeControlPanel', () => {
   it('invokes actions from buttons and slider', () => {
     render(<TimeControlPanel state={state} actions={actions} />);
 
-    fireEvent.click(screen.getByText('Refresh branches'));
+    fireEvent.click(screen.getByText('Refresh timelines'));
     expect(actions.refreshBranches).toHaveBeenCalled();
 
     fireEvent.click(screen.getByText('Reload snapshot'));
     expect(actions.selectCommit).toHaveBeenCalledWith('c1');
 
-    fireEvent.click(screen.getByText('Merge into main'));
+    fireEvent.click(screen.getByText('Apply to primary'));
     expect(actions.mergeIntoMain).toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId('slider-valid'));
@@ -148,11 +148,11 @@ describe('TimeControlPanel', () => {
 
     render(<TimeControlPanel state={localState} actions={localActions} />);
 
-    expect(screen.getByText(/Load a branch to view commits/i)).toBeInTheDocument();
+    expect(screen.getByText(/Load a timeline to view moments/i)).toBeInTheDocument();
     expect(screen.getByText('Boom')).toBeInTheDocument();
-    expect(screen.queryByText(/Merge into main/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Apply to primary/i)).not.toBeInTheDocument();
 
-    expect(screen.getByText('Refresh branches')).toBeDisabled();
+    expect(screen.getByText('Refresh timelines')).toBeDisabled();
     expect(screen.getByText('Reload snapshot')).toBeDisabled();
 
     fireEvent.click(screen.getByTestId('slider-negative'));

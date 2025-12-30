@@ -40,7 +40,7 @@ export function AppSidebar({ scenarios, loading }: AppSidebarProperties) {
     ? 'Loading scenario data...'
     : (activeScenario?.description ?? 'No scenario metadata yet');
   const branchLabel = activeScenario
-    ? `${activeScenario.branch} - updated ${formatDate(activeScenario.updatedAt)}`
+    ? `Timeline ${activeScenario.branch} · updated ${formatDate(activeScenario.updatedAt)}`
     : 'Add a scenario to begin';
 
   return (

@@ -220,7 +220,7 @@ export function AideonDesktopShell({
                 data-testid="aideon-shell-panel-content"
               >
                 <ScrollArea className="h-full" data-testid="aideon-shell-content">
-                  <div className="min-h-full px-6 pb-10 pt-6">{content}</div>
+                  <div className="min-h-full p-4 md:p-6">{content}</div>
                 </ScrollArea>
               </ResizablePanel>
 
@@ -240,7 +240,7 @@ export function AideonDesktopShell({
                   setInspectorCollapsed(false);
                   persistInspectorCollapsed(false);
                 }}
-                className="min-w-[260px] max-w-[520px]"
+                className="min-w-[320px] max-w-[520px]"
                 data-testid="aideon-shell-panel-inspector"
               >
                 <ScrollArea

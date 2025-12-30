@@ -165,7 +165,7 @@ describe('TimeCursorCard', () => {
       snapshot: undefined,
       loading: true,
       snapshotLoading: true,
-      error: 'No branch loaded',
+      error: 'No timeline loaded',
       mergeConflicts: undefined,
       merging: false,
       diff: undefined,
@@ -174,8 +174,8 @@ describe('TimeCursorCard', () => {
 
     render(<TimeCursorCard />);
 
-    expect(screen.getByText(/No branch loaded/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Merge into main/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/No timeline loaded/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Apply to primary/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('timeline-slider-negative'));
     fireEvent.click(screen.getByTestId('timeline-slider-non-number'));

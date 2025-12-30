@@ -237,9 +237,7 @@ function TimelineTab({ state, actions }: TimelineTabProperties) {
     );
   } else {
     content = (
-      <p className="text-xs text-muted-foreground">
-        No moments recorded yet for this timeline.
-      </p>
+      <p className="text-xs text-muted-foreground">No moments recorded yet for this timeline.</p>
     );
   }
 

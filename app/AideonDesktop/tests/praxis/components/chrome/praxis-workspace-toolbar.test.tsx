@@ -18,8 +18,22 @@ describe('PraxisWorkspaceToolbar', () => {
       branches: [{ name: 'main', head: 'commit-main-001' }],
       branch: 'main',
       commits: [
-        { id: 'commit-main-001', message: 'Initial commit' },
-        { id: 'commit-main-002', message: 'Second commit' },
+        {
+          id: 'commit-main-001',
+          branch: 'main',
+          parents: [],
+          tags: [],
+          message: 'Initial commit',
+          changeCount: 1,
+        },
+        {
+          id: 'commit-main-002',
+          branch: 'main',
+          parents: [],
+          tags: [],
+          message: 'Second commit',
+          changeCount: 2,
+        },
       ],
       loading: false,
       snapshotLoading: false,
@@ -37,10 +51,12 @@ describe('PraxisWorkspaceToolbar', () => {
       mergeConflicts: undefined,
     };
     const temporalActions: TemporalPanelActions = {
-      selectBranch: vi.fn(async () => undefined),
-      selectCommit: vi.fn(),
-      refreshBranches: vi.fn(async () => undefined),
-      mergeIntoMain: vi.fn(async () => undefined),
+      selectBranch: vi.fn(() => Promise.resolve()),
+      selectCommit: vi.fn(() => {
+        void 0;
+      }),
+      refreshBranches: vi.fn(() => Promise.resolve()),
+      mergeIntoMain: vi.fn(() => Promise.resolve()),
     };
     const onTemplateChange = vi.fn();
     const onTemplateSave = vi.fn();
@@ -60,8 +76,8 @@ describe('PraxisWorkspaceToolbar', () => {
       />,
     );
 
-    expect(screen.getByRole('heading', { name: /Mainline FY25/i })).toBeInTheDocument();
-    expect(screen.getByText(/Executive overview/i)).toBeInTheDocument();
+    expect(screen.getByText(/Mainline FY25/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Executive overview/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Add widget/i }));
     expect(onCreateWidget).toHaveBeenCalled();
@@ -85,6 +101,6 @@ describe('PraxisWorkspaceToolbar', () => {
     const timeButton = await screen.findByText('Time');
     fireEvent.click(timeButton);
     expect(await screen.findByText(/Time controls/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Close/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Close$/i }));
   });
 });

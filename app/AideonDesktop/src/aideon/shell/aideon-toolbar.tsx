@@ -553,20 +553,7 @@ function ToolbarStartSection({
  * @param root0.workspaceToolbar
  * @param root0.center
  */
-function ToolbarCenterSection({
-  workspaceToolbar,
-  center,
-}: {
-  readonly workspaceToolbar?: ReactNode;
-  readonly center?: ReactNode;
-}) {
-  if (workspaceToolbar) {
-    return (
-      <ToolbarSection justify="center" className="min-w-0 flex-1 px-2">
-        {workspaceToolbar}
-      </ToolbarSection>
-    );
-  }
+function ToolbarCenterSection({ center }: { readonly center?: ReactNode }) {
   return (
     <ToolbarSection justify="center" className="hidden min-w-0 max-w-[520px] px-2 md:flex">
       {center}
@@ -759,12 +746,14 @@ export function AideonToolbar({
           }}
         />
 
-        <ToolbarCenterSection workspaceToolbar={workspaceToolbar} center={center} />
+        <ToolbarCenterSection center={center} />
 
         <ToolbarEndSection end={end} theme={theme} />
       </Toolbar>
 
       <ToolbarStatusMessage statusMessage={statusMessage} />
+
+      {workspaceToolbar ? <div className="w-full">{workspaceToolbar}</div> : undefined}
 
       <AideonCommandPalette
         open={commandPaletteOpen}

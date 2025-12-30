@@ -146,14 +146,14 @@ describe('GlobalSearchCard', () => {
       <GlobalSearchCard onSelectNodes={selectNodesSpy} onFocusMetaModel={focusMetaModelSpy} />,
     );
 
-    const switchBranchButton = screen.getAllByText('Switch branch')[0];
+    const switchBranchButton = screen.getAllByText('Switch timeline')[0];
     if (!switchBranchButton) {
-      throw new Error('Expected switch branch button.');
+      throw new Error('Expected switch timeline button.');
     }
     fireEvent.click(switchBranchButton);
     expect(selectBranchSpy).toHaveBeenCalledWith('chronaplay');
 
-    const jumpButton = screen.getAllByText('Jump to commit')[0];
+    const jumpButton = screen.getAllByText('Jump to moment')[0];
     if (!jumpButton) {
       throw new Error('Expected jump button.');
     }
@@ -207,7 +207,7 @@ describe('GlobalSearchCard', () => {
     });
 
     fireEvent.click(openButton);
-    fireEvent.click(screen.getByText('Refresh branches'));
+    fireEvent.click(screen.getByText('Refresh timelines'));
     expect(refreshBranchesSpy).toHaveBeenCalled();
   });
 
@@ -219,7 +219,7 @@ describe('GlobalSearchCard', () => {
     render(<GlobalSearchCard />);
 
     await waitFor(() => {
-      expect(screen.getByText(/No recent commits available/i)).toBeInTheDocument();
+      expect(screen.getByText(/No recent moments available/i)).toBeInTheDocument();
     });
 
     await waitFor(() => {

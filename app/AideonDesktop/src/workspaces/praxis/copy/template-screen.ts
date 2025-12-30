@@ -2,11 +2,11 @@ export const templateScreenCopy = {
   templateLabel: 'Template',
   scenarioLabel: 'Scenario',
   templateDescriptionFallback:
-    'Pair a scenario with a template to explore branches, commits, and widgets.',
+    'Pair a scenario with a template to explore timelines, moments, and widgets.',
   templateSelectorLabel: 'Choose template',
   saveTemplate: 'Save template',
   createWidget: 'Create widget',
-  searchLabel: 'Search branches, nodes, catalogues',
+  searchLabel: 'Search timelines, nodes, catalogues',
   tabs: {
     overview: 'Overview',
     timeline: 'Timeline',
@@ -18,14 +18,14 @@ export const templateScreenCopy = {
   },
   timeCursor: {
     title: 'Time cursor',
-    description: 'Branch, commit, and timeline controls for state_at snapshots.',
-    branchLabel: 'Branch',
-    commitLabel: 'Commit',
+    description: 'Timeline, moment, and slider controls for state_at snapshots.',
+    branchLabel: 'Timeline',
+    commitLabel: 'Moment',
     sliderLabel: 'Timeline slider',
     snapshotLabel: 'Snapshot timestamp',
-    refresh: 'Refresh branches',
+    refresh: 'Refresh timelines',
     reload: 'Reload snapshot',
-    merge: 'Merge into main',
+    merge: 'Apply to primary',
   },
   properties: {
     title: 'Properties',

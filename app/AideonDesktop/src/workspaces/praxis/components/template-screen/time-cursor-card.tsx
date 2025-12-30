@@ -29,7 +29,7 @@ interface TimeCursorCardProperties {
 }
 
 /**
- * Branch + commit selector with a timeline slider, wrapped in a card.
+ * Timeline + moment selector with a timeline slider, wrapped in a card.
  * @param root0
  * @param root0.state
  * @param root0.actions
@@ -53,11 +53,11 @@ export function TimeCursorCard({ state, actions, triggerRef }: TimeCursorCardPro
 
   return (
     <Card>
-      <CardHeader className="space-y-1">
+      <CardHeader className="space-y-2 p-4">
         <CardTitle>{copy.title}</CardTitle>
         <CardDescription>{copy.description}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 p-4">
         <div className="space-y-2">
           <Label htmlFor="branch-select">{copy.branchLabel}</Label>
           <Select
@@ -74,7 +74,7 @@ export function TimeCursorCard({ state, actions, triggerRef }: TimeCursorCardPro
               aria-label={copy.branchLabel}
               ref={triggerRef}
             >
-              <SelectValue placeholder="Select branch" />
+              <SelectValue placeholder="Select timeline" />
             </SelectTrigger>
             <SelectContent>
               {branchOptions.map((option) => (
@@ -100,7 +100,7 @@ export function TimeCursorCard({ state, actions, triggerRef }: TimeCursorCardPro
               data-testid="commit-select"
               aria-label={copy.commitLabel}
             >
-              <SelectValue placeholder="Select commit" />
+              <SelectValue placeholder="Select moment" />
             </SelectTrigger>
             <SelectContent>
               {viewState.commits.map((commit) => (
@@ -141,7 +141,7 @@ export function TimeCursorCard({ state, actions, triggerRef }: TimeCursorCardPro
               : (selectedCommit?.id ?? 'Latest')}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-4">
           <Button
             size="sm"
             variant="secondary"
@@ -170,7 +170,7 @@ export function TimeCursorCard({ state, actions, triggerRef }: TimeCursorCardPro
               }}
               disabled={viewState.merging}
             >
-              {viewState.merging ? 'Merging…' : copy.merge}
+              {viewState.merging ? 'Applying…' : copy.merge}
             </Button>
           ) : undefined}
         </div>

@@ -33,9 +33,9 @@ export function CommitTimelineCard() {
   return (
     <Card>
       <CardHeader className="space-y-1">
-        <CardTitle>Commit timeline</CardTitle>
+        <CardTitle>Timeline moments</CardTitle>
         <CardDescription>
-          View branch activity and pin a commit for the current canvas snapshot.
+          Review timeline activity and pin a moment for the current canvas snapshot.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
@@ -66,7 +66,7 @@ export function CommitTimelineCard() {
             }}
             disabled={state.loading}
           >
-            Refresh
+            Refresh timelines
           </Button>
           <Button
             size="sm"
@@ -75,7 +75,7 @@ export function CommitTimelineCard() {
             }}
             disabled={!hasNonMainBranch || state.merging}
           >
-            {state.merging ? 'Merging…' : 'Merge into main'}
+            {state.merging ? 'Applying…' : 'Apply to primary'}
           </Button>
         </div>
       </CardContent>
@@ -103,7 +103,7 @@ function BranchList({
   readonly onSelect: (branch: string) => void;
 }) {
   if (branches.length === 0) {
-    return <p className="text-xs text-muted-foreground">No branches available.</p>;
+    return <p className="text-xs text-muted-foreground">No timelines available.</p>;
   }
   return (
     <ToggleGroup
@@ -146,10 +146,10 @@ function CommitList({
   readonly onSelectCommit: (commitId?: string) => void;
 }) {
   if (loading && commits.length === 0) {
-    return <p className="text-xs text-muted-foreground">Loading commits…</p>;
+    return <p className="text-xs text-muted-foreground">Loading moments…</p>;
   }
   if (commits.length === 0) {
-    return <p className="text-xs text-muted-foreground">No commits on this branch.</p>;
+    return <p className="text-xs text-muted-foreground">No moments on this timeline.</p>;
   }
   return (
     <ScrollArea className="max-h-64 pr-2">
@@ -191,7 +191,7 @@ function CommitList({
 function MergeConflicts({ conflicts }: { readonly conflicts: TemporalMergeConflict[] }) {
   return (
     <Alert variant="destructive">
-      <AlertTitle>Merge conflicts</AlertTitle>
+      <AlertTitle>Overlap conflicts</AlertTitle>
       <AlertDescription>
         <ul className="mt-1 space-y-1 text-xs">
           {conflicts.map((conflict, index) => (

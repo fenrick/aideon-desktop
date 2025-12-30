@@ -82,7 +82,9 @@
         "**/.pnpm/**",
         "**/out/**",
         "scripts/**",
-        "app/AideonDesktop/src/design-system/components/**"
+        "app/AideonDesktop/src/design-system/components/**",
+        "**/src/aideon/canvas/**",
+        "**/src/aideon/shell/**"
       ]
     }
   },

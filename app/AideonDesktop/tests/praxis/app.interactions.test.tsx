@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { SelectionState } from 'aideon/canvas/types';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -158,8 +159,18 @@ vi.mock('praxis/components/template-screen/overview-tabs', () => ({
 }));
 
 vi.mock('praxis/components/template-screen/properties-inspector', () => ({
-  PropertiesInspector: ({ onReset }: { onReset?: () => void }) => (
-    <button data-testid="reset-properties" onClick={() => onReset?.()}>
+  PropertiesInspector: ({
+    selection,
+    onReset,
+  }: {
+    selection: SelectionState;
+    onReset?: () => void;
+  }) => (
+    <button
+      data-testid="reset-properties"
+      data-selection-count={selection.nodeIds.length + selection.edgeIds.length}
+      onClick={() => onReset?.()}
+    >
       reset
     </button>
   ),

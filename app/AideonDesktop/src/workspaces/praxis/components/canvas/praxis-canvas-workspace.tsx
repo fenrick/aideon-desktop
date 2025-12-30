@@ -17,7 +17,6 @@ import {
 } from 'design-system/components/ui/card';
 import { Separator } from 'design-system/components/ui/separator';
 import { Skeleton } from 'design-system/components/ui/skeleton';
-import { cn } from 'design-system/lib/utilities';
 
 import type {
   PraxisCanvasWidget,
@@ -139,6 +138,11 @@ export interface PraxisCanvasWorkspaceProperties {
   readonly onRequestMetaModelFocus?: (types: string[]) => void;
   readonly onAddWidget?: () => void;
   readonly reloadSignal?: number;
+  readonly showPageBreaks?: boolean;
+  readonly onGraphStatsChange?: (stats: GraphViewModel['stats']) => void;
+  readonly onGraphMetadataChange?: (metadata: GraphViewModel['metadata']) => void;
+  readonly onGraphErrorMessage?: (message?: string) => void;
+  readonly errorMessage?: string;
 }
 
 const SUGGESTED_WIDGETS = ['KPI', 'Graph', 'Catalogue snapshot'] as const;
@@ -150,7 +154,13 @@ const SUGGESTED_WIDGETS = ['KPI', 'Graph', 'Catalogue snapshot'] as const;
  * @param root0.selection
  * @param root0.onSelectionChange
  * @param root0.onRequestMetaModelFocus
+ * @param root0.onAddWidget
  * @param root0.reloadSignal
+ * @param root0.showPageBreaks
+ * @param root0.onGraphStatsChange
+ * @param root0.onGraphMetadataChange
+ * @param root0.onGraphErrorMessage
+ * @param root0.errorMessage
  */
 export function PraxisCanvasWorkspace({
   widgets,
@@ -159,22 +169,37 @@ export function PraxisCanvasWorkspace({
   onRequestMetaModelFocus,
   onAddWidget,
   reloadSignal,
+  showPageBreaks,
+  onGraphStatsChange,
+  onGraphMetadataChange,
+  onGraphErrorMessage,
+  errorMessage,
 }: PraxisCanvasWorkspaceProperties) {
-  const { reloadVersion, triggerReload } = useReloadVersion(reloadSignal);
-  const [metadata, setMetadata] = useState<GraphViewModel['metadata'] | undefined>();
+  const { reloadVersion } = useReloadVersion(reloadSignal);
   const [stats, setStats] = useState<GraphViewModel['stats'] | undefined>();
   const [error, setError] = useState<string | undefined>();
-  const [showPageBreaks, setShowPageBreaks] = useState(false);
+  const localShowPageBreaks = showPageBreaks ?? false;
 
-  const handleGraphViewChange = useCallback((event: PraxisWidgetViewEvent) => {
-    setMetadata(event.view.metadata);
-    setStats(event.view.stats);
-    setError(undefined);
-  }, []);
+  const activeError = errorMessage ?? error;
 
-  const handleGraphError = useCallback((event: PraxisWidgetErrorEvent) => {
-    setError(event.message);
-  }, []);
+  const handleGraphViewChange = useCallback(
+    (event: PraxisWidgetViewEvent) => {
+      setStats(event.view.stats);
+      setError(undefined);
+      onGraphMetadataChange?.(event.view.metadata);
+      onGraphStatsChange?.(event.view.stats);
+      onGraphErrorMessage?.();
+    },
+    [onGraphErrorMessage, onGraphMetadataChange, onGraphStatsChange],
+  );
+
+  const handleGraphError = useCallback(
+    (event: PraxisWidgetErrorEvent) => {
+      setError(event.message);
+      onGraphErrorMessage?.(event.message);
+    },
+    [onGraphErrorMessage],
+  );
 
   const handleSelection = useCallback(
     (event: WidgetSelection) => {
@@ -183,57 +208,17 @@ export function PraxisCanvasWorkspace({
     [onSelectionChange],
   );
 
-  const timestamp = metadata?.asOf ? new Date(metadata.asOf).toLocaleString() : undefined;
-  const pageBreakToggle = showPageBreaks
-    ? { variant: 'default' as const, label: 'Hide Pages' }
-    : { variant: 'secondary' as const, label: 'Show Pages' };
   const emptyCanvas = widgets.length === 0;
-  const showLoadingPlaceholder = emptyCanvas && !metadata && !stats && !error;
+  const showLoadingPlaceholder = emptyCanvas && !stats && !error;
   const handleAddWidget = useCallback(() => {
     onAddWidget?.();
   }, [onAddWidget]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-muted-foreground">
-            Canvas
-          </p>
-          <p className="truncate text-sm text-muted-foreground">
-            {timestamp ? `As of ${timestamp}` : 'React Flow canvas powered by praxisApi'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className={cn(stats ? undefined : 'opacity-60')}>
-            Nodes {typeof stats?.nodes === 'number' ? stats.nodes.toLocaleString() : '—'}
-          </Badge>
-          <Badge variant="secondary" className={cn(stats ? undefined : 'opacity-60')}>
-            Edges {typeof stats?.edges === 'number' ? stats.edges.toLocaleString() : '—'}
-          </Badge>
-          <Button
-            variant={pageBreakToggle.variant}
-            size="sm"
-            onClick={() => {
-              setShowPageBreaks((previous) => !previous);
-            }}
-          >
-            {pageBreakToggle.label}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={triggerReload}
-            disabled={widgets.length === 0}
-          >
-            Refresh
-          </Button>
-        </div>
-      </div>
+      {activeError ? <p className="text-sm text-destructive">{activeError}</p> : undefined}
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : undefined}
-
-      <div className="flex-1 overflow-hidden relative">
+      <Card className="flex-1 overflow-hidden relative rounded-2xl border border-dashed border-border/60 bg-muted/30">
         {showLoadingPlaceholder && (
           <div className="absolute inset-0">
             <Skeleton className="h-full w-full" />
@@ -241,8 +226,8 @@ export function PraxisCanvasWorkspace({
         )}
         {emptyCanvas && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
-            <Card className="pointer-events-auto w-full max-w-xl space-y-3 rounded-2xl shadow-xl">
-              <CardHeader className="space-y-1 px-6 py-4">
+            <Card className="pointer-events-auto w-full max-w-xl space-y-4 rounded-2xl shadow-xl">
+              <CardHeader className="space-y-2 p-4">
                 <CardTitle className="text-lg font-semibold text-foreground">
                   Nothing on this page yet
                 </CardTitle>
@@ -250,7 +235,7 @@ export function PraxisCanvasWorkspace({
                   Add a widget to start building your executive overview.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 px-6">
+              <CardContent className="space-y-4 p-4">
                 <p className="text-sm text-muted-foreground">
                   Choose a widget type or browse templates to jump-start the storyboard.
                 </p>
@@ -267,7 +252,7 @@ export function PraxisCanvasWorkspace({
                 </div>
               </CardContent>
               <Separator />
-              <CardFooter className="flex flex-wrap gap-3 px-6">
+              <CardFooter className="flex flex-wrap gap-4 p-4">
                 <Button variant="default" size="sm" onClick={handleAddWidget}>
                   Add widget
                 </Button>
@@ -280,7 +265,7 @@ export function PraxisCanvasWorkspace({
         )}
         <AideonCanvasRuntime<PraxisCanvasWidget>
           widgets={widgets}
-          showPageBreaks={showPageBreaks}
+          showPageBreaks={localShowPageBreaks}
           renderWidget={(widget: PraxisCanvasWidget) =>
             renderPraxisWidget({
               widget,
@@ -293,7 +278,7 @@ export function PraxisCanvasWorkspace({
             })
           }
         />
-      </div>
+      </Card>
     </div>
   );
 }

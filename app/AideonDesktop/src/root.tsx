@@ -1,9 +1,9 @@
 import type { ComponentType, ReactElement } from 'react';
 import { useCallback, useState } from 'react';
 
+import { AideonDesktopNavigation } from 'aideon/shell/aideon-desktop-navigation';
 import { AideonDesktopShell } from 'aideon/shell/aideon-desktop-shell';
 import { AideonToolbar } from 'aideon/shell/aideon-toolbar';
-import { WorkspaceSwitcher } from 'aideon/shell/workspace-switcher';
 import { isTauriRuntime } from 'lib/runtime';
 import { PraxisWorkspaceProvider } from './workspaces/praxis/workspace';
 import { getWorkspace, getWorkspaceOptions } from './workspaces/registry';
@@ -102,19 +102,24 @@ export function AideonDesktopRoot() {
   return (
     <WorkspaceProvider key={ws.id}>
       <AideonDesktopShell
-        navigation={<WorkspaceNavigation />}
+        navigation={
+          <AideonDesktopNavigation
+            activeWorkspaceId={ws.id}
+            workspaceOptions={workspaceOptions}
+            onWorkspaceSelect={handleWorkspaceSelect}
+          >
+            <WorkspaceNavigation
+              activeWorkspaceId={ws.id}
+              workspaceOptions={workspaceOptions}
+              onWorkspaceSelect={handleWorkspaceSelect}
+            />
+          </AideonDesktopNavigation>
+        }
         toolbar={
           <AideonToolbar
             title="Aideon"
             subtitle={`${ws.label} workspace`}
             modeLabel={modeLabel}
-            start={
-              <WorkspaceSwitcher
-                currentId={ws.id}
-                options={workspaceOptions}
-                onSelect={handleWorkspaceSelect}
-              />
-            }
             workspaceToolbar={WorkspaceToolbar ? <WorkspaceToolbar /> : undefined}
           />
         }

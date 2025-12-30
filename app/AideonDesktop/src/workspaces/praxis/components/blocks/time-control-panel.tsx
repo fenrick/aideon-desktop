@@ -29,17 +29,17 @@ interface TimeControlPanelProperties {
 }
 
 /**
- * Render the timeline controls for selecting branches and commits.
+ * Render the timeline controls for selecting timelines and moments.
  * @param root0 - Component properties including current state and actions.
  * @param root0.title - Panel title.
  * @param root0.description - Panel helper text.
  * @param root0.state - Current temporal panel state.
  * @param root0.actions - Actions that mutate the temporal panel.
- * @returns JSX element containing branch/commit selectors and timeline slider.
+ * @returns JSX element containing timeline/moment selectors and timeline slider.
  */
 export function TimeControlPanel({
   title = 'Time cursor',
-  description = 'Branch & commit selection for state_at snapshots.',
+  description = 'Timeline & moment selection for state_at snapshots.',
   state,
   actions,
 }: TimeControlPanelProperties) {
@@ -58,7 +58,7 @@ export function TimeControlPanel({
         <PanelDescription>{description}</PanelDescription>
       </PanelHeader>
       <PanelContent>
-        <PanelField label="Branch">
+        <PanelField label="Timeline">
           <Select
             value={state.branch ?? undefined}
             disabled={state.loading || branchOptions.length === 0}
@@ -67,7 +67,7 @@ export function TimeControlPanel({
             }}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select branch" />
+              <SelectValue placeholder="Select timeline" />
             </SelectTrigger>
             <SelectContent>
               {branchOptions.map((option) => (
@@ -79,7 +79,7 @@ export function TimeControlPanel({
           </Select>
         </PanelField>
         <PanelField
-          label="Commit"
+          label="Moment"
           helper={<CommitSummary commits={state.commits} selectedCommitId={state.commitId} />}
         >
           <Select
@@ -90,7 +90,7 @@ export function TimeControlPanel({
             }}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select commit" />
+              <SelectValue placeholder="Select moment" />
             </SelectTrigger>
             <SelectContent>
               {state.commits.map((commit) => (
@@ -103,7 +103,7 @@ export function TimeControlPanel({
         </PanelField>
         <PanelField
           label="Timeline slider"
-          helper="Use ←/→ after focusing the slider to scrub commits chronologically."
+          helper="Use ←/→ after focusing the slider to scrub moments chronologically."
         >
           <Slider
             min={0}
@@ -141,7 +141,7 @@ export function TimeControlPanel({
             }}
             disabled={state.loading}
           >
-            Refresh branches
+            Refresh timelines
           </Button>
           <Button
             variant="outline"
@@ -161,7 +161,7 @@ export function TimeControlPanel({
               }}
               disabled={state.merging}
             >
-              {state.merging ? 'Merging…' : 'Merge into main'}
+              {state.merging ? 'Applying…' : 'Apply to primary'}
             </Button>
           ) : undefined}
         </PanelToolbar>
@@ -171,9 +171,9 @@ export function TimeControlPanel({
 }
 
 /**
- * Resolve the slider position index based on the selected commit.
- * @param commitId - Current commit identifier from state.
- * @param commits - Ordered commits for the active branch.
+ * Resolve the slider position index based on the selected moment.
+ * @param commitId - Current moment identifier from state.
+ * @param commits - Ordered moments for the active timeline.
  * @returns Single-element array containing the slider index.
  */
 function resolveSliderValue(commitId: string | undefined, commits: TemporalPanelState['commits']) {
@@ -188,8 +188,8 @@ function resolveSliderValue(commitId: string | undefined, commits: TemporalPanel
 }
 
 /**
- * Show a short summary of the selected commit or the latest commit.
- * @param root0 - Commit list and current selection.
+ * Show a short summary of the selected moment or the latest moment.
+ * @param root0 - Moment list and current selection.
  * @param root0.commits
  * @param root0.selectedCommitId
  * @returns JSX fragment describing the selected commit.
@@ -202,12 +202,12 @@ function CommitSummary({
   readonly selectedCommitId?: string;
 }) {
   if (commits.length === 0) {
-    return <p className="text-xs text-muted-foreground">Load a branch to view commits.</p>;
+    return <p className="text-xs text-muted-foreground">Load a timeline to view moments.</p>;
   }
   const selectedCommit = commits.find((commit) => commit.id === selectedCommitId);
   return (
     <p className="text-xs text-muted-foreground">
-      {selectedCommit ? selectedCommit.message : 'Latest commit'}
+      {selectedCommit ? selectedCommit.message : 'Latest moment'}
     </p>
   );
 }
@@ -268,7 +268,7 @@ function Stat({
 }
 
 /**
- * Render a list of merge conflicts returned by the host.
+ * Render a list of overlap conflicts returned by the host.
  * @param root0 - Conflict entries to display.
  * @param root0.conflicts
  * @returns JSX list of conflicts.
@@ -280,7 +280,7 @@ function MergeConflicts({
 }) {
   return (
     <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-xs">
-      <p className="font-semibold text-destructive">Merge conflicts</p>
+      <p className="font-semibold text-destructive">Overlap conflicts</p>
       <ul className="mt-2 space-y-1">
         {conflicts.map((conflict, index) => (
           <li key={`${conflict.reference}-${index.toString()}`}>

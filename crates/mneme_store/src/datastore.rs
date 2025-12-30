@@ -18,6 +18,18 @@ pub fn default_sqlite_path(base: &Path) -> PathBuf {
     base.join(DEFAULT_DB_NAME)
 }
 
+pub fn create_datastore(base: &Path, sqlite_name: Option<&str>) -> MnemeResult<PathBuf> {
+    let db_name = sqlite_name.unwrap_or(DEFAULT_DB_NAME);
+    let default_sqlite = base.join(db_name);
+    let config = MnemeConfig::load_or_init(base, &default_sqlite)?;
+    config.sqlite_path(base)
+}
+
+pub fn datastore_path(base: &Path) -> MnemeResult<PathBuf> {
+    let config = load_or_init_config(base)?;
+    config.sqlite_path(base)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{default_sqlite_path, load_or_init_config, open_store};

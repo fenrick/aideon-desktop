@@ -2,12 +2,12 @@
 use log::warn;
 use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
 
-const ROUTE_SPLASH: &str = "splash/index.html";
+const ROUTE_SPLASH: &str = "splash/";
 const ROUTE_MAIN: &str = "index.html";
-const ROUTE_STATUS: &str = "status/index.html";
-const ROUTE_SETTINGS: &str = "settings/index.html";
-const ROUTE_ABOUT: &str = "about/index.html";
-const ROUTE_STYLEGUIDE: &str = "styleguide/index.html";
+const ROUTE_STATUS: &str = "status/";
+const ROUTE_SETTINGS: &str = "settings/";
+const ROUTE_ABOUT: &str = "about/";
+const ROUTE_STYLEGUIDE: &str = "styleguide/";
 
 pub fn create_windows(app: &App<Wry>) -> Result<(), String> {
     WebviewWindowBuilder::new(app, "splash", WebviewUrl::App(ROUTE_SPLASH.into()))

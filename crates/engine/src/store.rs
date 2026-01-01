@@ -9,7 +9,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use tokio::task::spawn_blocking;
 
 use crate::error::{PraxisError, PraxisResult};
-use crate::temporal::{CommitSummary, PersistedCommit};
+use crate::temporal::{ChangeSet, CommitSummary, PersistedCommit};
 
 #[async_trait]
 pub trait Store: Send + Sync {
@@ -181,7 +181,9 @@ impl SqliteDb {
                      commit_id TEXT NOT NULL
                  );
                  COMMIT;",
-            )
+            )?;
+            ensure_commits_schema(conn)?;
+            Ok(())
         })
         .await
     }
@@ -401,4 +403,84 @@ impl Store for SqliteDb {
         })
         .await
     }
+}
+
+fn ensure_commits_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
+    let columns = table_columns(conn, "commits")?;
+    if columns.is_empty() {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS commits (
+                id TEXT PRIMARY KEY,
+                summary_json TEXT NOT NULL,
+                change_set_json TEXT NOT NULL
+            )",
+            [],
+        )?;
+        return Ok(());
+    }
+
+    let has_id = columns.contains("id");
+    let has_summary = columns.contains("summary_json");
+    let has_change_set = columns.contains("change_set_json");
+    if has_id && has_summary {
+        if !has_change_set {
+            let default_change_set =
+                serde_json::to_string(&ChangeSet::default()).unwrap_or_else(|_| "{}".to_string());
+            conn.execute(
+                "ALTER TABLE commits ADD COLUMN change_set_json TEXT NOT NULL DEFAULT ?1",
+                [default_change_set],
+            )?;
+        }
+        return Ok(());
+    }
+
+    let legacy = format!("commits_legacy_{}", legacy_suffix());
+    conn.execute(&format!("ALTER TABLE commits RENAME TO {legacy}"), [])?;
+    conn.execute(
+        "CREATE TABLE commits (
+            id TEXT PRIMARY KEY,
+            summary_json TEXT NOT NULL,
+            change_set_json TEXT NOT NULL
+        )",
+        [],
+    )?;
+
+    let id_source = if columns.contains("id") {
+        Some("id")
+    } else if columns.contains("commit_id") {
+        Some("commit_id")
+    } else {
+        None
+    };
+    if let (Some(id_col), true) = (id_source, columns.contains("summary_json")) {
+        let default_change_set =
+            serde_json::to_string(&ChangeSet::default()).unwrap_or_else(|_| "{}".to_string());
+        let sql = format!(
+            "INSERT INTO commits (id, summary_json, change_set_json)\n             SELECT {id_col}, summary_json, ?1 FROM {legacy}"
+        );
+        conn.execute(&sql, [default_change_set])?;
+    }
+
+    Ok(())
+}
+
+fn table_columns(
+    conn: &Connection,
+    table: &str,
+) -> Result<std::collections::HashSet<String>, rusqlite::Error> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let mut rows = stmt.query([])?;
+    let mut columns = std::collections::HashSet::new();
+    while let Some(row) = rows.next()? {
+        let name: String = row.get(1)?;
+        columns.insert(name);
+    }
+    Ok(columns)
+}
+
+fn legacy_suffix() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default()
 }

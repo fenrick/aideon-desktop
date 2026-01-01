@@ -22,6 +22,13 @@ import { isTauriRuntime } from '../lib/runtime';
  * Root screen for the main desktop window.
  */
 export function MainScreen() {
+  return <AideonDesktopRoot />;
+}
+
+/**
+ * Splash screen displayed while the host initializes.
+ */
+export function SplashScreenRoute() {
   const isTauri = isTauriRuntime();
   const windowLabel = useMemo(() => {
     if (!isTauri) {
@@ -33,20 +40,7 @@ export function MainScreen() {
       return;
     }
   }, [isTauri]);
-
-  const shouldSignalFrontendReady = isTauri && windowLabel === 'main';
-
-  return (
-    <FrontendReady enabled={shouldSignalFrontendReady}>
-      <AideonDesktopRoot />
-    </FrontendReady>
-  );
-}
-
-/**
- * Splash screen displayed while the host initializes.
- */
-export function SplashScreenRoute() {
+  const shouldSignalFrontendReady = isTauri && windowLabel === 'splash';
   const loadLines = useMemo(
     () => [
       'Reticulating splines…',
@@ -78,7 +72,11 @@ export function SplashScreenRoute() {
     };
   }, [loadLines]);
 
-  return <PraxisSplashScreen line={currentLine} />;
+  return (
+    <FrontendReady enabled={shouldSignalFrontendReady}>
+      <PraxisSplashScreen line={currentLine} />
+    </FrontendReady>
+  );
 }
 
 /**

@@ -62,7 +62,10 @@ pub async fn set_complete(
         warn!("host: set_complete called with invalid task '{task}'");
         "invalid task".to_string()
     })?;
-    info!("host: set_complete({task})");
+    info!(
+        "host: set_complete({task}) frontend={} backend={}",
+        state_lock.frontend_task, state_lock.backend_task
+    );
     mark_complete(&mut state_lock, parsed);
 
     if all_complete(&state_lock) {
@@ -93,6 +96,7 @@ pub fn get_setup_state(state: State<'_, Mutex<SetupState>>) -> Result<SetupFlags
 }
 
 pub async fn run_backend_setup(app: AppHandle<Wry>) -> Result<(), String> {
+    info!("host: backend setup started");
     init_temporal(&app).await?;
 
     info!("Performing really heavy backend setup task...");
@@ -110,6 +114,7 @@ pub async fn run_backend_setup(app: AppHandle<Wry>) -> Result<(), String> {
         return Err(error_message);
     }
 
+    info!("host: backend setup marked complete");
     Ok(())
 }
 

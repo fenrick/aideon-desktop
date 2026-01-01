@@ -9,6 +9,11 @@ use crate::windows::create_windows;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let log_level = if cfg!(debug_assertions) {
+        tauri_plugin_log::log::LevelFilter::Debug
+    } else {
+        tauri_plugin_log::log::LevelFilter::Info
+    };
     tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -16,7 +21,7 @@ pub fn run() {
                 .target(tauri_plugin_log::Target::new(
                     tauri_plugin_log::TargetKind::Stdout,
                 ))
-                .level(tauri_plugin_log::log::LevelFilter::Info)
+                .level(log_level)
                 .build(),
         )
         .manage(Mutex::new(SetupState::new()))

@@ -15,8 +15,9 @@ import { isTauriRuntime } from 'lib/runtime';
 
 vi.mock('@/root', () => ({ AideonDesktopRoot: () => <div>Root</div> }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn().mockResolvedValue(true) }));
+let currentWindowLabel = 'main';
 vi.mock('@tauri-apps/api/window', () => ({
-  getCurrentWindow: () => ({ label: 'main' }),
+  getCurrentWindow: () => ({ label: currentWindowLabel }),
 }));
 
 afterEach(() => {
@@ -25,6 +26,7 @@ afterEach(() => {
   delete (globalThis as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
   vi.clearAllMocks();
   vi.useRealTimers();
+  currentWindowLabel = 'main';
 });
 
 describe('app screens', () => {
@@ -64,6 +66,18 @@ describe('app screens', () => {
       vi.advanceTimersByTime(1600);
     });
     expect(screen.getByText('Weaving twin orbits…')).toBeInTheDocument();
+  });
+
+  it('signals frontend readiness from the splash window', async () => {
+    (globalThis as { __TAURI__?: unknown }).__TAURI__ = {};
+    currentWindowLabel = 'splash';
+    const { invoke } = await import('@tauri-apps/api/core');
+
+    render(<SplashScreenRoute />);
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith('set_complete', { task: 'frontend' });
+    });
   });
 
   it('renders status and about screens', () => {

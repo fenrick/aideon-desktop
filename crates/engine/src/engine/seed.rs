@@ -2,6 +2,8 @@
 
 use crate::PraxisEngine;
 use crate::dataset::BaselineDataset;
+use crate::engine::ops;
+use crate::engine::util::{derive_commit_id, normalize_change_set};
 use crate::error::PraxisResult;
 use crate::meta_seed::meta_model_seed_change_set;
 use crate::temporal::CommitChangesRequest;
@@ -45,7 +47,7 @@ impl PraxisEngine {
             tags: vec!["baseline".into(), "meta".into()],
             changes: meta_changes,
         };
-        self.commit(request).await
+        self.seed_commit_if_missing(request).await
     }
 
     async fn apply_dataset_commits(&self, dataset: &BaselineDataset) -> PraxisResult<()> {
@@ -59,9 +61,58 @@ impl PraxisEngine {
             let branch = commit.branch.clone();
             let parent = branch_heads.get(&branch).and_then(|head| head.clone());
             let request = commit.to_request(parent);
-            let next_id = self.commit(request).await?;
+            let next_id = self.seed_commit_if_missing(request).await?;
             branch_heads.insert(branch, Some(next_id));
         }
         Ok(())
+    }
+
+    async fn seed_commit_if_missing(&self, request: CommitChangesRequest) -> PraxisResult<String> {
+        let mut inner = self.lock().await;
+
+        if !inner.branches.contains_key(&request.branch) {
+            inner.store.ensure_branch(&request.branch).await?;
+            inner
+                .branches
+                .insert(request.branch.clone(), Default::default());
+        }
+
+        let current_head = inner
+            .branches
+            .get(&request.branch)
+            .and_then(|state| state.head.clone());
+
+        let expected_parent = match (&request.parent, &current_head) {
+            (Some(explicit), Some(head)) if explicit != head => Some(explicit.clone()),
+            (Some(explicit), _) => Some(explicit.clone()),
+            (None, head) => head.clone(),
+        };
+
+        let normalized_changes = normalize_change_set(&request.changes);
+        let parents: Vec<String> = expected_parent.into_iter().collect();
+        let commit_id = derive_commit_id(
+            &inner.config.commit_id_prefix,
+            &request.branch,
+            &parents,
+            request.author.as_deref(),
+            &request.message,
+            &request.tags,
+            &normalized_changes,
+        );
+
+        if inner.store.get_commit(&commit_id).await?.is_some() {
+            inner
+                .store
+                .compare_and_swap_branch(&request.branch, current_head.as_deref(), Some(&commit_id))
+                .await?;
+            inner
+                .branches
+                .entry(request.branch.clone())
+                .or_default()
+                .head = Some(commit_id.clone());
+            return Ok(commit_id);
+        }
+
+        ops::commit(&mut inner, request).await
     }
 }

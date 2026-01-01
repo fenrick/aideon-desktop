@@ -50,7 +50,7 @@
     "host:fix": "cargo fix --allow-dirty",
     "host:test": "cargo test --all --quiet",
     "host:audit": "cargo audit -D warnings",
-    "host:coverage": "TOOLCHAIN=$(rustup which rustc | sed 's#/bin/rustc##'); LLVM_COV=$TOOLCHAIN/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p')/bin/llvm-cov LLVM_PROFDATA=$TOOLCHAIN/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p')/bin/llvm-profdata cargo llvm-cov --workspace --all-features --lcov --output-path coverage/rust.lcov",
+    "host:coverage": "SYSROOT=$(rustc --print sysroot); HOST=$(rustc -vV | sed -n 's/^host: //p'); LLVM_COV=$SYSROOT/lib/rustlib/$HOST/bin/llvm-cov; LLVM_PROFDATA=$SYSROOT/lib/rustlib/$HOST/bin/llvm-profdata; if [ ! -x \"$LLVM_COV\" ] || [ ! -x \"$LLVM_PROFDATA\" ]; then LLVM_COV=$(xcrun --find llvm-cov 2>/dev/null || true); LLVM_PROFDATA=$(xcrun --find llvm-profdata 2>/dev/null || true); fi; if [ ! -x \"$LLVM_COV\" ] || [ ! -x \"$LLVM_PROFDATA\" ]; then echo \"Missing llvm-cov/llvm-profdata; install llvm-tools-preview or Xcode CLT.\"; exit 1; fi; LLVM_COV=$LLVM_COV LLVM_PROFDATA=$LLVM_PROFDATA cargo llvm-cov --workspace --all-features --lcov --output-path coverage/rust.lcov",
     "host:ci": "pnpm run host:clean && pnpm run host:lint && pnpm run host:fix && pnpm run host:check && pnpm run host:coverage && pnpm run host:format",
     "ci": "pnpm run node:ci && pnpm run host:ci",
     "release": "semantic-release",

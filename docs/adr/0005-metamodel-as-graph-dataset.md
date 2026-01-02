@@ -52,5 +52,5 @@ of the baseline dataset:
 
 - `docs/meta/README.md` – explanation of meta-model payloads and overrides
 - `docs/data/README.md` – baseline dataset and versioning
-- `crates/engine/src/meta_seed.rs` – code-first seeding of the schema
+- `crates/praxis/src/meta_seed.rs` – code-first seeding of the schema
 - `docs/DESIGN.md` – high-level design summary (now referencing this ADR instead of restating detail)

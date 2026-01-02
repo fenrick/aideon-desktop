@@ -289,7 +289,7 @@ refer to `Architecture-Boundary.md`. The notes below focus on product/module nam
 
 ### Rust crate & module naming conventions
 
-- **Crate package names** (Cargo `[package].name`): kebab‑case (e.g., `aideon_engine`); the crate library name defaults to snake_case; set `lib.name` only if needed for coherence.
+- **Crate package names** (Cargo `[package].name`): kebab‑case (e.g., `aideon_praxis`); the crate library name defaults to snake_case; set `lib.name` only if needed for coherence.
 - **Prefixes & suffixes**: use the product prefixes from _Product modules & naming_ and the approved suffixes. Proc‑macro crates end with `-macros`; the automation crate at the workspace root is named `aideon_xtask`.
 - **Modules/files**: snake_case; prefer clear domain nouns. Avoid abbreviations and generic labels. Only create a `prelude` module for a small set of frequently used traits/types; keep it minimal and opt‑in.
 - **Features**: all‑lowercase, additive; backend features (`sqlite`, `postgres`, `memory`), platform features (`desktop`, `server`). Features must not change public type shapes in incompatible ways.

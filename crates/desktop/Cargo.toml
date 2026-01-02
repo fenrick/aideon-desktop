@@ -25,10 +25,11 @@ tokio = { version = "1", features = ["macros", "rt", "time"] }
 log = "0.4"
 serde_json = "1"
 dirs = "6"
-aideon_praxis_facade = { path = "../aideon_praxis_facade" }
+aideon_praxis = { path = "../praxis" }
 time = { version = "0.3", features = ["formatting"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 window-vibrancy = { version = "0.6" }
 
 [dev-dependencies]
+tempfile = "3.24"

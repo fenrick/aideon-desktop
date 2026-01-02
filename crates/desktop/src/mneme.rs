@@ -1,7 +1,7 @@
 //! Host-side Mneme commands bridging renderer IPC calls to the Mneme store.
 
-use aideon_praxis_facade::mneme::{ActorId, Hlc, Layer, ScenarioId};
-use aideon_praxis_facade::mneme::{
+use aideon_praxis::mneme::{ActorId, Hlc, Layer, ScenarioId};
+use aideon_praxis::mneme::{
     AnalyticsApi, AnalyticsResultsApi, ChangeEvent, ChangeFeedApi, ClearPropIntervalInput,
     CompareOp, ComputedCacheApi, ComputedCacheEntry, ComputedRule, ComputedRulesApi,
     CounterUpdateInput, CreateEdgeInput, CreateNodeInput, CreateScenarioInput, DiagnosticsApi,
@@ -51,7 +51,7 @@ pub struct CompileEffectiveSchemaInput {
     pub partition_id: PartitionId,
     pub actor_id: ActorId,
     pub asserted_at: String,
-    pub type_id: aideon_praxis_facade::mneme::Id,
+    pub type_id: aideon_praxis::mneme::Id,
     #[serde(default)]
     pub scenario_id: Option<ScenarioId>,
 }
@@ -65,6 +65,13 @@ pub struct OpResult {
 #[tauri::command]
 pub async fn mneme_upsert_metamodel_batch(
     state: State<'_, WorkerState>,
+    payload: UpsertMetamodelBatchInput,
+) -> Result<OpResult, HostError> {
+    mneme_upsert_metamodel_batch_inner(state.inner(), payload).await
+}
+
+async fn mneme_upsert_metamodel_batch_inner(
+    state: &WorkerState,
     payload: UpsertMetamodelBatchInput,
 ) -> Result<OpResult, HostError> {
     info!("host: mneme_upsert_metamodel_batch received");
@@ -90,6 +97,13 @@ pub async fn mneme_compile_effective_schema(
     state: State<'_, WorkerState>,
     payload: CompileEffectiveSchemaInput,
 ) -> Result<SchemaVersion, HostError> {
+    mneme_compile_effective_schema_inner(state.inner(), payload).await
+}
+
+async fn mneme_compile_effective_schema_inner(
+    state: &WorkerState,
+    payload: CompileEffectiveSchemaInput,
+) -> Result<SchemaVersion, HostError> {
     info!("host: mneme_compile_effective_schema received");
     debug!(
         "host: mneme_compile_effective_schema partition={:?} scenario={:?} type_id={:?}",
@@ -111,6 +125,13 @@ pub async fn mneme_compile_effective_schema(
 #[tauri::command]
 pub async fn mneme_create_node(
     state: State<'_, WorkerState>,
+    payload: CreateNodePayload,
+) -> Result<OpResult, HostError> {
+    mneme_create_node_inner(state.inner(), payload).await
+}
+
+async fn mneme_create_node_inner(
+    state: &WorkerState,
     payload: CreateNodePayload,
 ) -> Result<OpResult, HostError> {
     let store = state.mneme();
@@ -135,6 +156,13 @@ pub async fn mneme_create_node(
 #[tauri::command]
 pub async fn mneme_create_edge(
     state: State<'_, WorkerState>,
+    payload: CreateEdgePayload,
+) -> Result<OpResult, HostError> {
+    mneme_create_edge_inner(state.inner(), payload).await
+}
+
+async fn mneme_create_edge_inner(
+    state: &WorkerState,
     payload: CreateEdgePayload,
 ) -> Result<OpResult, HostError> {
     let store = state.mneme();
@@ -170,6 +198,13 @@ pub async fn mneme_set_edge_existence_interval(
     state: State<'_, WorkerState>,
     payload: SetEdgeExistencePayload,
 ) -> Result<OpResult, HostError> {
+    mneme_set_edge_existence_interval_inner(state.inner(), payload).await
+}
+
+async fn mneme_set_edge_existence_interval_inner(
+    state: &WorkerState,
+    payload: SetEdgeExistencePayload,
+) -> Result<OpResult, HostError> {
     let store = state.mneme();
     let op_id = store
         .set_edge_existence_interval(SetEdgeExistenceIntervalInput {
@@ -197,6 +232,13 @@ pub async fn mneme_tombstone_entity(
     state: State<'_, WorkerState>,
     payload: TombstoneEntityPayload,
 ) -> Result<OpResult, HostError> {
+    mneme_tombstone_entity_inner(state.inner(), payload).await
+}
+
+async fn mneme_tombstone_entity_inner(
+    state: &WorkerState,
+    payload: TombstoneEntityPayload,
+) -> Result<OpResult, HostError> {
     let store = state.mneme();
     let op_id = store
         .tombstone_entity(
@@ -214,6 +256,13 @@ pub async fn mneme_tombstone_entity(
 #[tauri::command]
 pub async fn mneme_set_property_interval(
     state: State<'_, WorkerState>,
+    payload: SetPropertyIntervalPayload,
+) -> Result<OpResult, HostError> {
+    mneme_set_property_interval_inner(state.inner(), payload).await
+}
+
+async fn mneme_set_property_interval_inner(
+    state: &WorkerState,
     payload: SetPropertyIntervalPayload,
 ) -> Result<OpResult, HostError> {
     let store = state.mneme();
@@ -328,6 +377,13 @@ pub async fn mneme_read_entity_at_time(
     state: State<'_, WorkerState>,
     payload: ReadEntityAtTimePayload,
 ) -> Result<ReadEntityAtTimeResult, HostError> {
+    mneme_read_entity_at_time_inner(state.inner(), payload).await
+}
+
+async fn mneme_read_entity_at_time_inner(
+    state: &WorkerState,
+    payload: ReadEntityAtTimePayload,
+) -> Result<ReadEntityAtTimeResult, HostError> {
     let store = state.mneme();
     let as_of = payload
         .as_of_asserted_at
@@ -352,6 +408,13 @@ pub async fn mneme_read_entity_at_time(
 #[tauri::command]
 pub async fn mneme_traverse_at_time(
     state: State<'_, WorkerState>,
+    payload: TraverseAtTimePayload,
+) -> Result<Vec<TraverseEdgeItem>, HostError> {
+    mneme_traverse_at_time_inner(state.inner(), payload).await
+}
+
+async fn mneme_traverse_at_time_inner(
+    state: &WorkerState,
     payload: TraverseAtTimePayload,
 ) -> Result<Vec<TraverseEdgeItem>, HostError> {
     let store = state.mneme();
@@ -379,6 +442,13 @@ pub async fn mneme_traverse_at_time(
 #[tauri::command]
 pub async fn mneme_list_entities(
     state: State<'_, WorkerState>,
+    payload: ListEntitiesPayload,
+) -> Result<Vec<ListEntitiesResultItem>, HostError> {
+    mneme_list_entities_inner(state.inner(), payload).await
+}
+
+async fn mneme_list_entities_inner(
+    state: &WorkerState,
     payload: ListEntitiesPayload,
 ) -> Result<Vec<ListEntitiesResultItem>, HostError> {
     let store = state.mneme();
@@ -417,6 +487,13 @@ pub async fn mneme_list_entities(
 #[tauri::command]
 pub async fn mneme_get_changes_since(
     state: State<'_, WorkerState>,
+    payload: GetChangesSincePayload,
+) -> Result<Vec<ChangeEvent>, HostError> {
+    mneme_get_changes_since_inner(state.inner(), payload).await
+}
+
+async fn mneme_get_changes_since_inner(
+    state: &WorkerState,
     payload: GetChangesSincePayload,
 ) -> Result<Vec<ChangeEvent>, HostError> {
     let store = state.mneme();
@@ -479,6 +556,13 @@ pub async fn mneme_unsubscribe_partition(
 #[tauri::command]
 pub async fn mneme_get_projection_edges(
     state: State<'_, WorkerState>,
+    payload: GetProjectionEdgesPayload,
+) -> Result<Vec<ProjectionEdge>, HostError> {
+    mneme_get_projection_edges_inner(state.inner(), payload).await
+}
+
+async fn mneme_get_projection_edges_inner(
+    state: &WorkerState,
     payload: GetProjectionEdgesPayload,
 ) -> Result<Vec<ProjectionEdge>, HostError> {
     let store = state.mneme();
@@ -612,6 +696,13 @@ pub async fn mneme_export_ops(
     state: State<'_, WorkerState>,
     payload: ExportOpsPayload,
 ) -> Result<Vec<OpEnvelope>, HostError> {
+    mneme_export_ops_inner(state.inner(), payload).await
+}
+
+async fn mneme_export_ops_inner(
+    state: &WorkerState,
+    payload: ExportOpsPayload,
+) -> Result<Vec<OpEnvelope>, HostError> {
     let store = state.mneme();
     let since = payload
         .since_asserted_at
@@ -721,6 +812,13 @@ pub async fn mneme_export_ops_stream(
     state: State<'_, WorkerState>,
     payload: ExportOpsStreamPayload,
 ) -> Result<Vec<ExportRecord>, HostError> {
+    mneme_export_ops_stream_inner(state.inner(), payload).await
+}
+
+async fn mneme_export_ops_stream_inner(
+    state: &WorkerState,
+    payload: ExportOpsStreamPayload,
+) -> Result<Vec<ExportRecord>, HostError> {
     let store = state.mneme();
     let since_asserted_at = payload
         .since_asserted_at
@@ -767,6 +865,13 @@ pub async fn mneme_import_ops_stream(
 #[tauri::command]
 pub async fn mneme_export_snapshot_stream(
     state: State<'_, WorkerState>,
+    payload: ExportSnapshotPayload,
+) -> Result<Vec<ExportRecord>, HostError> {
+    mneme_export_snapshot_stream_inner(state.inner(), payload).await
+}
+
+async fn mneme_export_snapshot_stream_inner(
+    state: &WorkerState,
     payload: ExportSnapshotPayload,
 ) -> Result<Vec<ExportRecord>, HostError> {
     let store = state.mneme();
@@ -1132,8 +1237,8 @@ pub async fn mneme_explain_traversal(
 pub async fn mneme_get_effective_schema(
     state: State<'_, WorkerState>,
     partition_id: PartitionId,
-    type_id: aideon_praxis_facade::mneme::Id,
-) -> Result<Option<aideon_praxis_facade::mneme::EffectiveSchema>, HostError> {
+    type_id: aideon_praxis::mneme::Id,
+) -> Result<Option<aideon_praxis::mneme::EffectiveSchema>, HostError> {
     let store = state.mneme();
     store
         .get_effective_schema(partition_id, type_id)
@@ -1145,7 +1250,7 @@ pub async fn mneme_get_effective_schema(
 pub async fn mneme_list_edge_type_rules(
     state: State<'_, WorkerState>,
     partition_id: PartitionId,
-    edge_type_id: Option<aideon_praxis_facade::mneme::Id>,
+    edge_type_id: Option<aideon_praxis::mneme::Id>,
 ) -> Result<Vec<EdgeTypeRule>, HostError> {
     let store = state.mneme();
     store
@@ -1212,8 +1317,8 @@ pub struct CreateNodePayload {
     pub scenario_id: Option<ScenarioId>,
     pub actor_id: ActorId,
     pub asserted_at: String,
-    pub node_id: aideon_praxis_facade::mneme::Id,
-    pub type_id: Option<aideon_praxis_facade::mneme::Id>,
+    pub node_id: aideon_praxis::mneme::Id,
+    pub type_id: Option<aideon_praxis::mneme::Id>,
     pub acl_group_id: Option<String>,
     pub owner_actor_id: Option<ActorId>,
     pub visibility: Option<u8>,
@@ -1226,10 +1331,10 @@ pub struct CreateEdgePayload {
     pub scenario_id: Option<ScenarioId>,
     pub actor_id: ActorId,
     pub asserted_at: String,
-    pub edge_id: aideon_praxis_facade::mneme::Id,
-    pub type_id: Option<aideon_praxis_facade::mneme::Id>,
-    pub src_id: aideon_praxis_facade::mneme::Id,
-    pub dst_id: aideon_praxis_facade::mneme::Id,
+    pub edge_id: aideon_praxis::mneme::Id,
+    pub type_id: Option<aideon_praxis::mneme::Id>,
+    pub src_id: aideon_praxis::mneme::Id,
+    pub dst_id: aideon_praxis::mneme::Id,
     pub exists_valid_from: String,
     pub exists_valid_to: Option<String>,
     pub layer: Option<Layer>,
@@ -1246,7 +1351,7 @@ pub struct SetEdgeExistencePayload {
     pub scenario_id: Option<ScenarioId>,
     pub actor_id: ActorId,
     pub asserted_at: String,
-    pub edge_id: aideon_praxis_facade::mneme::Id,
+    pub edge_id: aideon_praxis::mneme::Id,
     pub valid_from: String,
     pub valid_to: Option<String>,
     pub layer: Option<Layer>,
@@ -1260,7 +1365,7 @@ pub struct TombstoneEntityPayload {
     pub scenario_id: Option<ScenarioId>,
     pub actor_id: ActorId,
     pub asserted_at: String,
-    pub entity_id: aideon_praxis_facade::mneme::Id,
+    pub entity_id: aideon_praxis::mneme::Id,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1270,8 +1375,8 @@ pub struct SetPropertyIntervalPayload {
     pub scenario_id: Option<ScenarioId>,
     pub actor_id: ActorId,
     pub asserted_at: String,
-    pub entity_id: aideon_praxis_facade::mneme::Id,
-    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub entity_id: aideon_praxis::mneme::Id,
+    pub field_id: aideon_praxis::mneme::Id,
     pub value: Value,
     pub valid_from: String,
     pub valid_to: Option<String>,
@@ -1285,8 +1390,8 @@ pub struct ClearPropertyIntervalPayload {
     pub scenario_id: Option<ScenarioId>,
     pub actor_id: ActorId,
     pub asserted_at: String,
-    pub entity_id: aideon_praxis_facade::mneme::Id,
-    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub entity_id: aideon_praxis::mneme::Id,
+    pub field_id: aideon_praxis::mneme::Id,
     pub valid_from: String,
     pub valid_to: Option<String>,
     pub layer: Option<Layer>,
@@ -1299,8 +1404,8 @@ pub struct OrSetUpdatePayload {
     pub scenario_id: Option<ScenarioId>,
     pub actor_id: ActorId,
     pub asserted_at: String,
-    pub entity_id: aideon_praxis_facade::mneme::Id,
-    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub entity_id: aideon_praxis::mneme::Id,
+    pub field_id: aideon_praxis::mneme::Id,
     pub op: SetOp,
     pub element: Value,
     pub valid_from: String,
@@ -1315,8 +1420,8 @@ pub struct CounterUpdatePayload {
     pub scenario_id: Option<ScenarioId>,
     pub actor_id: ActorId,
     pub asserted_at: String,
-    pub entity_id: aideon_praxis_facade::mneme::Id,
-    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub entity_id: aideon_praxis::mneme::Id,
+    pub field_id: aideon_praxis::mneme::Id,
     pub delta: i64,
     pub valid_from: String,
     pub valid_to: Option<String>,
@@ -1328,10 +1433,10 @@ pub struct CounterUpdatePayload {
 pub struct ReadEntityAtTimePayload {
     pub partition_id: PartitionId,
     pub scenario_id: Option<ScenarioId>,
-    pub entity_id: aideon_praxis_facade::mneme::Id,
+    pub entity_id: aideon_praxis::mneme::Id,
     pub at: String,
     pub as_of_asserted_at: Option<String>,
-    pub field_ids: Option<Vec<aideon_praxis_facade::mneme::Id>>,
+    pub field_ids: Option<Vec<aideon_praxis::mneme::Id>>,
     pub include_defaults: Option<bool>,
 }
 
@@ -1340,9 +1445,9 @@ pub struct ReadEntityAtTimePayload {
 pub struct TraverseAtTimePayload {
     pub partition_id: PartitionId,
     pub scenario_id: Option<ScenarioId>,
-    pub from_entity_id: aideon_praxis_facade::mneme::Id,
+    pub from_entity_id: aideon_praxis::mneme::Id,
     pub direction: Direction,
-    pub edge_type_id: Option<aideon_praxis_facade::mneme::Id>,
+    pub edge_type_id: Option<aideon_praxis::mneme::Id>,
     pub at: String,
     pub as_of_asserted_at: Option<String>,
     pub limit: Option<u32>,
@@ -1354,7 +1459,7 @@ pub struct ListEntitiesPayload {
     pub partition_id: PartitionId,
     pub scenario_id: Option<ScenarioId>,
     pub kind: Option<EntityKind>,
-    pub type_id: Option<aideon_praxis_facade::mneme::Id>,
+    pub type_id: Option<aideon_praxis::mneme::Id>,
     pub at: String,
     pub as_of_asserted_at: Option<String>,
     pub filters: Option<Vec<ListEntitiesFilterPayload>>,
@@ -1365,7 +1470,7 @@ pub struct ListEntitiesPayload {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListEntitiesFilterPayload {
-    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub field_id: aideon_praxis::mneme::Id,
     pub op: CompareOp,
     pub value: Value,
 }
@@ -1405,7 +1510,7 @@ pub struct GetProjectionEdgesPayload {
     pub scenario_id: Option<ScenarioId>,
     pub at: Option<String>,
     pub as_of_asserted_at: Option<String>,
-    pub edge_type_filter: Option<Vec<aideon_praxis_facade::mneme::Id>>,
+    pub edge_type_filter: Option<Vec<aideon_praxis::mneme::Id>>,
     pub limit: Option<u32>,
 }
 
@@ -1415,7 +1520,7 @@ pub struct GetGraphDegreeStatsPayload {
     pub partition_id: PartitionId,
     pub scenario_id: Option<ScenarioId>,
     pub as_of_valid_time: Option<String>,
-    pub entity_ids: Option<Vec<aideon_praxis_facade::mneme::Id>>,
+    pub entity_ids: Option<Vec<aideon_praxis::mneme::Id>>,
     pub limit: Option<u32>,
 }
 
@@ -1424,7 +1529,7 @@ pub struct GetGraphDegreeStatsPayload {
 pub struct GetGraphEdgeTypeCountsPayload {
     pub partition_id: PartitionId,
     pub scenario_id: Option<ScenarioId>,
-    pub edge_type_ids: Option<Vec<aideon_praxis_facade::mneme::Id>>,
+    pub edge_type_ids: Option<Vec<aideon_praxis::mneme::Id>>,
     pub limit: Option<u32>,
 }
 
@@ -1453,14 +1558,14 @@ pub struct PageRankParamsPayload {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PageRankSeedPayload {
-    pub id: aideon_praxis_facade::mneme::Id,
+    pub id: aideon_praxis::mneme::Id,
     pub weight: f64,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PageRankScorePayload {
-    pub id: aideon_praxis_facade::mneme::Id,
+    pub id: aideon_praxis::mneme::Id,
     pub score: f64,
 }
 
@@ -1468,20 +1573,20 @@ pub struct PageRankScorePayload {
 #[serde(rename_all = "camelCase")]
 pub struct GetPageRankScoresPayload {
     pub partition_id: PartitionId,
-    pub run_id: aideon_praxis_facade::mneme::Id,
+    pub run_id: aideon_praxis::mneme::Id,
     pub top_n: u32,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PageRankRunResult {
-    pub run_id: aideon_praxis_facade::mneme::Id,
+    pub run_id: aideon_praxis::mneme::Id,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PageRankScoreItem {
-    pub id: aideon_praxis_facade::mneme::Id,
+    pub id: aideon_praxis::mneme::Id,
     pub score: f64,
 }
 
@@ -1621,8 +1726,8 @@ pub struct ListComputedRulesPayload {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ComputedCacheEntryPayload {
-    pub entity_id: aideon_praxis_facade::mneme::Id,
-    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub entity_id: aideon_praxis::mneme::Id,
+    pub field_id: aideon_praxis::mneme::Id,
     pub valid_from: String,
     pub valid_to: Option<String>,
     pub value: Value,
@@ -1641,8 +1746,8 @@ pub struct UpsertComputedCachePayload {
 #[serde(rename_all = "camelCase")]
 pub struct ListComputedCachePayload {
     pub partition_id: PartitionId,
-    pub entity_id: Option<aideon_praxis_facade::mneme::Id>,
-    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub entity_id: Option<aideon_praxis::mneme::Id>,
+    pub field_id: aideon_praxis::mneme::Id,
     pub at_valid_time: Option<String>,
     pub limit: Option<u32>,
 }
@@ -1713,7 +1818,7 @@ pub struct IntegrityHeadPayload {
 #[serde(rename_all = "camelCase")]
 pub struct SchemaHeadPayload {
     pub partition_id: PartitionId,
-    pub type_id: aideon_praxis_facade::mneme::Id,
+    pub type_id: aideon_praxis::mneme::Id,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1728,8 +1833,8 @@ pub struct ListFailedJobsPayload {
 pub struct ExplainResolutionPayload {
     pub partition_id: PartitionId,
     pub scenario_id: Option<ScenarioId>,
-    pub entity_id: aideon_praxis_facade::mneme::Id,
-    pub field_id: aideon_praxis_facade::mneme::Id,
+    pub entity_id: aideon_praxis::mneme::Id,
+    pub field_id: aideon_praxis::mneme::Id,
     pub at: String,
     pub as_of_asserted_at: Option<String>,
 }
@@ -1739,7 +1844,7 @@ pub struct ExplainResolutionPayload {
 pub struct ExplainTraversalPayload {
     pub partition_id: PartitionId,
     pub scenario_id: Option<ScenarioId>,
-    pub edge_id: aideon_praxis_facade::mneme::Id,
+    pub edge_id: aideon_praxis::mneme::Id,
     pub at: String,
     pub as_of_asserted_at: Option<String>,
 }
@@ -1747,6 +1852,9 @@ pub struct ExplainTraversalPayload {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use aideon_praxis::chrona::TemporalEngine;
+    use aideon_praxis::mneme::open_store;
+    use tempfile::tempdir;
 
     #[test]
     fn host_error_maps_codes() {
@@ -1758,5 +1866,320 @@ mod tests {
         let err = MnemeError::storage("fail");
         let mapped = host_error(err);
         assert_eq!(mapped.code, "storage_error");
+    }
+
+    #[test]
+    fn parse_hlc_accepts_integer_string() {
+        let parsed = parse_hlc("123").expect("parse hlc");
+        assert_eq!(parsed.as_i64(), 123);
+    }
+
+    #[test]
+    fn parse_hlc_rejects_invalid_string() {
+        let err = parse_hlc("nope").expect_err("invalid");
+        assert_eq!(err.code, "invalid_time");
+    }
+
+    #[test]
+    fn parse_valid_time_accepts_integer_string() {
+        let parsed = parse_valid_time("456").expect("parse valid time");
+        assert_eq!(parsed.0, 456);
+    }
+
+    #[test]
+    fn parse_valid_time_accepts_rfc3339() {
+        let parsed = parse_valid_time("2025-01-01T00:00:00Z").expect("parse valid time");
+        assert!(parsed.0 > 0);
+    }
+
+    #[test]
+    fn parse_valid_time_rejects_invalid_value() {
+        let err = parse_valid_time("not-a-time").expect_err("invalid");
+        assert_eq!(err.code, "invalid_time");
+    }
+
+    #[test]
+    fn next_subscription_id_increments() {
+        let first = next_subscription_id();
+        let second = next_subscription_id();
+        assert_ne!(first, second);
+        assert!(first.starts_with("mneme-sub-"));
+        assert!(second.starts_with("mneme-sub-"));
+    }
+
+    async fn build_state() -> (WorkerState, tempfile::TempDir) {
+        let dir = tempdir().expect("tempdir");
+        let mneme = open_store(dir.path()).await.expect("open store");
+        let engine = TemporalEngine::new().await.expect("engine");
+        (WorkerState::new(engine, mneme), dir)
+    }
+
+    #[tokio::test]
+    async fn mneme_command_helpers_roundtrip() {
+        let (state, _dir) = build_state().await;
+        let partition_id = PartitionId(aideon_praxis::mneme::Id::new());
+        let actor_id = ActorId(aideon_praxis::mneme::Id::new());
+        let type_id = aideon_praxis::mneme::Id::new();
+        let field_id = aideon_praxis::mneme::Id::new();
+        let asserted_at = Hlc::now().as_i64().to_string();
+
+        let _ = mneme_upsert_metamodel_batch_inner(
+            &state,
+            UpsertMetamodelBatchInput {
+                partition_id,
+                actor_id,
+                asserted_at: asserted_at.clone(),
+                batch: MetamodelBatch {
+                    types: vec![aideon_praxis::mneme::TypeDef {
+                        type_id,
+                        applies_to: EntityKind::Node,
+                        label: "Service".to_string(),
+                        is_abstract: false,
+                        parent_type_id: None,
+                    }],
+                    fields: vec![aideon_praxis::mneme::FieldDef {
+                        field_id,
+                        label: "name".to_string(),
+                        value_type: aideon_praxis::mneme::ValueType::Str,
+                        cardinality_multi: false,
+                        merge_policy: aideon_praxis::mneme::MergePolicy::Lww,
+                        is_indexed: true,
+                        disallow_overlap: false,
+                    }],
+                    type_fields: vec![aideon_praxis::mneme::TypeFieldDef {
+                        type_id,
+                        field_id,
+                        is_required: false,
+                        default_value: None,
+                        override_default: false,
+                        tighten_required: false,
+                        disallow_overlap: None,
+                    }],
+                    edge_type_rules: vec![],
+                    metamodel_version: Some("v1".to_string()),
+                    metamodel_source: Some("tests".to_string()),
+                },
+                scenario_id: None,
+            },
+        )
+        .await
+        .expect("metamodel");
+
+        let node_a = aideon_praxis::mneme::Id::new();
+        let node_b = aideon_praxis::mneme::Id::new();
+        let _ = mneme_create_node_inner(
+            &state,
+            CreateNodePayload {
+                partition_id,
+                scenario_id: None,
+                actor_id,
+                asserted_at: asserted_at.clone(),
+                node_id: node_a,
+                type_id: Some(type_id),
+                acl_group_id: None,
+                owner_actor_id: None,
+                visibility: None,
+            },
+        )
+        .await
+        .expect("create node");
+        let _ = mneme_create_node_inner(
+            &state,
+            CreateNodePayload {
+                partition_id,
+                scenario_id: None,
+                actor_id,
+                asserted_at: asserted_at.clone(),
+                node_id: node_b,
+                type_id: Some(type_id),
+                acl_group_id: None,
+                owner_actor_id: None,
+                visibility: None,
+            },
+        )
+        .await
+        .expect("create node");
+
+        let _ = mneme_set_property_interval_inner(
+            &state,
+            SetPropertyIntervalPayload {
+                partition_id,
+                scenario_id: None,
+                actor_id,
+                asserted_at: asserted_at.clone(),
+                entity_id: node_a,
+                field_id,
+                value: Value::Str("alpha".to_string()),
+                valid_from: "0".to_string(),
+                valid_to: None,
+                layer: None,
+            },
+        )
+        .await
+        .expect("set property");
+
+        let edge_id = aideon_praxis::mneme::Id::new();
+        let _ = mneme_create_edge_inner(
+            &state,
+            CreateEdgePayload {
+                partition_id,
+                scenario_id: None,
+                actor_id,
+                asserted_at: asserted_at.clone(),
+                edge_id,
+                type_id: None,
+                src_id: node_a,
+                dst_id: node_b,
+                exists_valid_from: "0".to_string(),
+                exists_valid_to: None,
+                layer: None,
+                weight: None,
+                acl_group_id: None,
+                owner_actor_id: None,
+                visibility: None,
+            },
+        )
+        .await
+        .expect("create edge");
+
+        let _ = mneme_set_edge_existence_interval_inner(
+            &state,
+            SetEdgeExistencePayload {
+                partition_id,
+                scenario_id: None,
+                actor_id,
+                asserted_at: asserted_at.clone(),
+                edge_id,
+                valid_from: "0".to_string(),
+                valid_to: None,
+                layer: None,
+                is_tombstone: Some(false),
+            },
+        )
+        .await
+        .expect("set edge interval");
+
+        let read = mneme_read_entity_at_time_inner(
+            &state,
+            ReadEntityAtTimePayload {
+                partition_id,
+                scenario_id: None,
+                entity_id: node_a,
+                at: "0".to_string(),
+                as_of_asserted_at: Some(asserted_at.clone()),
+                field_ids: None,
+                include_defaults: Some(true),
+            },
+        )
+        .await
+        .expect("read");
+        assert_eq!(read.entity_id, node_a);
+
+        let listed = mneme_list_entities_inner(
+            &state,
+            ListEntitiesPayload {
+                partition_id,
+                scenario_id: None,
+                kind: Some(EntityKind::Node),
+                type_id: Some(type_id),
+                at: "0".to_string(),
+                as_of_asserted_at: None,
+                filters: Some(vec![ListEntitiesFilterPayload {
+                    field_id,
+                    op: CompareOp::Eq,
+                    value: Value::Str("alpha".to_string()),
+                }]),
+                limit: Some(10),
+                cursor: None,
+            },
+        )
+        .await
+        .expect("list");
+        assert!(!listed.is_empty());
+
+        let traversed = mneme_traverse_at_time_inner(
+            &state,
+            TraverseAtTimePayload {
+                partition_id,
+                scenario_id: None,
+                from_entity_id: node_a,
+                direction: Direction::Out,
+                edge_type_id: None,
+                at: "0".to_string(),
+                as_of_asserted_at: None,
+                limit: Some(10),
+            },
+        )
+        .await
+        .expect("traverse");
+        assert!(traversed.len() <= 10);
+
+        let _ = mneme_get_changes_since_inner(
+            &state,
+            GetChangesSincePayload {
+                partition_id,
+                from_sequence: None,
+                limit: Some(10),
+            },
+        )
+        .await
+        .expect("changes");
+
+        let ops = mneme_export_ops_inner(
+            &state,
+            ExportOpsPayload {
+                partition_id,
+                scenario_id: None,
+                since_asserted_at: None,
+                limit: Some(100),
+            },
+        )
+        .await
+        .expect("export ops");
+        assert!(!ops.is_empty());
+
+        let records = mneme_export_ops_stream_inner(
+            &state,
+            ExportOpsStreamPayload {
+                partition_id,
+                scenario_id: None,
+                since_asserted_at: None,
+                until_asserted_at: None,
+                include_schema: Some(true),
+                include_data_ops: Some(true),
+                include_scenarios: Some(true),
+            },
+        )
+        .await
+        .expect("export ops stream");
+        assert!(!records.is_empty());
+
+        let snapshot = mneme_export_snapshot_stream_inner(
+            &state,
+            ExportSnapshotPayload {
+                partition_id,
+                scenario_id: None,
+                as_of_asserted_at: asserted_at.clone(),
+                include_facts: Some(true),
+                include_entities: Some(true),
+            },
+        )
+        .await
+        .expect("snapshot");
+        assert!(!snapshot.is_empty());
+
+        let _ = mneme_get_projection_edges_inner(
+            &state,
+            GetProjectionEdgesPayload {
+                partition_id,
+                scenario_id: None,
+                at: None,
+                as_of_asserted_at: None,
+                edge_type_filter: None,
+                limit: Some(10),
+            },
+        )
+        .await
+        .expect("projection edges");
     }
 }

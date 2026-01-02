@@ -380,7 +380,7 @@ Whenever new code is written or changed:
 ### 9.1. Minimum expectations by change type
 
 - **Engine changes (Rust)**: add/extend unit or integration tests in the touched crate. Example:
-  `crates/engine/tests/temporal_ops.rs` covers `state_at` and `diff` over real commits.
+  `crates/praxis/tests/temporal_ops.rs` covers `state_at` and `diff` over real commits.
 - **Host/Tauri changes**: add or extend IPC/command tests in `crates/desktop/tests` (or
   crate-level `#[cfg(test)]` modules) to exercise payload shapes and error propagation.
 - **Canvas/React changes**: add Vitest + Testing Library tests under `app/AideonDesktop/tests/praxis` that
@@ -390,7 +390,7 @@ Whenever new code is written or changed:
 
 Use this as a template when adding new features:
 
-- **Engine**: `crates/engine/tests/temporal_ops.rs` commits a node, asserts
+- **Engine**: `crates/praxis/tests/temporal_ops.rs` commits a node, asserts
   `state_at`/`diff_summary` results.
 - **Host**: `crates/desktop/tests/state_at_payload_camelcase.rs` ensures payload casing
   matches IPC expectations.

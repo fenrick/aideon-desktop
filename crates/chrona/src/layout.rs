@@ -1,6 +1,6 @@
 //! Layout helpers. Default mimics `org.eclipse.elk.rectpacking` behavior.
 
-use aideon_engine::canvas::CanvasShape;
+use aideon_praxis::canvas::CanvasShape;
 
 /// Apply a rectangle packing layout (row-based), roughly matching
 /// `org.eclipse.elk.rectpacking` defaults. Shapes are sorted by height and
@@ -40,7 +40,7 @@ pub fn apply_rect_packing(shapes: &mut [CanvasShape], max_row_width: f64, spacin
 #[cfg(test)]
 mod tests {
     use super::apply_rect_packing;
-    use aideon_engine::canvas::CanvasShape;
+    use aideon_praxis::canvas::CanvasShape;
 
     #[test]
     fn rect_packing_wraps_rows() {

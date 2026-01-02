@@ -11,7 +11,7 @@ Canvas and other clients.
 - Rust 2024 with workspace defaults.
 - Core deps: `tokio` for async, `serde`/`serde_json` for (de)serialisation, `thiserror` for errors,
   `tracing` + `log` facade for logging.
-- Twin access via `aideon_engine` and persistence through `aideon_mneme` traits only;
+- Twin access via `aideon_praxis` and persistence through `aideon_mneme` traits only;
   no direct DB drivers here.
 
 ## Anti-goals

@@ -1,5 +1,5 @@
 [package]
-name = "aideon_engine"
+name = "aideon_praxis"
 version = "0.0.0"
 edition = "2024"
 authors = ["Aideon Praxis Contributors"]
@@ -7,6 +7,9 @@ license = "MIT"
 
 [dependencies]
 aideon_continuum = { path = "../continuum" }
+aideon_chrona = { path = "../chrona" }
+aideon_metis = { path = "../metis" }
+aideon_mneme = { path = "../mneme" }
 async-recursion = "1.1"
 async-trait = "0.1"
 blake3 = "1"

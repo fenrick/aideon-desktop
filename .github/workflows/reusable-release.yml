@@ -149,7 +149,7 @@ jobs:
           deps_dir="${target_dir}/deps"
           shopt -s nullglob
           found=false
-          for file in "${target_dir}"/libpraxis_engine_lib.* "${target_dir}"/praxis_engine_lib.*; do
+          for file in "${target_dir}"/libpraxis_engine_lib.* "${target_dir}"/praxis_engine_lib.* "${target_dir}"/libaideon_praxis.* "${target_dir}"/aideon_praxis.*; do
             if [[ -f "$file" ]]; then
               cp "$file" artifacts/worker/files/
               found=true

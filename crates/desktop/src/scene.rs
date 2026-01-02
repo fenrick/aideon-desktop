@@ -1,8 +1,8 @@
 //! Host IPC commands for scene/canvas data.
 
-use aideon_praxis_facade::chrona::scene::generate_demo_scene;
-use aideon_praxis_facade::continuum::{FileSnapshotStore, SnapshotStore};
-use aideon_praxis_facade::praxis::canvas::{CanvasLayoutSaveRequest, CanvasShape};
+use aideon_praxis::chrona::scene::generate_demo_scene;
+use aideon_praxis::continuum::{FileSnapshotStore, SnapshotStore};
+use aideon_praxis::praxis::canvas::{CanvasLayoutSaveRequest, CanvasShape};
 use log::info;
 
 /// Return a raw scene for the canvas. The renderer performs layout when needed.

@@ -24,7 +24,7 @@ Aideon Praxis is a desktop application built with Tauri (Rust backend + React/Ty
 │       ├── package.json
 │       └── vite.config.ts
 ├── crates/                   # Rust backend crates (Tauri)
-│   ├── aideon_praxis_facade/
+│   ├── aideon_praxis/
 │   ├── desktop/
 │   ├── engine/
 │   ├── chrona/

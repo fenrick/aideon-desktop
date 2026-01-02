@@ -3,12 +3,12 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use aideon_engine::temporal::{ChangeSet, CommitSummary};
-use aideon_engine::{
+use aideon_mneme::{create_datastore, datastore_path};
+use aideon_praxis::temporal::{ChangeSet, CommitSummary};
+use aideon_praxis::{
     BaselineDataset, GraphSnapshot, MemoryStore, MetaModelRegistry, PersistedCommit, PraxisEngine,
     PraxisEngineConfig, SqliteDb, Store,
 };
-use aideon_mneme::{create_datastore, datastore_path};
 use anyhow::{Context, Result, anyhow};
 use clap::{Parser, Subcommand};
 
@@ -167,6 +167,47 @@ async fn migrate_state(args: MigrateStateArgs) -> Result<()> {
         args.output.display()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_parses_health_defaults() {
+        let cli = Cli::parse_from(["xtask", "health"]);
+        match cli.command {
+            Command::Health(args) => {
+                assert_eq!(args.datastore, PathBuf::from(".praxis"));
+                assert!(args.branch.is_none());
+                assert!(!args.quiet);
+            }
+            _ => panic!("expected health command"),
+        }
+    }
+
+    #[test]
+    fn cli_parses_import_dataset_flags() {
+        let cli = Cli::parse_from([
+            "xtask",
+            "import-dataset",
+            "--dataset",
+            "path/to/data.yaml",
+            "--datastore",
+            "/tmp/praxis",
+            "--dry-run",
+            "--force",
+        ]);
+        match cli.command {
+            Command::ImportDataset(args) => {
+                assert_eq!(args.dataset, PathBuf::from("path/to/data.yaml"));
+                assert_eq!(args.datastore, PathBuf::from("/tmp/praxis"));
+                assert!(args.dry_run);
+                assert!(args.force);
+            }
+            _ => panic!("expected import-dataset command"),
+        }
+    }
 }
 
 async fn import_dataset(args: ImportDatasetArgs) -> Result<()> {

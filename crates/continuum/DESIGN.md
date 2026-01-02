@@ -10,7 +10,7 @@ ingest, snapshot refresh). It provides the automation plane for Praxis.
 - Rust 2024 with workspace defaults.
 - `tokio` for async scheduling, `serde`/`serde_json` for configs and job payloads, `thiserror` for
   error types, `tracing` + `log` facade for observability.
-- Orchestration interfaces depend on `aideon_engine` and `aideon_mneme`; connector
+- Orchestration interfaces depend on `aideon_praxis` and `aideon_mneme`; connector
   integrations live behind traits/adapters.
 
 ## Anti-goals

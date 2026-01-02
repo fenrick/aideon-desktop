@@ -15,11 +15,11 @@ and `docs/adr/` respectively.
 
 ### Git-structured timeline
 
-The intent in Architecture-Boundary.md:75–146 is a Git-like, append-only commit graph with deterministic ancestry and timeline semantics, yet PraxisEngine just keeps commits/branches in BTreeMaps behind a mutex and increments next_commit for ids (crates/engine/src/engine.rs:37 and crates/engine/src/engine.rs:159), meaning history evaporates on restart and commit timestamps are optional/unused; even the UI fell back to showing the id when time was missing (legacy Svelte renderer, now removed). Wire PraxisEngine to a persistent commit/tag store that records authoritative snapshot markers inside SQLite, stamp commit metadata server-side, and surface branch pointers so “main” always reflects “now” without trusting the renderer.
+The intent in Architecture-Boundary.md:75–146 is a Git-like, append-only commit graph with deterministic ancestry and timeline semantics, yet PraxisEngine just keeps commits/branches in BTreeMaps behind a mutex and increments next_commit for ids (crates/praxis/src/engine.rs:37 and crates/praxis/src/engine.rs:159), meaning history evaporates on restart and commit timestamps are optional/unused; even the UI fell back to showing the id when time was missing (legacy Svelte renderer, now removed). Wire PraxisEngine to a persistent commit/tag store that records authoritative snapshot markers inside SQLite, stamp commit metadata server-side, and surface branch pointers so “main” always reflects “now” without trusting the renderer.
 
 ### Abstract meta-model enforcement
 
-The design requires every node/edge to obey the ArchiMate-style catalog (docs/DESIGN.md:83–196), but the engine only stores opaque NodeVersion/EdgeVersion records with TODOs where schema validation should live (crates/engine/src/engine.rs:183 and crates/engine/src/graph.rs:235); StateAtResult today exposes counts only (crates/mneme/src/temporal.rs:24), so no meta-model attributes reach consumers. Introduce a MetaModelRegistry that materialises the schema definitions from commit-style data (e.g., `docs/data/meta/core-v1.json` seeded during import) so the same nested graph structure describing object types, attributes, and constraints is versioned alongside regular commits, enforced inside `GraphSnapshot::apply`, and surfaced as typed DTOs the renderer consumes without embedding business logic.
+The design requires every node/edge to obey the ArchiMate-style catalog (docs/DESIGN.md:83–196), but the engine only stores opaque NodeVersion/EdgeVersion records with TODOs where schema validation should live (crates/praxis/src/engine.rs:183 and crates/praxis/src/graph.rs:235); StateAtResult today exposes counts only (crates/mneme/src/temporal.rs:24), so no meta-model attributes reach consumers. Introduce a MetaModelRegistry that materialises the schema definitions from commit-style data (e.g., `docs/data/meta/core-v1.json` seeded during import) so the same nested graph structure describing object types, attributes, and constraints is versioned alongside regular commits, enforced inside `GraphSnapshot::apply`, and surfaced as typed DTOs the renderer consumes without embedding business logic.
 
 ### Configurable/deliverable meta-model
 
@@ -27,7 +27,7 @@ The delivered meta-model is only prose in docs/DESIGN.md, and there’s no mecha
 
 ### Base dataset alignment
 
-Requirements call for a baseline dataset that mirrors the strategy-to-execution chain, yet the engine seeds just five sample nodes and four edges (crates/engine/src/engine.rs:425) and the renderer’s dev adapter merely tracks node/edge counts in memory (app/AideonDesktop/src/adapters/src/development-memory.ts:14). Build an importer that loads the real delivered dataset (value streams, capabilities, applications, plan events, etc.) into commits, version it alongside migrations, and ensure state_at can stream actual graph data (not just counts) to both the canvas and reporting layers.
+Requirements call for a baseline dataset that mirrors the strategy-to-execution chain, yet the engine seeds just five sample nodes and four edges (crates/praxis/src/engine.rs:425) and the renderer’s dev adapter merely tracks node/edge counts in memory (app/AideonDesktop/src/adapters/src/development-memory.ts:14). Build an importer that loads the real delivered dataset (value streams, capabilities, applications, plan events, etc.) into commits, version it alongside migrations, and ensure state_at can stream actual graph data (not just counts) to both the canvas and reporting layers.
 
 ### Reporting & analytics surface
 

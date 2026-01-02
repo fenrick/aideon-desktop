@@ -6,7 +6,7 @@ authors = ["Aideon Praxis Contributors"]
 license = "MIT"
 
 [dependencies]
-aideon_engine = { path = "../engine" }
+aideon_praxis = { path = "../praxis" }
 log = "0.4"
 
 [dev-dependencies]

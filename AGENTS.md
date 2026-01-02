@@ -129,8 +129,8 @@ host:lint && pnpm run host:check`, `cargo test --all --all-targets` as applicabl
 
 **When adding engine/host functionality**
 
-- Follow the patterns in `crates/engine/DESIGN.md` and `crates/desktop/DESIGN.md` (errors via `PraxisError`/`HostError`, logging with `log`/`tracing`, datastore via Mneme helpers).
-- Use `crates/desktop/src/temporal.rs` and `crates/engine/tests/merge_flow.rs` as golden paths for command wiring and engine flows.
+- Follow the patterns in `crates/praxis/DESIGN.md` and `crates/desktop/DESIGN.md` (errors via `PraxisError`/`HostError`, logging with `log`/`tracing`, datastore via Mneme helpers).
+- Use `crates/desktop/src/temporal.rs` and `crates/praxis/tests/merge_flow.rs` as golden paths for command wiring and engine flows.
 
 ## Task menu for agents (allowed)
 
@@ -240,7 +240,7 @@ For coding standards (quality gates, coverage targets, tooling, and CI rules), s
   - Constraints: no renderer HTTP; no open ports in desktop mode; typed commands only.
   - Tests: Rust tests via `cargo test -p aideon_desktop`; workspace checks via `pnpm run host:lint && pnpm run host:check`.
 
-- **Engines (`crates/engine`, `crates/chrona`, `crates/metis`, `crates/continuum`, `crates/mneme`)**
+- **Engines (`crates/praxis`, `crates/chrona`, `crates/metis`, `crates/continuum`, `crates/mneme`)**
   - Read: each crate’s `README.md`, `DESIGN.md` (where present), `docs/DESIGN.md`, `Architecture-Boundary.md`, relevant ADRs (`0005` meta-model, `0006` storage).
   - Constraints: no Tauri or UI dependencies; obey time-first commit model and adapter boundaries.
   - Tests: crate-level `cargo test -p <crate>` plus workspace Rust checks.
@@ -273,7 +273,7 @@ described in `docs/UX-DESIGN.md`, `docs/design-system.md`, and
 - Keep code paths single and explicit (server-only worker over UDS) to reduce maintenance cost.
   - It is acceptable to expose test-only helpers (e.g., `__test__`) to raise branch coverage when they don’t affect runtime. For React widgets, add Vitest + Testing Library smoke tests alongside the new runtime as soon as it exists.
 
-### Rust worker crates (crates/chrona, crates/metis, crates/engine, crates/continuum)
+### Rust worker crates (crates/chrona, crates/metis, crates/praxis, crates/continuum)
 
 – Rust 2024 edition, `cargo fmt` + `cargo clippy --all-targets --all-features` clean.
 

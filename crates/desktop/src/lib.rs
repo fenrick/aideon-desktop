@@ -12,10 +12,8 @@ mod temporal;
 mod windows;
 mod worker;
 
-pub use aideon_praxis_facade::mneme::WorkerHealth;
-pub use aideon_praxis_facade::praxis::temporal::{
-    DiffArgs, DiffSummary, StateAtArgs, StateAtResult,
-};
+pub use aideon_praxis::mneme::WorkerHealth;
+pub use aideon_praxis::praxis::temporal::{DiffArgs, DiffSummary, StateAtArgs, StateAtResult};
 
 pub fn run() {
     app::run();

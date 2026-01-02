@@ -1,5 +1,5 @@
-use aideon_engine::PraxisEngine;
-use aideon_engine::temporal::{
+use aideon_praxis::PraxisEngine;
+use aideon_praxis::temporal::{
     ChangeSet, CommitChangesRequest, DiffArgs, NodeVersion, StateAtArgs,
 };
 use serde_json::json;
@@ -59,8 +59,8 @@ async fn state_at_and_diff_cover_new_commit() {
 
     let diff = engine
         .diff_summary(DiffArgs {
-            from: aideon_engine::temporal::CommitRef::Id(baseline_head.clone()),
-            to: aideon_engine::temporal::CommitRef::Id(commit_id.clone()),
+            from: aideon_praxis::temporal::CommitRef::Id(baseline_head.clone()),
+            to: aideon_praxis::temporal::CommitRef::Id(commit_id.clone()),
             scope: None,
         })
         .await

@@ -30,9 +30,15 @@ validation. It implements the commit model and `state_at`/`diff` semantics descr
 
 ## Interactions
 
-- Called by Aideon Host and Praxis Facade to service IPC commands.
+- Called by Aideon Host to service IPC commands.
 - Supplies snapshots and diffs to Chrona Visualisation and Metis Analytics.
 - Reads/writes data exclusively through Mneme Core persistence interfaces.
+
+## Facade responsibilities (merged)
+
+- Expose higher-level orchestration APIs so hosts/tools can avoid wiring details.
+- Coordinate calls into Chrona/Metis/Continuum for composite workflows.
+- Keep storage details behind Mneme traits; avoid direct DB drivers here.
 
 ## Constraints and invariants
 
@@ -47,4 +53,4 @@ validation. It implements the commit model and `state_at`/`diff` semantics descr
 - Logging: `tracing`/`log` macros with contextual ids; avoid bespoke log wrappers.
 - Async: `tokio` + async fns; keep heavy work sync where possible, but expose async APIs for host calls.
 - IO/persistence: go through Mneme store traits (`aideon_mneme::store`) and datastore helpers; never reach for raw SQL in this crate.
-- Golden examples: temporal ops (`state_at`, `diff`) and merge flow tests (`tests/merge_flow.rs`) show the expected layering (engine core → store → host facade).
+- Golden examples: temporal ops (`state_at`, `diff`) and merge flow tests (`tests/merge_flow.rs`) show the expected layering (engine core → store → host orchestration).

@@ -74,7 +74,7 @@ Quality gates
 
 - Legacy Svelte renderer has been removed; React + Tauri desktop is now the only renderer.
 - `crates/desktop` — Rust desktop host (Tauri) and IPC surface.
-- `crates/{engine, chrona, metis, continuum, mneme, aideon_praxis_facade}` — domain crates for graph/time/analytics, orchestration, persistence, and the facade.
+- `crates/{engine, chrona, metis, continuum, mneme, aideon_praxis}` — domain crates for graph/time/analytics, orchestration, persistence, and the facade.
 - `app/AideonDesktop` — React/Tauri renderer (canvas, design system, adapters, DTOs).
 - `docs/` — Architecture content, ADRs, C4 diagrams.
 - `scripts/` — Minimal tooling entrypoints (issues.py). Legacy node scripts removed.

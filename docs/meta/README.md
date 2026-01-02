@@ -21,7 +21,7 @@ linking effects) instead of editing JSON manually.
 
 ## Code-first seeding
 
-`crates/engine/src/meta_seed.rs` contains the code representation of this schema. When a new
+`crates/praxis/src/meta_seed.rs` contains the code representation of this schema. When a new
 database is created, `PraxisEngine::ensure_seeded` calls `meta_model_seed_change_set` so the
 meta-model and relationship descriptors are built as regular nodes/edges via the commit APIs
 instead of reading the JSON at runtime. This dog-foots the same APIs the renderer uses and keeps

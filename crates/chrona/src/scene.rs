@@ -1,6 +1,6 @@
 //! Scene generation utilities for the Canvas MVP.
 
-use aideon_engine::canvas::CanvasShape;
+use aideon_praxis::canvas::CanvasShape;
 
 /// Generate a small synthetic scene of shapes for the renderer to display.
 /// Stable and deterministic so the UI can test against it.

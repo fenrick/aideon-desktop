@@ -11,6 +11,15 @@ Aideon Suite is a **graph-native, time-first, local-first** digital twin platfor
 Architecture. It models strategy-to-execution as a graph, treats time/scenarios as first-class, and
 runs primarily as a secure desktop app that can pivot to client-server mode.
 
+## Differentiators (summary)
+
+- **Facts over snapshots:** Mneme stores bi-temporal facts with deterministic resolution; time
+  context is explicit on every read and write.
+- **Semantics over storage:** Praxis publishes metamodel packages and task-oriented APIs; users
+  work through artefacts with integrity and explainability built in.
+- **Desktop as platform:** Aideon Desktop provides a unified shell and workspace module contract;
+  renderer uses typed IPC only and stays offline-first by default.
+
 ## 1. Goals and principles
 
 - **Graph-native:** Represent strategy, capabilities, services, processes, data, technology, and

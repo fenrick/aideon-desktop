@@ -4,6 +4,15 @@ This repository contains **Aideon Suite**, a local-first, graph-native digital t
 makes **time and scenario context first-class**. The suite is built as a set of modules that share a
 common metamodel, adapter boundaries, and security posture.
 
+Key differentiators:
+
+- **Time-first facts:** bi-temporal facts (valid time + asserted time) with plan/actual layers and
+  scenario overlays, not static snapshots.
+- **Task + artefact workflow:** users author through tasks and consume stable artefacts (views,
+  catalogues, matrices, maps, reports) with integrity and explainability.
+- **Secure desktop platform:** a native, offline-first shell with typed IPC only (no renderer HTTP,
+  no open ports in desktop mode), ready to pivot to server mode behind adapters.
+
 Within the suite:
 
 - **Aideon Praxis** defines the enterprise metamodel, task-oriented authoring, and artefact outputs.

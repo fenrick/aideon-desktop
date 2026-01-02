@@ -115,3 +115,14 @@ pub fn open_styleguide(app: AppHandle<Wry>) -> Result<(), String> {
 fn to_string<E: std::fmt::Display>(error: E) -> String {
     error.to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::to_string;
+
+    #[test]
+    fn to_string_formats_errors() {
+        let value = to_string("boom");
+        assert_eq!(value, "boom");
+    }
+}

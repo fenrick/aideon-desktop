@@ -135,6 +135,41 @@ fn to_string<E: std::fmt::Display>(error: E) -> String {
     error.to_string()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::{MenuIds, ShellCommandPayload, to_string};
+    use serde_json::json;
+
+    #[test]
+    fn menu_ids_default_is_empty() {
+        let ids = MenuIds::default();
+        assert!(ids.styleguide.is_empty());
+    }
+
+    #[test]
+    fn shell_command_payload_serializes() {
+        let payload = ShellCommandPayload {
+            command: "toggle-navigation".into(),
+            payload: None,
+        };
+        let encoded = serde_json::to_string(&payload).expect("serialize");
+        assert!(encoded.contains("toggle-navigation"));
+
+        let payload = ShellCommandPayload {
+            command: "file.open".into(),
+            payload: Some(json!({ "path": "/tmp/demo.txt" })),
+        };
+        let encoded = serde_json::to_string(&payload).expect("serialize");
+        assert!(encoded.contains("file.open"));
+        assert!(encoded.contains("demo.txt"));
+    }
+
+    #[test]
+    fn to_string_formats_errors() {
+        assert_eq!(to_string("err"), "err");
+    }
+}
+
 fn append_edit_items(app: &App<Wry>, edit: &Submenu<Wry>) -> Result<(), String> {
     edit.append(&PredefinedMenuItem::undo(app, None).map_err(to_string)?)
         .map_err(to_string)?;

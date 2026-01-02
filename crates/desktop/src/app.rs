@@ -6,14 +6,11 @@ use tauri::async_runtime::spawn;
 use crate::menu::{build_menu, handle_menu_event};
 use crate::setup::{SetupState, run_backend_setup};
 use crate::windows::create_windows;
+use tauri_plugin_log::log::LevelFilter;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let log_level = if cfg!(debug_assertions) {
-        tauri_plugin_log::log::LevelFilter::Debug
-    } else {
-        tauri_plugin_log::log::LevelFilter::Info
-    };
+    let log_level = log_level();
     tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -124,4 +121,24 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn log_level() -> LevelFilter {
+    if cfg!(debug_assertions) {
+        LevelFilter::Debug
+    } else {
+        LevelFilter::Info
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::log_level;
+    use tauri_plugin_log::log::LevelFilter;
+
+    #[test]
+    fn log_level_returns_valid_filter() {
+        let level = log_level();
+        assert!(matches!(level, LevelFilter::Debug | LevelFilter::Info));
+    }
 }

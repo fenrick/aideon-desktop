@@ -19,15 +19,15 @@ See `docs/DESIGN.md` for suite-level product and conceptual design, and
 
 The table below lists the primary modules in this repo. See each module's README for details.
 
-| Name                   | Path                   | Responsibility                                                                                | Type           |
-| ---------------------- | ---------------------- | --------------------------------------------------------------------------------------------- | -------------- |
-| Aideon Desktop         | `app/AideonDesktop`    | React/Tauri desktop shell containing canvas, design system, adapters, and DTOs (flattened).   | Node/React app |
-| Aideon Host            | `crates/desktop`       | Tauri desktop host exposing typed commands and capabilities.                                  | Rust crate     |
-| Praxis Engine          | `crates/praxis`        | Metamodel + task APIs, artefact execution, integrity checks, analytics orchestration.         | Rust crate     |
-| Chrona Visualisation   | `crates/chrona`        | Temporal visualisation helpers and time/scenario UX support.                                   | Rust crate     |
-| Metis Analytics        | `crates/metis`         | Analytics jobs (centrality, impact, TCO, rankings).                                             | Rust crate     |
-| Continuum Orchestrator | `crates/continuum`     | Scheduler/connectors and background orchestration.                                             | Rust crate     |
-| Mneme Core             | `crates/mneme`         | Bi-temporal storage engine (op log, facts, schema, projections) across SQL backends.          | Rust crate     |
+| Name                   | Path                | Responsibility                                                                              | Type           |
+| ---------------------- | ------------------- | ------------------------------------------------------------------------------------------- | -------------- |
+| Aideon Desktop         | `app/AideonDesktop` | React/Tauri desktop shell containing canvas, design system, adapters, and DTOs (flattened). | Node/React app |
+| Aideon Host            | `crates/desktop`    | Tauri desktop host exposing typed commands and capabilities.                                | Rust crate     |
+| Praxis Engine          | `crates/praxis`     | Metamodel + task APIs, artefact execution, integrity checks, analytics orchestration.       | Rust crate     |
+| Chrona Visualisation   | `crates/chrona`     | Temporal visualisation helpers and time/scenario UX support.                                | Rust crate     |
+| Metis Analytics        | `crates/metis`      | Analytics jobs (centrality, impact, TCO, rankings).                                         | Rust crate     |
+| Continuum Orchestrator | `crates/continuum`  | Scheduler/connectors and background orchestration.                                          | Rust crate     |
+| Mneme Core             | `crates/mneme`      | Bi-temporal storage engine (op log, facts, schema, projections) across SQL backends.        | Rust crate     |
 
 For module-level internal design, see each `<module>/DESIGN.md` (where present).
 
@@ -54,6 +54,7 @@ JS/TS and the Rust workspace.
 - Testing strategy: `docs/TESTING-STRATEGY.md`
 - Agent guidance: `AGENTS.md`
 - Roadmap: `docs/ROADMAP.md`
+- Aideon Desktop shell: `app/AideonDesktop/DESIGN.md`
 
 For contributing guidelines, see `CONTRIBUTING.md` and `CODE-OF-CONDUCT.md`. The license for this
 repo is described in `LICENSE`.

@@ -145,6 +145,8 @@ UI responsibilities:
 - Keep renderer code free of backend logic; use typed IPC only.
 - Keep per-OS tweaks purely in CSS tokens or shallow component wrappers; avoid forking components
   by OS.
+- The Aideon Desktop shell contract and workspace slot model are defined in
+  `app/AideonDesktop/DESIGN.md` and should be treated as authoritative for shell layout decisions.
 
 ## 13) Acceptance
 

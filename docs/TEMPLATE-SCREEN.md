@@ -4,8 +4,9 @@
 
 ## Component map
 
-- `PraxisShellLayout` - three-pane shell (left navigation, centre workspace, right properties).
-  Wraps the Scenario view and owns sizing via design-system `ResizablePanelGroup`.
+- `AideonDesktopShell` - primary shell (navigation, toolbar, content, inspector). Owns layout and
+  chrome via design-system shell primitives.
+- `PraxisWorkspaceModule` - fills the shell slots with Praxis-specific components.
 - `ProjectsSidebar` - left pane list of projects and scenarios using shadcn `Sidebar` + `ScrollArea`.
 - `TemplateHeader` - centre-pane header showing Scenario + Template names, description, template
   selector, and primary actions (`Save template`, `Create widget`).
@@ -24,15 +25,15 @@
 - Time controls rely on `useTemporalPanel()` state/actions; `TimeCursorCard` accepts
   `{ state, actions, copy }`.
 - Template selection uses existing `CanvasTemplate` models; callbacks are passed down from the
-  Scenario page to update active template and trigger saves.
+  workspace content to update active template and trigger saves.
 - Selection -> Inspector: `PropertiesInspector` accepts `selectionKind`, optional `selectionId`, and
   future property bags; the Scenario view is responsible for passing selection updates from
   widgets/store.
 
 ## Interaction flows (developer view)
 
-1. **Load page:** `PraxisShellLayout` requests scenarios, populates `ProjectsSidebar`, sets default
-   Scenario + Template.
+1. **Load page:** `AideonDesktopShell` selects the active workspace module and renders its slots;
+   Praxis loads scenarios, populates `ProjectsSidebar`, sets default Scenario + Template.
 2. **Change time:** `TimeCursorCard` dispatches `selectScenario`, `selectValidTime`, `selectLayer`,
    `refreshTimeBounds`.
 3. **Select item:** Widgets raise `selection` updates; the page maps them to `selectionKind` + ids
@@ -46,6 +47,10 @@
   readers.
 - Empty states describe the expected action ("Select a widget, node or edge to edit its
   properties.").
+
+## Shell reference
+
+- Shell composition and slot sizing are defined in `app/AideonDesktop/DESIGN.md`.
 
 ## Adding widgets or inspector sections
 

@@ -1,6 +1,6 @@
-# Praxis Scenario / Template UX Shell
+# Aideon Desktop Shell - Praxis Scenario / Template Surface
 
-**Scope:** Scenario and Template experience inside the Praxis desktop app. Updated 2025-12-08.
+**Scope:** Scenario and Template experience inside the Aideon Desktop shell. Updated 2025-12-08.
 
 ## Current structure (before refactor)
 
@@ -14,26 +14,26 @@
   the right card stack, not a dedicated timeline section.
 - **Properties:** Selection inspector card is one of many right-column cards; properties are not a
   distinct pane.
-- **Mental model gaps:** Scenario vs Template vs Timeline are intermingled; the shell is bespoke
-  instead of reusing the design-system desktop shell.
+- **Mental model gaps:** Scenario vs Template vs Timeline are intermingled; the workspace still
+  behaves as if it owns its own shell instead of filling the Aideon Desktop shell slots.
 
-## Target three-pane shell
+## Target shell contract
 
 Mental model: "In a Scenario, the user selects a Template, adjusts the Time cursor (valid time and
 layer), and inspects widgets and their properties."
 
-- **Left sidebar (navigation):** Inset sidebar with icon rail, nested sections, and file-tree-style
-  scenario groups; built with shadcn `Sidebar` primitives (`Sidebar`, `SidebarGroup`, `SidebarMenu`,
-  `SidebarMenuSub`, `SidebarRail`). Hosts scenario selection and lightweight project metadata.
-- **Centre pane (primary workspace):**
+- **Shell navigation slot:** Inset sidebar with icon rail, nested sections, and file-tree-style
+  scenario groups; built with design-system `Sidebar` primitives. Hosts scenario selection and
+  lightweight project metadata.
+- **Shell content slot:**
   - Template header: scenario name, template name + description, template selector, primary actions
     ("Save template", "Create widget").
   - Search bar scoped to "Search scenarios, elements, artefacts".
   - Tabs (`Tabs`): `Overview | Timeline | Activity`.
   - Overview tab: `SnapshotOverviewCard` (read-only metrics) and `TimeCursorCard` (scenario selector,
     valid-time selector, layer toggle, snapshot label).
-- **Right pane (Properties inspector):** Contextual properties for the current selection
-  (widget/node/edge). Empty state: "Select a widget, node or edge to edit its properties."
+- **Shell inspector slot:** Contextual properties for the current selection (widget/node/edge).
+  Empty state: "Select a widget, node or edge to edit its properties."
 - **Visual rules:** H1 for template title, H2 for section headings, sentence-case labels, card grid
   alignment, primary buttons filled; secondary outline/ghost.
 
@@ -54,8 +54,10 @@ layer), and inspects widgets and their properties."
 
 ## Implementation notes
 
-- New `PraxisShellLayout` will wrap the Scenario/Template surface with slots for navigation, centre
-  content, and properties, built on design-system `DesktopShell` parts.
+- `AideonDesktopShell` owns layout and chrome; Praxis provides slot components via its
+  `WorkspaceModule` registration (navigation, toolbar, content, inspector).
+- Shell slot sizing, toolbar composition, and navigation constraints are defined in
+  `app/AideonDesktop/DESIGN.md`.
 - Time cursor stays backed by `useTemporalPanel`; scenario/time/layer controls remain typed and
   testable.
 - Copy strings move to a shared copy module to avoid all-caps labels and to keep accessibility

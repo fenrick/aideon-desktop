@@ -104,6 +104,7 @@ For UX and design details, see:
 
 - `docs/UX-DESIGN.md` - UX goals, artefact UX contract, layouts, interaction principles.
 - `docs/DESIGN-SYSTEM.md` - design system structure and usage.
+- `app/AideonDesktop/DESIGN.md` - Aideon Desktop shell contract and workspace slots.
 
 ## 6. Data, integration, and automation
 

@@ -19,13 +19,13 @@ bringing storage, metamodel, artefacts, and analytics into a cohesive, time-firs
 
 ## Workstreams
 
-| ID   | Workstream                                | Primary Modules                    | Depends on |
-| ---- | ----------------------------------------- | ---------------------------------- | ---------- |
-| WS-A | Mneme storage + facts + projections        | Mneme, Praxis                      | None       |
-| WS-B | Metamodel packages + registry + rules      | Praxis, Mneme                      | WS-A       |
-| WS-C | Artefact schemas + execution + UI adapters | Praxis, Host, Desktop              | WS-A/B     |
-| WS-D | Analytics + explainability                | Metis, Praxis, Host                | WS-A/B/C   |
-| WS-E | Governance, CI, and coverage gates         | Docs, CI, Host, Desktop, Engines   | WS-A-D     |
+| ID   | Workstream                                 | Primary Modules                  | Depends on |
+| ---- | ------------------------------------------ | -------------------------------- | ---------- |
+| WS-A | Mneme storage + facts + projections        | Mneme, Praxis                    | None       |
+| WS-B | Metamodel packages + registry + rules      | Praxis, Mneme                    | WS-A       |
+| WS-C | Artefact schemas + execution + UI adapters | Praxis, Host, Desktop            | WS-A/B     |
+| WS-D | Analytics + explainability                 | Metis, Praxis, Host              | WS-A/B/C   |
+| WS-E | Governance, CI, and coverage gates         | Docs, CI, Host, Desktop, Engines | WS-A-D     |
 
 ## WS-A - Mneme storage + facts + projections
 

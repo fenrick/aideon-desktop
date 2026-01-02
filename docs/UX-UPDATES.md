@@ -1,6 +1,9 @@
 # Aideon Desktop UX Modernization Plan
 
-This document outlines the strategy to modernize the User Experience (UX) and User Interface (UI) of the Aideon Desktop application. The goal is to establish a professional, cohesive, and scalable design system that strictly adheres to **Shadcn UI** principles and provides a respectful, native-like experience across macOS, Windows, and Linux.
+This document outlines the strategy to modernize the User Experience (UX) and User Interface (UI) of
+the Aideon Desktop application. The goal is to establish a professional, cohesive, and scalable
+design system that aligns with the Aideon Desktop shell contract in `app/AideonDesktop/DESIGN.md`
+and provides a respectful, native-like experience across macOS, Windows, and Linux.
 
 ## Core Philosophy: "Native-Tier Corporate"
 
@@ -67,6 +70,8 @@ We are moving away from "Playful Startup" (round corners, quirky fonts) to "Prof
 
 ## 5. Execution Checklist
 
+0.  **Shell alignment:** Ensure all workspaces render inside `AideonDesktopShell` slots (navigation,
+    toolbar, content, inspector) per `app/AideonDesktop/DESIGN.md`.
 1.  **Typography Reform:** Update `tokens.ts` and `styles.css` to demote Space Grotesk.
 2.  **OS Scrollbars:** Inject webkit scrollbar styles in `globals.css`.
 3.  **Sidebar Polish:** Refactor `projects-sidebar.tsx` to strictly use Shadcn sidebar primitives and tokens.

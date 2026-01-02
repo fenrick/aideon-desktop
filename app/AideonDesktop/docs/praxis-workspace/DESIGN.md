@@ -30,13 +30,14 @@ embedding during tests or previews.
 
 ## Time-first canvas behaviour
 
-- Geometry persists per `asOf` (and optional `scenario`) via host IPC; renderer respects saved positions and only re-runs layout on demand.
+- Geometry persists per time context (valid time, optional scenario, layer) via host IPC; renderer
+  respects saved positions and only re-runs layout on demand.
 - Auto-layout is user-triggered; default layout uses React Flow/ELK-compatible routines but must not override existing coordinates unless explicitly requested.
 - Save/load flows go through typed adapters; no renderer-side storage beyond UI state.
 
 ## Data model and APIs
 
-- Consumes DTOs from `src/dtos` (temporal snapshots/diffs, meta-model documents, job DTOs).
+- Consumes DTOs from `src/dtos` (time-context reads, diffs, metamodel documents, job DTOs).
 - Talks to the host exclusively via adapters defined in `src/adapters`.
 - Treats the digital twin as read/write projections only; no private data store beyond UI state.
 
@@ -48,7 +49,8 @@ embedding during tests or previews.
 
 ## UI patterns (golden example)
 
-- **Golden vertical:** Time control + temporal panel + diff widgets (commit timeline, state-at, diff summary) use the current shadcn/React pattern. Use these as the template for new surfaces.
+- **Golden vertical:** Time cursor + artefact widgets (views/catalogues/matrices/maps) use the
+  current shadcn/React pattern. Use these as the template for new surfaces.
 - **State management:** Co-locate state in hooks (`useTemporalPanel`) with return `[state, actions]`; avoid global singletons. Derive UI-ready state from DTOs; keep async side effects inside hooks.
 - **Data fetching/IPC:** Use typed functions from `praxis-api.ts` that wrap Tauri IPC with consistent error handling. Keep IPC mapping inside the API layer, not components.
 - **Loading/error/empty handling:** Components accept `loading`, `error`, and optional `empty` hints from their hook state and render design-system `Alert`/`Skeleton` patterns. Errors should be human-readable, not raw objects.

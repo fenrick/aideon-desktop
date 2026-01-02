@@ -9,9 +9,10 @@ and in which stage, not on low-level architecture or design decisions.
 **Date:** 2025-10-14
 **Goal:** Deliver **Aideon Suite**, a local-first, graph-native EA platform (Tauri desktop + Rust
 engines) that treats **time and scenarios as first-class dimensions** (valid time + asserted time
-+ Plan/Actual layers), with a clean path to server mode. The current implementation focus is the
-**Praxis desktop module** (core digital twin), with Chrona, Metis, Continuum, and Mneme evolving
-alongside it.
+
+- Plan/Actual layers), with a clean path to server mode. The current implementation focus is the
+  **Praxis desktop module** (core digital twin), with Chrona, Metis, Continuum, and Mneme evolving
+  alongside it.
 
 ## Guiding Principles
 

@@ -31,5 +31,5 @@ For multi-terminal dev workflow, see `docs/GETTING-STARTED.md`.
 
 Praxis Workspace is the primary renderer surface for the digital twin, built on React, XYFlow
 (React Flow), and the shared design system. Internal layout, state, and widget composition are
-described in `app/AideonDesktop/docs/praxis-workspace/DESIGN.md`. Suite-level architecture lives in
-`ARCHITECTURE-BOUNDARY.md`.
+described in `app/AideonDesktop/docs/praxis-workspace/DESIGN.md`. The shell contract is defined in
+`app/AideonDesktop/DESIGN.md`. Suite-level architecture lives in `ARCHITECTURE-BOUNDARY.md`.

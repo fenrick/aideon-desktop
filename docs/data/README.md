@@ -45,6 +45,6 @@ docs/data/
 
 ## Quality gates
 
-- YAML is validated via serde with strict schemas inside `aideon_praxis`.
+- YAML is validated via serde with strict schemas inside `praxis`.
 - Importer dry-runs apply the dataset to an in-memory store so validation mirrors runtime behaviour.
 - Baseline data remains versioned and deterministic for CI/regression coverage.

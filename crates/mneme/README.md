@@ -25,7 +25,7 @@ schema and APIs.
 ## Relationships
 
 - **Depends on:** SQLite/SeaORM (or other persistence libs as they are added).
-- **Used by:** Praxis Engine, Metis Analytics, Continuum Orchestrator, Praxis Facade.
+- **Used by:** Praxis Engine, Metis Analytics, Continuum Orchestrator, Praxis.
 
 ## Running and testing
 

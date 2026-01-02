@@ -36,7 +36,7 @@ semantics, tasks, and integrity.
 
 ## Running and testing
 
-- Rust tests (crate only): `cargo test -p aideon_praxis`
+- Rust tests (crate only): `cargo test -p praxis`
 - Workspace Rust checks: `pnpm run host:lint && pnpm run host:check`
 
 ## Design and architecture

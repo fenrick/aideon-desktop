@@ -16,7 +16,7 @@ renderer.
 ## Data model and APIs
 
 - Defines command DTOs and error types that cross the host boundary.
-- Maps IPC commands to engine/facade methods (Praxis Engine, Chrona, Metis, Continuum, Mneme).
+- Maps IPC commands to engine methods (Praxis, Chrona, Metis, Continuum, Mneme).
 
 ## Interactions
 

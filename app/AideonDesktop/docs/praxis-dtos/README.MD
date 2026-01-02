@@ -1,0 +1,32 @@
+# Praxis DTOs – Aideon Suite module
+
+_Flatten note: DTOs now live at `app/AideonDesktop/src/dtos` within the desktop package; import via relative or `src`-rooted paths (no aliases)._
+
+## Purpose
+
+Praxis DTOs defines shared TypeScript data-transfer objects used across Praxis workspace, Praxis
+Desktop, and host/worker adapters. It keeps IPC and worker contracts consistent and strongly typed.
+
+## Responsibilities
+
+- Define DTOs for temporal state/diff snapshots, meta-model documents, and analytics/job payloads.
+- Provide type-safe shapes for Praxis adapters (`src/adapters`) and React components.
+- Keep frontend-facing types aligned with Rust DTOs from Mneme/Praxis Engine.
+
+## Relationships
+
+- **Depends on:** TypeScript toolchain and shared linting/typecheck setup.
+- **Used by:** Praxis workspace, Praxis Desktop, Praxis Adapters, and tests/fixtures.
+
+## Running and testing
+
+- Typecheck DTOs: `pnpm --filter @aideon/desktop run typecheck`
+- Tests: `pnpm run node:test` (Vitest suite includes DTO tests)
+
+DTOs are also typechecked as part of the suite-wide command: `pnpm run node:typecheck`.
+
+## Design and architecture
+
+For suite-wide schema and meta-model design, see `docs/DESIGN.MD`, `docs/meta/README.MD`, and
+`docs/data/README.MD`. If this package gains additional logic (codegen, versioning), extend
+documentation in `app/AideonDesktop/docs/praxis-dtos/DESIGN.MD`.

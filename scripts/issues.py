@@ -576,7 +576,7 @@ def main(argv: list[str]) -> int:
     DOD = (
         "\n\n### Definition of Done\n"
         "- CI: lint, typecheck, unit tests updated\n"
-        "- Docs: user & dev docs updated (README/ADR/CHANGELOG)\n"
+        "- Docs: user & dev docs updated (README/CHANGELOG)\n"
         "- Security: renderer IPC boundaries respected; no new ports\n"
         "- Performance: SLO notes or benches if applicable\n"
         "- UX: matches GitHub-inspired style (light/dark)\n"

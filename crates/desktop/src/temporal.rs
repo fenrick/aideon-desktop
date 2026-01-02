@@ -1,7 +1,7 @@
 //! Host-side temporal commands bridging renderer IPC calls to the worker engine.
 //!
 //! These commands remain thin so that all business logic stays within the worker
-//! crate, reinforcing the boundary guidance spelled out in `AGENTS.md`.
+//! crate, reinforcing the boundary guidance spelled out in `AGENTS.MD`.
 
 use aideon_praxis::praxis::meta::MetaModelDocument;
 use aideon_praxis::praxis::temporal::{

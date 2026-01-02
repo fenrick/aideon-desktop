@@ -43,7 +43,7 @@ export { IpcTemporalAdapter } from './timegraph-ipc';
 
 /**
  * GraphAdapter defines the read-only time-sliced graph access used by the UI.
- * Implementations must be backend-agnostic and respect AGENTS.md boundaries.
+ * Implementations must be backend-agnostic and respect AGENTS.MD boundaries.
  */
 export interface GraphAdapter {
   /**

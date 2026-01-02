@@ -1,7 +1,7 @@
 //! Praxis core graph model library.
 //!
 //! This crate provides the commit-centric temporal model described in
-//! `Architecture-Boundary.md` and exposes a cohesive API surface that
+//! `ARCHITECTURE-BOUNDARY.MD` and exposes a cohesive API surface that
 //! orchestrates Praxis Engine with Chrona/Metis/Continuum/Mneme.
 
 pub mod canvas;

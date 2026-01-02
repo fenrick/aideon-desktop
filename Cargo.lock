@@ -44,7 +44,7 @@ dependencies = [
 name = "aideon_chrona"
 version = "0.0.0"
 dependencies = [
- "aideon_engine",
+ "aideon_praxis",
  "log",
  "serde_json",
  "tokio",
@@ -58,7 +58,7 @@ version = "0.0.0"
 name = "aideon_desktop"
 version = "0.0.0"
 dependencies = [
- "aideon_praxis_facade",
+ "aideon_praxis",
  "dirs",
  "log",
  "serde",
@@ -68,28 +68,10 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-log",
  "tauri-plugin-opener",
+ "tempfile",
  "time",
  "tokio",
  "window-vibrancy",
-]
-
-[[package]]
-name = "aideon_engine"
-version = "0.0.0"
-dependencies = [
- "aideon_continuum",
- "async-recursion",
- "async-trait",
- "blake3",
- "futures",
- "rusqlite",
- "serde",
- "serde_json",
- "serde_yaml",
- "tempfile",
- "thiserror 2.0.17",
- "time",
- "tokio",
 ]
 
 [[package]]
@@ -141,14 +123,34 @@ dependencies = [
 ]
 
 [[package]]
-name = "aideon_praxis_facade"
+name = "aideon_praxis"
+version = "0.0.0"
+dependencies = [
+ "aideon_continuum",
+ "async-recursion",
+ "async-trait",
+ "blake3",
+ "futures",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "thiserror 2.0.17",
+ "time",
+ "tokio",
+]
+
+[[package]]
+name = "aideon_praxis"
 version = "0.0.0"
 dependencies = [
  "aideon_chrona",
  "aideon_continuum",
- "aideon_engine",
  "aideon_metis",
  "aideon_mneme",
+ "aideon_praxis",
+ "tokio",
 ]
 
 [[package]]
@@ -156,8 +158,8 @@ name = "aideon_xtask"
 version = "0.1.0"
 dependencies = [
  "aideon_continuum",
- "aideon_engine",
  "aideon_mneme",
+ "aideon_praxis",
  "anyhow",
  "clap",
  "serde",

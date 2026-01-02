@@ -2,7 +2,7 @@
  * Shared TypeScript contracts for the adapter boundary.
  *
  * These types model the "time-first digital twin" primitives referenced in
- * AGENTS.MD so the renderer can reason about temporal snapshots without
+ * AGENTS.md so the renderer can reason about temporal snapshots without
  * leaking backend-specific details. All adapters should depend on these
  * interfaces to guarantee interoperability between local and remote hosts.
  */
@@ -49,7 +49,7 @@ import type {
 
 /**
  * Analytics job definitions exposed by the WorkerClient. These mirror the job
- * menu captured under “Contracts snapshot” in AGENTS.MD.
+ * menu captured under “Contracts snapshot” in AGENTS.md.
  */
 export interface WorkerJobMap {
   'Analytics.ShortestPath': {

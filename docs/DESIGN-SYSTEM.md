@@ -2,70 +2,68 @@
 
 ## Purpose
 
-Describe the structure and role of the Aideon Design System module (now flattened inside
-`app/AideonDesktop/src/design-system`): how shadcn/ui and React Flow primitives are wrapped into
-shared blocks, how tokens are managed, and how React-based renderers in Aideon Suite are expected to
-consume them.
+Define how the React renderer consumes shared UI primitives and blocks. The design system is
+flattened into `app/AideonDesktop/src/design-system` and is the **only** source of UI primitives for
+product surfaces.
 
-## Purpose
+---
 
-Centralize all vanilla shadcn/ui primitives, React Flow UI registry components, and Praxis-specific
-proxy blocks so every renderer (Praxis workspace, legacy desktop, future apps) consumes the same
-layered design system.
+## Principles
 
-## Structure
+- **Vanilla-first:** shadcn/ui and React Flow registry components are treated as generated sources.
+- **Proxy blocks:** product UI composes blocks (panel, toolbar, sidebar, modal) rather than raw
+  primitives.
+- **Single source:** all renderers import from the design-system package, not from Radix/shadcn
+  directly.
 
-The Tailwind tokens now live inside `src/styles/globals.css`; we removed the separate
-`tailwind.config.ts`, so the CLI relies purely on that stylesheet instead of a dedicated config file.
+---
+
+## Structure (authoritative)
 
 ```
 app/AideonDesktop/src/design-system/
-├── blocks/*              # reusable blocks (panel, toolbar, sidebar, modal)
-├── components/ui/*       # shadcn CLI output (raw primitives + registry adapters)
-├── hooks/*               # shared hooks (e.g., `useIsMobile`)
-├── ui/*                  # wrapped/aggregated exports consumed by renderers
-├── components/*          # React Flow UI registry components + Praxis proxies
-├── lib/utils.ts          # shared utility helpers
-├── styles/globals.css    # base CSS variables (import from consumers plus Tailwind tokens)
-└── index.ts              # aggregated exports
+├── blocks/          # UI blocks (panel, toolbar, sidebar, modal)
+├── components/ui/   # generated shadcn primitives + registry entries
+├── components/      # React Flow UI registry proxies
+├── hooks/           # shared hooks
+├── styles/          # globals and theme tokens
+└── index.ts         # consolidated exports
 ```
 
-The CLI targets `src/components/ui` via `components.json`, so treat that folder as generated output
-and wrap its primitives inside `src/ui/*` or `src/blocks/*` before shipping.
+Generated primitives should not be edited directly. Wrap them in `blocks/` or proxy components.
 
-## Refreshing components
+---
 
-Always run the refresh script inside the design-system package so every consumer stays aligned with
-vanilla shadcn/reactflow:
+## Tokens
+
+Design tokens are part of the design system surface:
+
+- CSS variables and theme defaults: `app/AideonDesktop/src/design-system/styles/globals.css`
+- JS/TS helpers for spacing/layout decisions: `app/AideonDesktop/src/design-system/tokens.ts`
+
+Product UI must not hard-code colors, radii, or spacing. Use tokens or CSS variables.
+
+---
+
+## Refreshing primitives
+
+Use the design-system refresh command to sync shadcn and React Flow registries:
 
 ```
 pnpm --filter @aideon/desktop run components:refresh
 ```
 
-This pulls the default shadcn primitives plus the React Flow UI registry entries (Base Node, Node
-Tooltip, Node Search, Animated SVG Edge, etc.). Do not edit the generated files directly; wrap them
-in proxy components under `src/reactflow` or `src/blocks` if you need design-system behavior.
+---
 
-## Proxy + block layers
+## Usage rules
 
-- `src/blocks/panel.tsx` exposes the standard card/form stack (`Panel`, `PanelHeader`,
-  `PanelField`, `PanelToolbar`) used by Praxis components and future apps.
-- `src/blocks/modal.tsx` wraps shadcn `Dialog` so command palette, exports, and confirmations share
-  the same chrome.
-- `src/blocks/toolbar.tsx` defines toolbar rows/sections/separators for canvas controls.
-- `src/blocks/sidebar.tsx` defines the shell/headings/nav sections for inspectors and navigation.
-- New block concepts should be added here (forms, toolbars, modals, sidebars, inspectors, etc.) and
-  then consumed downstream through `src/design-system/blocks/*`. Keep them vanilla-first (only
-  compose the primitives) so refreshing registries remains a one-line command.
+- Import from `@aideon/design-system/*` (or local path in the desktop renderer).
+- Do not import Radix/shadcn directly from product surfaces.
+- Include `styles/globals.css` to pick up tokens.
 
-## Using the design system
+---
 
-- Add `src/design-system` as a workspace dependency and import via the documented subpaths
-  (e.g., `src/design-system/ui/button`, `src/design-system/blocks/panel`,
-  `src/design-system/reactflow/praxis-node`).
-- Include `src/design-system/styles/globals.css` (or copy its CSS variables) in the renderer’s global CSS
-  so the tokens match.
-- Tailwind consumers must include `../AideonDesktop/src/design-system/**/*.{ts,tsx}` in their `content` globs
-  so class names from the shared components are discovered.
-- Renderer-specific helpers (`@/components/blocks/*`) should depend on the design system instead of
-  duplicating shadcn components.
+## References
+
+- UX contract: `docs/UX-DESIGN.md`
+- Shell layout: `app/AideonDesktop/DESIGN.md`

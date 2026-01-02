@@ -1,170 +1,78 @@
-# Aideon Suite - Staged Implementation Roadmap
+# Roadmap (Evergreen Planning)
 
 ## Purpose
 
-Outline the forward-looking milestones and phases for Aideon Suite, showing how Praxis, Chrona,
-Metis, Continuum, and Mneme evolve over time. This document focuses on **what** we plan to deliver
-and in which stage, not on low-level architecture or design decisions.
+Capture the staged delivery plan for Aideon Suite. This document is **planning**, not architecture.
+Design truth lives in `docs/DESIGN.md` and `ARCHITECTURE-BOUNDARY.md`.
 
-**Date:** 2025-10-14
-**Goal:** Deliver **Aideon Suite**, a local-first, graph-native EA platform (Tauri desktop + Rust
-engines) that treats **time and scenarios as first-class dimensions** (valid time + asserted time
+Last reviewed: 2026-01-02
 
-- Plan/Actual layers), with a clean path to server mode. The current implementation focus is the
-  **Praxis desktop module** (core digital twin), with Chrona, Metis, Continuum, and Mneme evolving
-  alongside it.
+---
 
-## Guiding Principles
+## Planning rules
 
-- Clear separation: Tauri/Rust host & OS integration; engine crates (Praxis/Chrona/Metis/Continuum)
-  behind typed traits.
-- Swap-friendly adapters: Graph, Storage, RPC are interfaces with reference impls.
-- Security by default: hardened IPC, PII redaction, least privilege.
-- Cloud-ready: Same components run local or remote by configuration.
-- Small, valuable increments: every phase has acceptance and exit checks.
+- Desktop-first and offline-first by default.
+- No renderer HTTP; no open TCP ports in desktop mode.
+- Renderer remains stable: locality (local vs remote) is an adapter swap behind the host.
+- Work ships as bounded, explainable artefacts and tasks; no unbounded “query UI”.
+- Backlog lives in GitHub Issues/Projects; this doc only records milestones and SLO targets.
+
+---
 
 ## Milestones
 
-### M0 - Foundations (Weeks 1-2)
+### M0 - Foundations
 
-#### Outcomes
+- Secure desktop baseline (typed IPC, CSP, capabilities).
+- Contract discipline (DTOs + error envelopes + contract tests).
+- Mneme store available in desktop mode (SQLite) with migrations.
 
-- Monorepo, CI for TS and Rust, CODEOWNERS.
-- Tauri capabilities baseline (no renderer HTTP, strict CSP, least-privilege plugins).
-- Architecture boundaries documented and enforced.
-- Interfaces: `GraphAdapter`, `StorageAdapter`, `WorkerClient`.
+### M1 - Local app MVP (Praxis workspace)
 
-> **Renderer migration:** The legacy Svelte renderer has been removed. All roadmap items assume
-> the React + React Flow canvas runtime described in `docs/DESIGN.md` and
-> `app/AideonDesktop/docs/praxis-workspace/DESIGN.md`. Any remaining Svelte references (primarily in
-> mirrored historical issue docs) are informational only.
+- Praxis metamodel bootstrapped with stable IDs.
+- Time/scenario context drives artefact execution and UI controls.
+- Initial artefacts rendered in the UI with loading/empty/error states.
 
-#### Acceptance
+### M2 - Analytics execution (Metis)
 
-- `pnpm run node:test` green on macOS/Windows/Linux; Rust host `cargo fmt/clippy/check/test` clean.
-- App shell launches with secured preload/IPC bridge; no renderer HTTP.
-- Architecture docs updated and agreed (RPC and adapter boundaries).
+- Analytics jobs wired as host-managed work (job lifecycle + progress).
+- Deterministic algorithms and performance baselines.
+- Large payload strategy (streaming/columnar where needed).
 
-### M1 - Local App MVP (Weeks 3-6)
+### M3 - Artefact system depth
 
-#### Outcomes (updated)
+- Artefact storage and schema validation (views/catalogues/matrices/maps/reports/pages).
+- Drill-down and explainability surfaced consistently across artefacts.
+- Scenario compare and time-diff UX grounded in artefact outputs.
 
-- React + Tauri desktop shell (typed IPC) backed by local Mneme store.
-- Praxis metamodel packages + registry bootstrapped with stable IDs.
-- Time cursor (scenario + valid time + layer) drives time-sliced reads.
-- Basic artefact execution in the UI (views/catalogues) with empty/loading/error states.
-- Pipeline hardening (coverage in CI, CSP checks, Sonar inputs).
+### M4 - Automation (Continuum)
 
-#### Acceptance (updated)
+- Scheduling + connector scaffolding behind adapters.
+- Ingest workflows that preserve provenance (ops + facts) and stay replayable.
 
-- User can switch scenario, adjust time, and see artefact results update.
-- CI: Node + Rust tests green; coverage >= 80% new code; CSP/windows test passes.
+### M5 - Server mode pivot
 
-### M2 - Analytics Worker MVP (Weeks 7-10)
+- Remote adapters for engines while preserving renderer contracts.
+- Authn/z, audit, and capability posture consistent with desktop baseline.
 
-#### Outcomes
+### M6 - Extensibility + docs hardening
 
-- Worker process for analytics (Metis) behind RPC; per-launch token.
-- Algorithms: shortest path, degree/betweenness, impact analysis.
-- Arrow for large payloads; health and restart supervision.
-- Perf baselines captured (SLOs).
+- C4 diagrams-as-code and contract documentation tightened.
+- Plugin/extension seams proven by at least one non-core module.
 
-#### Acceptance
+---
 
-- Worker jobs return deterministically; no open TCP ports.
-- 50k-node centrality within target SLOs.
+## SLO targets (v1)
 
-### M3 - Artefacts + Time APIs (Weeks 11-14)
+- Cold start <= 3s
+- Open medium workspace (tens of thousands of entities) <= 2s
+- Interactive artefact execution p95 <= 250ms (warm)
+- Matrix execution (1k x 1k sparse) <= 1s; export <= 2s (500 items)
 
-#### Outcomes
+---
 
-- Artefact schemas and storage (views, catalogues, matrices, maps).
-- Plan Events model (+ confidence) and time/scenario execution context.
-- AS-OF slider, scenario compare export, catalogue/matrix drill-down.
-- CSV wizard v2: validation/rollback.
+## Non-goals (v1)
 
-#### Acceptance
+- Full OWL/SHACL reasoning.
+- Marketplace plugins and multi-tenant SaaS productization.
 
-- Time-slicing works end-to-end; artefact execution stable and explainable.
-- BI reads via localhost; redaction verified.
-
-### M4 - Automation and Connector #1 (Weeks 15-18)
-
-#### Outcomes
-
-- Scheduler; CMDB connector (delta sync).
-- Staleness metrics; freshness story mode.
-
-#### Acceptance
-
-- Scheduled syncs update changed items only; audit logs kept.
-- Staleness dashboard active.
-
-### M5 - Cloud/Server Mode (Weeks 19-24)
-
-#### Outcomes
-
-- Remote Graph/Worker endpoints (mTLS), config switch local<->remote.
-- RBAC + optimistic locking + audit.
-- Finance/TCO policies (inflation, FX, discount) and `GET /tco`.
-- Landing Zone catalogue + conformance.
-
-#### Acceptance
-
-- Desktop targets local or remote without code changes.
-- Concurrent edits resolve with clear UX.
-- TCO scenario PV compare report generated.
-
-### M6 - Docs and Extensibility (Weeks 25-28)
-
-#### Outcomes
-
-- Full C4 suite (DSL + exports), docs site build.
-- Plugin hooks and examples.
-
-#### Acceptance
-
-- One-command docs site build; sample plugins pass tests.
-
-## SLOs (v1 Targets)
-
-- Cold start <= 3s; open workspace (~50k/200k) <= 2s.
-- View execution p95 <= 250ms at 50k/200k (warm).
-- Matrix execution (1k x 1k sparse) <= 1s; export <= 2s (500 items).
-- Shortest path (<= 6 hops) p95 <= 300ms; betweenness (50k) <= 90s batch.
-- CSV import 50k rows <= 120s; UI p95 render <= 100ms.
-
-## Non-Goals (MVP)
-
-- Full OWL/SHACL reasoning, marketplace plugins, AR/VR, multi-tenant SaaS.
-
-## Immediate Backlog (Prioritised)
-
-1. Prove the pipeline and harden
-
-- Persistence boundary: keep `continuum::SnapshotStore` for canvas/layout data; use Mneme facts for
-  domain state.
-- E2E contract tests: Vitest against mocked Tauri bridge with golden JSON snapshots for artefact
-  execution and time-context changes.
-- Coverage in CI: generate LCOV (Vitest) and Rust coverage (grcov); feed Sonar (ensure report
-  paths).
-- Security checks: assert CSP and window permission caps in a prod build test.
-- Release dry run: produce dev artifacts for macOS/Windows/Linux; verify signing path (ad-hoc certs
-  locally acceptable).
-
-2. Time & Scenarios (M1.1)
-
-- Timebar (playhead/scrubber), scenario picker, layer toggle, filters, compare toggle, status area
-  for unsaved changes.
-  Acceptance: scrub time, switch scenarios, enter compare in <= 2 clicks.
-
-3. Graph Edit & Inspect (M1.2)
-
-- Canvas affordances (pan/zoom, snap-to-grid, lasso, drag handles to create edges), context actions,
-  inspector panel, keyboard shortcuts.
-  Acceptance: create two nodes, connect, edit labels, undo/redo in <= 30s.
-
-4. Change Authoring & Diff (M1.3)
-
-- Task-oriented authoring (create/link/update), diff view, conflict tray, preview.
-  Acceptance: create a scenario change, compare to baseline, resolve a conflict.

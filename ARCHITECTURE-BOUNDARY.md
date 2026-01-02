@@ -1,114 +1,154 @@
-# Architecture & Boundaries (Aideon Suite)
+# Architecture and Boundaries (Aideon Suite)
 
 ## Purpose
 
-Provide the canonical code-level architecture and boundary reference for the Aideon Suite monorepo:
-how renderer, host, and engine crates are layered; how adapters and RPC work; and which security and
-time-first constraints must hold across modules (Praxis, Chrona, Metis, Continuum, Mneme).
+This document defines the **boundary rules** that keep Aideon modular, secure, and evolvable. It is
+the shared reference for “what can talk to what” and “what must never happen”.
 
-## Layers
+---
 
-- **Renderer**
-  - React-based Praxis workspace runs inside the Tauri shell.
-  - Renders artefacts (views, catalogues, matrices, maps) and inspectors; owns view state only
-    (selection, filters, time context).
-  - No Node integration; strict CSP; no direct DB or network access; all backend calls go through a
-    typed IPC bridge.
+## The boundary thesis
 
-- **Host (Tauri)**
-  - Creates windows and binds typed commands that wrap engine traits.
-  - Owns capabilities, CSP, window configuration, logging, and OS integration.
-  - Enforces "no open TCP ports" in desktop mode; all work is in-process or over local IPC.
+- **Renderer is disposable UI.** It should be safe to restart, replace, or refactor without losing
+  model correctness.
+- **Host is the authority for side effects.** All IPC, capabilities, filesystem access, and job
+  orchestration are centralized.
+- **Engines are replaceable.** They expose typed trait contracts and can be swapped (local vs
+  remote adapters) without changing the renderer.
 
-- **Adapters (TypeScript)**
-  - Renderer-facing contracts for **tasks**, **artefact execution**, and **analytics**.
-  - Implementations remain backend-agnostic; renderer code depends on interfaces only.
+---
 
-- **Engines (Rust crates)**
-  - Praxis, Mneme, Chrona, Metis, Continuum expose computation traits consumed by the host.
-  - Desktop mode uses in-process adapters; server mode swaps in remote adapters that honor the same
-    trait contracts.
+## Layers and responsibilities
 
-- **Persistence & schema (Mneme + Praxis)**
-  - Mneme Core provides the ACID store (SQLite in desktop mode) and schema/fact tables.
-  - Praxis publishes metamodel packages into Mneme and enforces semantic rules.
+### Renderer (React)
 
-## Host <-> Engine RPC boundary
+Allowed:
 
-Desktop mode keeps all work **in-process** behind Rust traits, but the same contracts are designed
-for remote/server adapters over pipes/UDS or HTTP/2 when enabled.
+- render artefact results and diagram specs
+- maintain UI state (selection, filters, tabs, local layout)
+- call host via typed adapters
 
-### Transport, auth, and schema
+Forbidden:
 
-- **Transport (desktop):** in-process calls over trait objects; no open TCP ports.
-- **Transport (server mode, future):** pipes/UDS or HTTP/2 with the same DTOs.
-- **Auth:** per-launch capability token, per-job deadlines, backpressure, and timeouts.
-- **Schema:** DTOs are versioned and compatible across local and remote adapters.
+- Node integration or OS access
+- direct DB access
+- raw HTTP requests (desktop baseline)
 
-### Core messages
+### Host (Tauri)
 
-- **Job**: `id`, `type`, `schemaVersion`, `payloadRef` (JSON or Arrow), `options`, `deadline`.
-- **Result**: `id`, `status`, `payloadRef` (JSON or Arrow), `metrics` (duration, bytes), optional `error`.
-- **Health**: `status`, `versions`, `uptime`.
+Allowed:
 
-### Job types (v1)
+- typed IPC surface (commands + events)
+- capability enforcement and CSP
+- workspace lifecycle (open/close/migrate/backup)
+- job orchestration (progress, cancel, recovery)
+- OS integration (dialogs, filesystem roots, windowing)
 
-- `Analytics.Centrality` - `{ algorithm: degree|betweenness, scope }`
-- `Analytics.Impact` - `{ seedRefs[], filters{} }`
-- `Finance.TCO` - `{ scope, asOf, scenario?, policies? }`
-- `Temporal.StateAt` - `{ asOf, scenario?, layer? }` (time-context read)
-- `Temporal.Diff` - `{ from, to, scope? }`
+Forbidden:
 
-### Data transfer and lifecycle
+- embedding domain semantics in IPC handlers
+- letting long-running work block an IPC request/response
 
-- **Small payloads:** JSON (UTF-8).
-- **Large/columnar payloads:** Apache Arrow; optional Arrow Flight over gRPC in server mode.
-- Payloads are immutable; results include provenance (time context, policy set IDs).
+### Engines (Rust crates)
 
-## Boundaries & Security
+Allowed:
 
-- Renderer has no direct Node or backend access.
-- Host <-> Renderer: preload IPC only; strict CSP applied in HTML.
-- Host <-> Worker: in-process Rust traits today; future remote adapters must preserve the same
-  command surface. No open ports in desktop mode.
-- PII: exports are deny-by-default; redaction tests required where applicable.
+- domain logic behind traits (Praxis, Mneme, Metis, Chrona, Continuum)
+- deterministic computation independent of UI/runtime
+- persistence only through Mneme (no raw DB access outside Mneme)
 
-## Time-first model (facts + context)
+Forbidden:
 
-- **Valid time**: when something is true in the modeled world.
-- **Asserted time**: when the system learned the fact.
-- **Layer**: Plan vs Actual (higher layer wins in conflicts).
-- **Scenario**: overlay context for what-if changes.
+- importing Tauri/UI dependencies into engine crates
+- engines emitting UI events directly (host owns event publication)
 
-All reads and writes must include explicit time context. Mneme resolves facts deterministically
-based on valid time, layer precedence, interval specificity, and asserted time.
+---
 
-## Metamodel enforcement
+## Communication paths (allowed)
 
-- Praxis publishes metamodel packages into Mneme schema tables (types, fields, edge rules).
-- Domain registry maps domain keys and verbs to Mneme IDs.
-- Writes are validated against master semantics and endpoint constraints.
+### Renderer -> Host
+
+- Typed IPC only (commands for request/response, events for push).
+- Renderer code must call host through adapter modules under `app/AideonDesktop/src/adapters`.
+
+### Host -> Engines
+
+- In-process trait calls in desktop mode.
+- Remote adapters are allowed in server mode, but must preserve the same DTO contracts.
+
+---
+
+## IPC contract rules
+
+- Command names are namespaced: `<domain>.<capability>.<action>`.
+- Payloads are single JSON objects (no positional args).
+- Responses use a stable error envelope with machine-readable codes.
+- Commands are capability-gated; default is deny.
+
+### Tauri capability sources (desktop baseline)
+
+- Capability definitions: `crates/desktop/capabilities/default.json`
+- Tauri config: `crates/desktop/tauri.conf.json`
+- Command implementations: `crates/desktop/src`
+
+---
+
+## Time-first propagation rule (suite-wide)
+
+All read/write operations must carry explicit context:
+
+- `partition_id`
+- time context: valid time, asserted time (optional), layer
+- `scenario_id` (optional)
+
+No module is allowed to assume “current state only”.
+
+---
 
 ## Artefact execution boundary
 
-- Artefacts (views, catalogues, matrices, maps, reports) are executed by Praxis with explicit time
-  context and scenario.
-- Renderer never builds traversal logic; it consumes artefact results and diagram specs only.
+- Praxis executes artefacts and returns UI-ready results and diagram specs.
+- Renderer renders results and handles interaction; it does not implement traversal semantics.
+- Bounded execution is mandatory (depth/size/fanout/time limits).
 
-## Performance guardrails
+---
 
-- Artefact execution and analytics must respect SLOs in `docs/ROADMAP.md`.
-- Large payloads must be chunked/streamed; avoid monolithic JSON blobs.
+## Jobs, progress, and backpressure
 
-## Versioning & migration
+- Long-running work runs as jobs, not synchronous IPC handlers.
+- Host exposes job lifecycle and progress events to the renderer.
+- Engines register work with host job orchestration; they must not spawn unmanaged background work
+  that cannot be cancelled or observed.
 
-- Breaking DTO or storage changes require explicit version bumps and migrations.
-- Schema evolution is forward-only; migrations are explicit and logged.
+---
 
-## Compliance checklist
+## Security constraints (desktop baseline)
 
-- [x] No renderer HTTP
-- [x] No open TCP ports in desktop mode
-- [x] Renderer invokes host commands through typed helper modules (no preload globals)
-- [x] Worker logic executes via engine traits
-- [x] Versioned DTOs and schema migrations
+- No renderer HTTP.
+- No open TCP ports in desktop mode.
+- Filesystem access is mediated by host and scoped to workspaces/app data.
+- Exports are deny-by-default for PII; redaction is required where exports exist.
+
+---
+
+## Versioning and evolution
+
+- DTO and error envelope changes require updating contract docs and contract tests.
+- Schema evolution is forward-only and migrated explicitly.
+- Server pivot is an adapter swap, not a UI fork.
+
+### Pivot constraints (desktop -> remote)
+
+- Renderer continues to call typed adapters only.
+- Host selects local vs remote implementations behind the same DTOs and command names.
+- Baseline security invariants remain true (no renderer HTTP; host remains the boundary).
+
+---
+
+## References
+
+- Suite design: `docs/DESIGN.md`
+- Host design: `crates/desktop/DESIGN.md`
+- Praxis design: `crates/praxis/DESIGN.md`
+- Mneme design: `crates/mneme/DESIGN.md`
+- Contracts: `docs/CONTRACTS-AND-SCHEMAS.md`

@@ -19,12 +19,12 @@ Mneme stores:
   `aideon_pagerank_scores`
 - **Indexed fields**: `aideon_idx_field_*`
 
-SQLite DDL is implemented via SeaORM migrations in `crates/mneme/src/migration`. All IDs are stored
-as `TEXT` UUID strings; valid time is stored as `INTEGER` (microseconds), and HLC asserted time is
-stored as `INTEGER` (portable i64 encoding).
+SQLite DDL is implemented via SeaORM migrations in `crates/mneme_store/src/migration`. All IDs are
+stored as `TEXT` UUID strings; valid time is stored as `INTEGER` (microseconds), and HLC asserted
+time is stored as `INTEGER` (portable i64 encoding).
 
-> Note: Mneme's schema does **not** include per-table `scenario_id` columns. Scenarios are expressed
-> via Praxis context and stored as facts/artefacts using Mneme's standard primitives.
+> Note: Mneme’s SQLite schema includes nullable `scenario_id` columns on op/fact/projection/index
+> tables to support scenario overlays. Baseline rows use `scenario_id = NULL`.
 
 ## Migration + DDL management
 

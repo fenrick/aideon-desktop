@@ -1,146 +1,155 @@
-# Aideon Suite - Product & Design Overview
+# Aideon Suite - Evergreen Design Overview
 
 ## Purpose
 
-Describe the Aideon Suite at a product and conceptual design level: what problems it solves, how the
-**time-first digital twin** is organised, and how the major modules fit together. Detailed
-architecture and implementation design live in module `DESIGN.md` files and
-`ARCHITECTURE-BOUNDARY.md`.
+This is the **central, cross-module design spec** for Aideon Suite. It captures the common threads
+that must stay true across renderer, host, and engine crates.
 
-Aideon Suite is a **graph-native, time-first, local-first** digital twin platform for Enterprise
-Architecture. It models strategy-to-execution as a graph, treats time/scenarios as first-class, and
-runs primarily as a secure desktop app that can pivot to client-server mode.
+Module details live in:
 
-## Differentiators (summary)
+- Host: `crates/desktop/DESIGN.md`
+- Praxis: `crates/praxis/DESIGN.md`
+- Mneme: `crates/mneme/DESIGN.md`
 
-- **Facts over snapshots:** Mneme stores bi-temporal facts with deterministic resolution; time
-  context is explicit on every read and write.
-- **Semantics over storage:** Praxis publishes metamodel packages and task-oriented APIs; users
-  work through artefacts with integrity and explainability built in.
-- **Desktop as platform:** Aideon Desktop provides a unified shell and workspace module contract;
-  renderer uses typed IPC only and stays offline-first by default.
+---
 
-## 1. Goals and principles
+## Design axioms (non-negotiable)
 
-- **Graph-native:** Represent strategy, capabilities, services, processes, data, technology, and
-  change as a single, queryable graph.
-- **Time-first:** Use bi-temporal facts (valid time + asserted time), plan/actual layers, and
-  scenarios to answer "what did we know, when?"
-- **Local-first, cloud-ready:** Ship as a private desktop app with no open ports by default, with a
-  clean pivot to remote/server mode via adapters.
-- **Strict boundaries:** Renderer <-> Host <-> Engines communicate only via typed IPC and adapters;
-  no backend logic in the renderer.
-- **Security by default:** No renderer HTTP, least privilege, PII redaction on exports, and a
-  hardened Tauri host.
+1. **Time-first digital twin**
+   - All reads/writes operate in an explicit time context:
+     - valid time (modeled reality)
+     - asserted time (what we knew, when)
+     - layer (Plan vs Actual precedence)
+     - optional scenario (what-if overlay)
 
-See `ARCHITECTURE-BOUNDARY.md` for a deeper treatment of layering, adapters, and time semantics.
+2. **Ops are the canonical truth**
+   - An append-only op log is the durable source of record.
+   - Derived tables (indexes, projections, caches, analytics outputs) are rebuildable.
 
-## 2. Modules in the suite
+3. **Meaning is separate from storage**
+   - Mneme persists facts and schema-as-data.
+   - Praxis defines semantics (metamodel), tasks, artefacts, integrity, and explanations.
 
-Aideon Suite is composed of several modules that share the same metamodel and time-first engine:
+4. **Artefacts are the primary UX product**
+   - Users consume views/catalogues/matrices/maps/reports/pages executed at time + scenario.
+   - UI does not embed traversal rules or analytics meaning.
 
-- **Aideon Desktop** - core desktop app (Aideon shell + Praxis workspace renderer + Tauri host + engines).
-- **Aideon Praxis** - metamodel + task-oriented authoring + artefact execution + integrity/analytics orchestration.
-- **Aideon Mneme** - bi-temporal persistence engine (op log, facts, schema, projections).
-- **Aideon Chrona** - temporal visualisation over time/scenario slices.
-- **Aideon Metis** - analytics engine for ranking, impact, and TCO.
-- **Aideon Continuum** - orchestration, scheduling, and connectors.
+5. **Host is the security boundary**
+   - Renderer is untrusted and disposable; side effects flow through host capabilities.
+   - Desktop mode is offline-first: no renderer HTTP and no open TCP ports.
 
-The root `README.md` includes an "Aideon Suite modules" table with paths and responsibilities.
-Internal structure and APIs for each module belong in that module's `README.md` and `DESIGN.md`.
+6. **Bounded and explainable execution**
+   - All user-triggered work has explicit bounds (fanout, size, depth, duration).
+   - Analytics and time-travel outputs must be explainable, not just computed.
 
-## 3. Strategy-to-execution metamodel (summary)
+---
 
-Praxis provides a **three-layer model** that keeps the twin usable and analytically consistent:
+## The combined system model
 
-- **Master types (anchors):** small, stable structural roles (Actor, Intent, Value, Capability,
-  Execution, Technology, Structure, Change).
-- **Domain types:** extensible business concepts that inherit from a master type.
-- **Tasks:** user-facing operations that act on master-type roles and domain verbs (not raw graph
-  primitives).
+Aideon Suite is delivered as a secure desktop app with a clean pivot to client-server mode.
 
-Praxis also defines **artefacts** as the primary user work products:
+- **Renderer (React)** renders artefact results and UI state only.
+- **Host (Tauri/Rust)** owns IPC, capabilities, jobs, workspace lifecycle, and OS integration.
+- **Engines (Rust crates)** implement meaning, persistence, analytics, and orchestration behind
+  typed traits.
 
-- Views, catalogues, matrices, maps, reports (and compositions/templates)
-- Executed at a given time + scenario and returned in UI-ready shapes
-- Consistent integrity scoring and explainability
+The pivot to server mode is an adapter swap: the renderer keeps the same typed command surface
+while the host selects local vs remote implementations.
 
-The metamodel itself is published as **packages** with stable IDs, compiled into Mneme's
-`MetamodelBatch`, and stored in Mneme's schema tables. For details, see
-`crates/praxis/DESIGN.md` and `crates/mneme/DESIGN.md`.
+---
 
-## 4. Runtime architecture (suite-level)
+## Shared concepts (suite vocabulary)
 
-At runtime, Aideon Suite is organised into three layers:
+### Workspace / partition
 
-- **Renderer:** React/Tauri Praxis workspace renders artefact results using Aideon Design System
-  components.
-- **Host:** The Tauri-based Aideon Host manages windows, IPC commands, OS integration, and security
-  capabilities.
-- **Engines:** Rust engine crates (Praxis, Mneme, Chrona, Metis, Continuum) implement meaning,
-  persistence, analytics, orchestration, and temporal visualisation.
+A workspace (partition) is the unit of isolation and user work:
 
-Cross-cutting rules:
+- all facts and schema are partition-scoped
+- scenarios are overlays within a partition
+- artefacts are stored and executed per partition
 
-- Renderer never talks to databases or raw HTTP; it only calls the host via a typed bridge (for
-  example the `praxisApi` wrapper under `app/AideonDesktop/src/adapters`).
-- Engines expose traits and DTOs; the host selects local or remote implementations (future server
-  mode) without changing renderer contracts.
-- Desktop mode keeps all engine calls in-process with no open ports; server mode reuses the same
-  DTOs over RPC.
+### Time context
 
-The boundary and RPC design is covered in:
+Time is not ambient:
 
-- `ARCHITECTURE-BOUNDARY.md`
-- `docs/TAURI-CAPABILITIES.md`
-- `docs/TAURI-CLIENT-SERVER-PIVOT.md`
+- valid time answers “what is true?”
+- asserted time answers “what did we know?”
+- layer answers “plan or actual wins?”
+- scenario answers “baseline or overlay?”
 
-## 5. UX surfaces and design system
+### Strategy-to-execution spine (normative)
 
-The primary UX surface is the **Praxis workspace**: a node-based workspace that hosts widgets such
-as views, catalogues, matrices, maps, charts, and timelines over the twin. Other surfaces
-(dashboards, inspectors, reports) are built as widgets or panels within the same shell.
+Praxis centers the twin around a stable backbone used for exploration, integrity checks, and
+analytics gating:
 
-Design system decisions:
+**Intent -> Value -> Capability -> Execution -> Technology -> Change**
 
-- React renderers use **Aideon Design System** (`app/AideonDesktop/src/design-system`), which wraps
-  shadcn/ui and the React Flow UI registry into shared primitives and blocks.
-- All React surfaces import from `@aideon/design-system/*` instead of talking directly to shadcn or
-  React Flow.
-- The legacy Svelte renderer has been removed; new work targets the React design system.
+This spine is not a UI flow; it is a semantic expectation that drives:
 
-For UX and design details, see:
+- integrity scoring (connectivity gaps along the spine reduce confidence)
+- bounded traversal defaults for artefact execution
+- explainability (“why does this capability matter?” is expressed as paths along the spine)
 
-- `docs/UX-DESIGN.md` - UX goals, artefact UX contract, layouts, interaction principles.
-- `docs/DESIGN-SYSTEM.md` - design system structure and usage.
-- `app/AideonDesktop/DESIGN.md` - Aideon Desktop shell contract and workspace slots.
+### Glossary (shared nouns)
 
-## 6. Data, integration, and automation
+- **Partition**: the workspace/tenant boundary for all data and schema.
+- **Scenario**: an overlay within a partition for what-if changes.
+- **Master type**: a stable structural role (Actor, Intent, Value, Capability, Execution, Technology, Structure, Change).
+- **Domain type**: an extensible business concept inheriting from a master type.
+- **Element**: a node instance of a domain type.
+- **Relationship**: an edge instance of a domain verb mapped to master semantics.
+- **Task**: a user-facing authoring operation (create/link/set/move/tombstone).
+- **Artefact**: a stored definition executed to produce results (view, catalogue, matrix, map, report/page).
 
-Data flow in Aideon Suite follows a "metamodel + facts" approach:
+### Tasks and artefacts
 
-- **Persistence:** Mneme stores an operation log plus bi-temporal facts for nodes, edges, and
-  properties, along with schema and projection tables for analytics.
-- **Metamodel:** Praxis publishes metamodel packages into Mneme's schema tables (types, fields,
-  edge rules), with stable IDs committed in source.
-- **Artefacts:** Praxis stores and executes views, catalogues, matrices, maps, and reports as
-  versioned artefacts with explicit schemas.
-- **Integration:** Desktop mode provides read-only localhost APIs; server mode adds authenticated
-  read/write APIs, CSV/XLSX import, and connectors (e.g., CMDB, cloud providers) via Continuum.
-- **Automation:** Continuum orchestrates syncs, freshness checks, and connector jobs; results feed
-  back into the twin and visualisations.
+Praxis exposes:
 
-Detailed connector designs and SLOs should be captured in module-specific design docs (for example,
-a future CMDB connector design under `crates/continuum/DESIGN.md`).
+- **Tasks**: authoring operations that mutate the twin (create/link/set/move/tombstone, etc.).
+- **Artefacts**: declarative work products executed at a time/scenario to produce UI-ready results.
 
-## 7. Where to go next
+### Jobs and events
 
-When working on Aideon Suite, use this document only as a **high-level map**. For deeper details:
+Anything long-running or failure-prone is a job:
 
-- Architecture and boundaries: `ARCHITECTURE-BOUNDARY.md`
-- Coding rules: `docs/CODING-STANDARDS.md`
-- Testing approach: `docs/TESTING-STRATEGY.md`
-- Tauri security and client-server pivot: `docs/TAURI-CAPABILITIES.md`,
-  `docs/TAURI-CLIENT-SERVER-PIVOT.md`
-- Module internals: `<module>/README.md` and `<module>/DESIGN.md`
-- Canonical UX: `docs/UX-DESIGN.md`
+- migrations, imports/exports, analytics, background processing
+- cancellable, observable, and recoverable where feasible
+- progress/events emitted by host to keep UI responsive
+
+---
+
+## End-to-end flow (facts to UX)
+
+1. User triggers a **task** (Praxis validates semantics).
+2. Praxis writes through **Mneme** (ops + facts; required projections/indexes maintained).
+3. Praxis executes **artefacts** at an explicit time context and returns:
+   - result data
+   - diagram specs and hints
+   - integrity gates/warnings and explainability
+4. Renderer renders results and drives inspector/actions from selection.
+
+---
+
+## Security posture (desktop baseline)
+
+- No renderer HTTP; renderer calls host via typed IPC only.
+- No open TCP ports in desktop mode.
+- Filesystem access is workspace-scoped and mediated by host dialogs + capabilities.
+- Exports are deny-by-default for PII; redaction is enforced where applicable.
+
+---
+
+## Evolution and compatibility
+
+- DTOs and error envelopes are versioned; forward compatibility is required.
+- Schema evolution is forward-only with explicit migrations.
+- Cross-boundary changes must update code + tests + contract docs together.
+
+---
+
+## References (authoritative entry points)
+
+- Boundaries: `ARCHITECTURE-BOUNDARY.md`
+- UX contract: `docs/UX-DESIGN.md`
+- Desktop shell: `app/AideonDesktop/DESIGN.md`
+- Contracts: `docs/CONTRACTS-AND-SCHEMAS.md`

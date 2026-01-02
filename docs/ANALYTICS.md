@@ -1,25 +1,40 @@
-# Analytics and Telemetry
+# Telemetry (UI Events)
 
-**Principles:** privacy-first, no external endpoints by default. Events are emitted through an
-injectable analytics interface so hosts can wire to their chosen sink.
+## Purpose
 
-## Event catalogue
+Define **product telemetry** emitted by the renderer. This is distinct from the **Metis analytics
+engine** (rankings, impact, etc.). Telemetry is privacy-first and opt-in by host configuration.
 
-- `template.change` - user switches template. Payload: `{ templateId, scenarioId }`.
-- `template.create_widget` - widget added from registry. Payload: `{ widgetType, templateId }`.
-- `selection.change` - widget/node/edge selection updated. Payload:
-  `{ kind, sourceWidgetId, nodeCount, edgeCount }`.
-- `time.cursor` - time context changed. Payload: `{ scenarioId, validTime, layer }`.
-- `inspector.save` - property save dispatched. Payload: `{ selectionKind, selectionId }`.
-- `error.ui` - user-visible error banner shown. Payload: `{ surface, message }`.
+---
+
+## Principles
+
+- No external endpoints by default.
+- No PII in payloads.
+- Payloads are JSON-serializable and versioned.
+
+---
+
+## Event catalogue (renderer)
+
+- `template.change` - template selection changed.
+- `template.create_widget` - widget added from registry.
+- `selection.change` - selection updated (counts only).
+- `time.cursor` - time context changed.
+- `inspector.save` - property save dispatched.
+- `error.ui` - user-visible error banner shown.
+
+---
 
 ## Implementation hooks
 
-- Analytics lives in `canvas/lib/analytics.ts`; default sink logs to `console.debug` in dev.
-- Use `setAnalyticsSink(fn)` to inject a host implementation; keep payloads JSON-serialisable.
-- Events must never include PII; redact free-form text beyond selection ids.
+- Renderer emits events through an injectable sink.
+- Default sink is console logging in dev.
+- Host may provide a sink, but must keep telemetry off by default.
 
-## Debugging
+---
 
-- Dev overlay (`Cmd/Ctrl+Shift+D`) shows current scenario, template, selection, and the most recent
-  analytics events (in-memory ring buffer, non-persistent).
+## References
+
+- Analytics engine: `crates/metis/DESIGN.md`
+

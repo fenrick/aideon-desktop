@@ -21,7 +21,7 @@ Before making changes, agents should read:
 
 ## Documentation index
 
-- **Canonical**: `README.md`, `docs/DESIGN.md`, `ARCHITECTURE-BOUNDARY.md`, `docs/CODING-STANDARDS.md`, `docs/TESTING-STRATEGY.md`, `docs/DESIGN-SYSTEM.md`, `docs/UX-DESIGN.md`, `docs/TAURI-CAPABILITIES.md`, `docs/TAURI-CLIENT-SERVER-PIVOT.md`, module-level `README.md` + `DESIGN.md`, and the module-level `README.md` + `DESIGN.md`.
+- **Canonical**: `README.md`, `docs/DESIGN.md`, `ARCHITECTURE-BOUNDARY.md`, `docs/CODING-STANDARDS.md`, `docs/TESTING-STRATEGY.md`, `docs/DESIGN-SYSTEM.md`, `docs/UX-DESIGN.md`, and module-level `README.md` + `DESIGN.md`.
 - Legacy Svelte renderer (`app/PraxisDesktop/`) has been removed; ignore any remaining references to it.
 
 > **Scope:** These instructions apply exclusively to the `aideon-praxis` codebase. Do not spend time optimising for downstream consumers, SDKs, or hypothetical adopters outside this repository unless explicitly directed in a task.
@@ -233,7 +233,7 @@ For coding standards (quality gates, coverage targets, tooling, and CI rules), s
   - Tests: JS/TS tests via `pnpm run node:test` (Vitest).
 
 - **Aideon Host (`crates/desktop`)**
-  - Read: `crates/desktop/README.md`, `crates/desktop/DESIGN.md`, `docs/TAURI-CAPABILITIES.md`, `docs/TAURI-CLIENT-SERVER-PIVOT.md`.
+  - Read: `crates/desktop/README.md`, `crates/desktop/DESIGN.md`, `ARCHITECTURE-BOUNDARY.md`.
   - Constraints: no renderer HTTP; no open ports in desktop mode; typed commands only.
   - Tests: Rust tests via `cargo test -p aideon_desktop`; workspace checks via `pnpm run host:lint && pnpm run host:check`.
 

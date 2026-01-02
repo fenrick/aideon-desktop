@@ -340,6 +340,6 @@ Run these locally before every commit (CI enforces the same):
 
 ## References
 
-- Commands: `docs/COMMANDS.md`
+- Commands: root `package.json` (`pnpm -w run`)
 - Practices & guardrails: `AGENTS.md`
 - Contributor workflow: `CONTRIBUTING.md`

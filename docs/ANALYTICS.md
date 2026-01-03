@@ -37,4 +37,3 @@ engine** (rankings, impact, etc.). Telemetry is privacy-first and opt-in by host
 ## References
 
 - Analytics engine: `crates/metis/DESIGN.md`
-

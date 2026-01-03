@@ -7,6 +7,12 @@ the shared reference for “what can talk to what” and “what must never happ
 
 ---
 
+## Documentation precedence
+
+Documentation is authoritative. Update code to match documentation. Do not change documentation to match existing code unless the intended architecture changes.
+
+---
+
 ## The boundary thesis
 
 - **Renderer is disposable UI.** It should be safe to restart, replace, or refactor without losing
@@ -65,6 +71,8 @@ Forbidden:
 ---
 
 ## Communication paths (allowed)
+
+Renderer ↔ Host uses Tauri invoke. Host ↔ Engines uses Rust traits in-process.
 
 ### Renderer -> Host
 

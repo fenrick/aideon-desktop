@@ -51,6 +51,21 @@ Notes:
 
 ---
 
+## Common commands
+
+- Dev (renderer): `pnpm run node:dev`
+- Dev (host): `pnpm tauri dev`
+- Build (renderer assets): `pnpm run node:build`
+- Build (desktop bundle): `pnpm tauri build`
+- Lint (renderer): `pnpm run node:lint`
+- Typecheck (renderer): `pnpm run node:typecheck`
+- Test (root): `pnpm run node:test && pnpm run host:test`
+- Test (desktop/host): `pnpm run host:test`
+- Test (renderer): `pnpm run node:test`
+- E2E (manual smoke): `pnpm run node:dev` + `pnpm tauri dev`
+
+---
+
 ## 3) Quality checks
 
 ```bash

@@ -5,10 +5,11 @@ _Flatten note: DTOs now live at `app/AideonDesktop/src/dtos` within the desktop 
 ## Purpose
 
 Praxis DTOs defines shared TypeScript data-transfer objects used across Praxis workspace, Praxis
-Desktop, and host/worker adapters. It keeps IPC and worker contracts consistent and strongly typed.
+Desktop, and host adapters. It keeps IPC contracts consistent and strongly typed.
 
 ## Responsibilities
 
+- DTOs must use camelCase across the boundary.
 - Define DTOs for temporal state/diff snapshots, meta-model documents, and analytics/job payloads.
 - Provide type-safe shapes for Praxis adapters (`src/adapters`) and React components.
 - Keep frontend-facing types aligned with Rust DTOs from Mneme/Praxis Engine.
@@ -16,7 +17,7 @@ Desktop, and host/worker adapters. It keeps IPC and worker contracts consistent 
 ## Relationships
 
 - **Depends on:** TypeScript toolchain and shared linting/typecheck setup.
-- **Used by:** Praxis workspace, Praxis Desktop, Praxis Adapters, and tests/fixtures.
+- **Used by:** Praxis workspace, Aideon Desktop renderer, Praxis Adapters, and tests/fixtures.
 
 ## Running and testing
 

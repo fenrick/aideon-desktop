@@ -36,8 +36,8 @@ Before making changes, agents should read:
 - **Time-first digital twin:** time context (valid time + asserted time), scenarios, plan/actual layers,
   and Plan Events are authoritative.
 - **Local‑first, cloud‑ready:** Desktop works offline; server mode is a config switch, not a fork.
-- **Strict boundaries:** Renderer ↔ Host via preload IPC; Host ↔ Worker via pipes/UDS RPC. No
-  DB‑specific logic in the renderer.
+- **Strict boundaries:** Renderer calls Host via Tauri invoke (typed adapters). Desktop mode runs engines in-process. Host calls engines via Rust traits. No sockets. No DB‑specific logic in the renderer.
+- This repository’s documentation defines the target architecture; code is updated to match it.
 - **Security by default:** No renderer HTTP; no open TCP ports in desktop mode; PII redaction on
   exports; least privilege.
 - **Adapters, not entanglement:** Graph, Storage, Worker are interface‑driven. Backends swap without
@@ -267,7 +267,7 @@ described in `docs/UX-DESIGN.md`, `docs/DESIGN-SYSTEM.md`, and
 - Use check-only hooks locally; CI enforces the same rules.
 - Coverage targets (Node/TS and Rust): Lines ≥ 80%, Branches ≥ 80%, Functions ≥ 80% on new code; overall should trend upward.
 - Sonar: `sonar.new_code.referenceBranch=main` configured; CI waits for the Sonar Quality Gate before merging.
-- Keep code paths single and explicit (server-only worker over UDS) to reduce maintenance cost.
+- Keep code paths single and explicit. Desktop mode runs engines in-process. Host calls engines via Rust traits. No sockets.
   - It is acceptable to expose test-only helpers (e.g., `__test__`) to raise branch coverage when they don’t affect runtime. For React widgets, add Vitest + Testing Library smoke tests alongside the new runtime as soon as it exists.
 
 ### Rust worker crates (crates/chrona, crates/metis, crates/praxis, crates/continuum)
@@ -326,7 +326,7 @@ The current worker jobs and time APIs are defined by engine contracts and module
 
 ## Testing guidance
 
-- TS: unit tests for adapters, preload bridges, UI state; avoid DOM‑heavy tests unless needed.
+- TS: unit tests for adapters. Renderer calls Host via Tauri invoke (typed adapters). UI state; avoid DOM‑heavy tests unless needed.
 - Rust: unit tests/integration tests for host and domain crates (chrona/metis/praxis);
   deterministic seeds for graph generators.
 - Golden datasets: provide small synthetic graphs for 5k/50k nodes to assert performance envelopes.

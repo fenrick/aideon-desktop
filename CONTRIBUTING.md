@@ -140,7 +140,7 @@ Use labels (`type/*`, `area/*`, `module/*`, `priority/*`) and assign the **miles
 ## Security
 
 - Never open worker TCP ports in desktop mode.
-- IPC over pipes/UDS with per-launch token.
+- Desktop mode runs engines in-process. Host calls engines via Rust traits. No sockets.
 - Redact PII on exports by default.
 - “No renderer HTTP” means no renderer-initiated backend/network calls in desktop mode; the dev
   toolchain may use a loopback dev server for HMR.

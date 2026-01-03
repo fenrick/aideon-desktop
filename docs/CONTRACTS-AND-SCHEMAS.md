@@ -31,4 +31,3 @@ shapes in feature code.
 3. Update IPC handlers and adapters.
 4. Extend contract tests (Rust + TypeScript).
 5. Update the affected module `README.md`/`DESIGN.md`.
-

@@ -66,7 +66,7 @@ refer to `ARCHITECTURE-BOUNDARY.md`. The notes below focus on product/module nam
   - New code is measured against `main` (see `sonar.new_code.referenceBranch`)
   - CI waits for Sonar Quality Gate; failing the gate blocks merges
 
-## TypeScript / React (Praxis Desktop)
+## TypeScript / React (Aideon Desktop renderer)
 
 - Tooling: ESLint + Prettier; Vitest for unit tests; React compiler/runtime checks. The legacy
   Svelte renderer has been removed; do not introduce new Svelte surfaces.
@@ -76,8 +76,8 @@ refer to `ARCHITECTURE-BOUNDARY.md`. The notes below focus on product/module nam
     require an issue reference and a TODO explaining removal criteria.
   - No backend‑specific logic in the renderer; IPC only via the typed `praxisApi` bridge. React
     components must not reach for `@tauri-apps/api` directly.
-  - Sanitise/validate data crossing the preload boundary; avoid leaking privileged data into
-    renderer state. React Flow nodes/edges should carry only the data required for rendering.
+  - UI components must not call invoke() directly; adapters own all IPC calls.
+  - Sanitise/validate data crossing the IPC boundary (Tauri invoke) via adapters; avoid leaking privileged data into renderer state. React Flow nodes/edges should carry only the data required for rendering.
 - Keep code paths single and explicit; the app speaks to the host over typed IPC commands, and the
   host selects the appropriate engine adapter.
 - Coverage

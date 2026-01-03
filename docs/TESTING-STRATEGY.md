@@ -41,4 +41,3 @@ Coverage failures are hard gates in CI.
 - Update tests whenever behavior or DTO shapes change.
 - Prefer deterministic tests (fixed seeds for graph data).
 - Validate boundary rules (no renderer HTTP, no ports in desktop mode).
-

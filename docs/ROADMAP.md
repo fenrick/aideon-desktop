@@ -75,4 +75,3 @@ Last reviewed: 2026-01-02
 
 - Full OWL/SHACL reasoning.
 - Marketplace plugins and multi-tenant SaaS productization.
-

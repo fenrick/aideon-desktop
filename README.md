@@ -12,15 +12,15 @@ engines evolve behind typed boundaries.
 
 ## Modules
 
-| Name                   | Path                | Responsibility                                                                    |
-| ---------------------- | ------------------- | --------------------------------------------------------------------------------- |
-| Aideon Desktop         | `app/AideonDesktop` | React renderer, design system, workspace surfaces, adapters, DTOs.                |
-| Aideon Host            | `crates/desktop`    | Tauri runtime, IPC, capabilities, jobs, workspace lifecycle.                      |
-| Praxis Engine          | `crates/praxis`     | Metamodel, task APIs, artefact execution, integrity, analytics orchestration.     |
-| Mneme Core             | `crates/mneme`      | Op log, bi-temporal facts, schema-as-data, projections, processing.               |
-| Metis Analytics        | `crates/metis`      | Analytics algorithms and ranking jobs.                                            |
-| Chrona Visualisation   | `crates/chrona`     | Time/scenario UX primitives and temporal helpers.                                 |
-| Continuum Orchestrator | `crates/continuum`  | Orchestration, scheduling, connectors.                                            |
+| Name                   | Path                | Responsibility                                                                |
+| ---------------------- | ------------------- | ----------------------------------------------------------------------------- |
+| Aideon Desktop         | `app/AideonDesktop` | React renderer, design system, workspace surfaces, adapters, DTOs.            |
+| Aideon Host            | `crates/desktop`    | Tauri runtime, IPC, capabilities, jobs, workspace lifecycle.                  |
+| Praxis Engine          | `crates/praxis`     | Metamodel, task APIs, artefact execution, integrity, analytics orchestration. |
+| Mneme Core             | `crates/mneme`      | Op log, bi-temporal facts, schema-as-data, projections, processing.           |
+| Metis Analytics        | `crates/metis`      | Analytics algorithms and ranking jobs.                                        |
+| Chrona Visualisation   | `crates/chrona`     | Time/scenario UX primitives and temporal helpers.                             |
+| Continuum Orchestrator | `crates/continuum`  | Orchestration, scheduling, connectors.                                        |
 
 ## Central design docs
 

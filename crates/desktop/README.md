@@ -15,7 +15,7 @@ Rust engines.
 ## Relationships
 
 - **Depends on:** Engine crates (Praxis Engine, Chrona Visualisation, Metis Analytics, Continuum Orchestrator, Mneme Core).
-- **Used by:** Praxis Canvas and Praxis Desktop via IPC (`@tauri-apps/api` from the renderer side).
+- **Used by:** Aideon Desktop UI and Aideon Desktop renderer via IPC (`@tauri-apps/api` from the renderer side).
 
 ## Running and testing
 

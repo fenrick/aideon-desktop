@@ -10,8 +10,8 @@ import {
   type RefCallback,
 } from 'react';
 
-import { dedupeIds } from 'aideon/canvas/selection';
 import type { CanvasRuntimeLayoutPersistence } from 'aideon/canvas/canvas-runtime';
+import { dedupeIds } from 'aideon/canvas/selection';
 import { Badge } from 'design-system/components/ui/badge';
 import { Button } from 'design-system/components/ui/button';
 import {
@@ -414,81 +414,80 @@ function PraxisWorkspaceStateProvider({
     return `${documentId}::${scenarioToken}::${runtimeAsOf}`;
   }, [activeTemplate?.documentId, runtimeAsOf, runtimeScenario]);
 
-  const canvasLayoutPersistence = useMemo<CanvasRuntimeLayoutPersistence<CanvasWidget> | undefined>(
-    () => {
-      const documentId = activeTemplate?.documentId;
-      if (!documentId) {
-        return;
-      }
-      if (!isTauri()) {
-        return;
-      }
+  const canvasLayoutPersistence = useMemo<
+    CanvasRuntimeLayoutPersistence<CanvasWidget> | undefined
+  >(() => {
+    const documentId = activeTemplate?.documentId;
+    if (!documentId) {
+      return;
+    }
+    if (!isTauri()) {
+      return;
+    }
 
-      const context = {
-        docId: documentId,
-        asOf: runtimeAsOf,
-        scenario: runtimeScenario,
-      } as const;
+    const context = {
+      docId: documentId,
+      asOf: runtimeAsOf,
+      scenario: runtimeScenario,
+    } as const;
 
-      return {
-        load: async () => {
-          try {
-            const layout = await getCanvasLayout(context);
-            if (!layout) {
-              return;
-            }
-
-            const positions: Record<string, { x: number; y: number }> = {};
-            const sizes: Record<string, { w: number; h: number }> = {};
-
-            for (const node of layout.nodes) {
-              positions[node.id] = { x: node.x, y: node.y };
-              sizes[node.id] = { w: node.w, h: node.h };
-            }
-
-            return { positions, sizes };
-          } catch {
+    return {
+      load: async () => {
+        try {
+          const layout = await getCanvasLayout(context);
+          if (!layout) {
             return;
           }
-        },
-        save: async (canvasWidgets, snapshot) => {
-          try {
-            const nodes = canvasWidgets
-              .map((widget) => {
-                const position = snapshot.positions[widget.id];
-                const size = snapshot.sizes[widget.id];
-                if (!position || !size) {
-                  return;
-                }
-                return {
-                  id: widget.id,
-                  typeId: 'widget',
-                  x: position.x,
-                  y: position.y,
-                  w: size.w,
-                  h: size.h,
-                  z: 0,
-                  label: widget.title,
-                };
-              })
-              .filter((node): node is NonNullable<typeof node> => node !== undefined);
 
-            await saveCanvasLayout({
-              docId: context.docId,
-              asOf: context.asOf,
-              scenario: context.scenario,
-              nodes,
-              edges: [],
-              groups: [],
-            });
-          } catch {
-            // ignore persistence failures
+          const positions: Record<string, { x: number; y: number }> = {};
+          const sizes: Record<string, { w: number; h: number }> = {};
+
+          for (const node of layout.nodes) {
+            positions[node.id] = { x: node.x, y: node.y };
+            sizes[node.id] = { w: node.w, h: node.h };
           }
-        },
-      };
-    },
-    [activeTemplate?.documentId, runtimeAsOf, runtimeScenario],
-  );
+
+          return { positions, sizes };
+        } catch {
+          return;
+        }
+      },
+      save: async (canvasWidgets, snapshot) => {
+        try {
+          const nodes = canvasWidgets
+            .map((widget) => {
+              const position = snapshot.positions[widget.id];
+              const size = snapshot.sizes[widget.id];
+              if (!position || !size) {
+                return;
+              }
+              return {
+                id: widget.id,
+                typeId: 'widget',
+                x: position.x,
+                y: position.y,
+                w: size.w,
+                h: size.h,
+                z: 0,
+                label: widget.title,
+              };
+            })
+            .filter((node): node is NonNullable<typeof node> => node !== undefined);
+
+          await saveCanvasLayout({
+            docId: context.docId,
+            asOf: context.asOf,
+            scenario: context.scenario,
+            nodes,
+            edges: [],
+            groups: [],
+          });
+        } catch {
+          // ignore persistence failures
+        }
+      },
+    };
+  }, [activeTemplate?.documentId, runtimeAsOf, runtimeScenario]);
 
   const selectionKind = deriveSelectionKind(selectionState.selection);
   const selectionId = primarySelectionId(selectionState.selection);

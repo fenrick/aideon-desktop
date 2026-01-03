@@ -41,4 +41,3 @@ export interface CanvasLayoutSnapshot {
   readonly edges: CanvasEdge[];
   readonly groups: CanvasGroup[];
 }
-

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { AideonCanvasRuntime, type CanvasRuntimeLayoutPersistence } from 'aideon/canvas/canvas-runtime';
+import {
+  AideonCanvasRuntime,
+  type CanvasRuntimeLayoutPersistence,
+} from 'aideon/canvas/canvas-runtime';
 import { fromWidgetSelection } from 'aideon/canvas/selection';
 import type { SelectionState, WidgetSelection } from 'aideon/canvas/types';
 import type { GraphViewModel } from 'praxis/praxis-api';

@@ -204,23 +204,29 @@ function AideonCanvasRuntimeImpl<TWidget extends CanvasWidgetLayout>({
     };
   }, [layoutHydrated, persistSnapshot, widgets]);
 
-  const handleDragEnd = useCallback((id: string, x: number, y: number) => {
-    setWidgetPositions((previous) => {
-      const next = { ...previous, [id]: { x, y } };
-      widgetPositionsReference.current = next;
-      persistSnapshot(next, widgetSizesReference.current);
-      return next;
-    });
-  }, [persistSnapshot]);
+  const handleDragEnd = useCallback(
+    (id: string, x: number, y: number) => {
+      setWidgetPositions((previous) => {
+        const next = { ...previous, [id]: { x, y } };
+        widgetPositionsReference.current = next;
+        persistSnapshot(next, widgetSizesReference.current);
+        return next;
+      });
+    },
+    [persistSnapshot],
+  );
 
-  const handleResizeEnd = useCallback((id: string, w: number, h: number) => {
-    setWidgetSizes((previous) => {
-      const next = { ...previous, [id]: { w, h } };
-      widgetSizesReference.current = next;
-      persistSnapshot(widgetPositionsReference.current, next);
-      return next;
-    });
-  }, [persistSnapshot]);
+  const handleResizeEnd = useCallback(
+    (id: string, w: number, h: number) => {
+      setWidgetSizes((previous) => {
+        const next = { ...previous, [id]: { w, h } };
+        widgetSizesReference.current = next;
+        persistSnapshot(widgetPositionsReference.current, next);
+        return next;
+      });
+    },
+    [persistSnapshot],
+  );
 
   const viewportTransform = useMemo(() => {
     const x = viewport.x.toString();

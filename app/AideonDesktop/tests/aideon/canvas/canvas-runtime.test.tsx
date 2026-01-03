@@ -1,7 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { AideonCanvasRuntime, type CanvasRuntimeLayoutPersistence } from 'aideon/canvas/canvas-runtime';
+import {
+  AideonCanvasRuntime,
+  type CanvasRuntimeLayoutPersistence,
+} from 'aideon/canvas/canvas-runtime';
 import type { CanvasWidgetLayout } from 'aideon/canvas/types';
 
 describe('AideonCanvasRuntime', () => {

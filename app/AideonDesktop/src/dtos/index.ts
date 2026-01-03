@@ -1,6 +1,5 @@
 export { ensureIsoDateTime } from './iso';
 
-export type { IsoDateTime } from './iso';
 export type {
   CanvasEdge,
   CanvasGroup,
@@ -8,6 +7,7 @@ export type {
   CanvasLayoutSnapshot,
   CanvasNode,
 } from './canvas';
+export type { IsoDateTime } from './iso';
 export type {
   ConfidencePercent,
   GraphSnapshotMetrics,

@@ -27,8 +27,20 @@ vi.mock('design-system/components/ui/select', () => {
 
 describe('TemplateHeader', () => {
   const templates: CanvasTemplate[] = [
-    { id: 't1', documentId: 'canvasdoc-t1', name: 'Baseline Template', description: 'First', widgets: [] },
-    { id: 't2', documentId: 'canvasdoc-t2', name: 'Resilience Template', description: 'Second', widgets: [] },
+    {
+      id: 't1',
+      documentId: 'canvasdoc-t1',
+      name: 'Baseline Template',
+      description: 'First',
+      widgets: [],
+    },
+    {
+      id: 't2',
+      documentId: 'canvasdoc-t2',
+      name: 'Resilience Template',
+      description: 'Second',
+      widgets: [],
+    },
   ];
 
   it('shows scenario + template names and triggers callbacks', () => {

@@ -27,7 +27,7 @@ export function WidgetToolbar({
 }: WidgetToolbarProperties) {
   const title = metadata?.name ?? fallbackTitle;
   const subtitle = metadata
-    ? `As of ${new Date(metadata.asOf).toLocaleString()}`
+    ? `As of ${formatAsOf(metadata.asOf)}`
     : 'Awaiting twin data';
 
   return (
@@ -47,4 +47,19 @@ export function WidgetToolbar({
       </Button>
     </div>
   );
+}
+
+/**
+ * Format an "as-of" identifier for display. Accepts timestamps or commit-like identifiers.
+ * @param asOf - Timestamp or commit identifier.
+ */
+function formatAsOf(asOf: string): string {
+  const parsed = new Date(asOf);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleString();
+  }
+  if (asOf.length > 16) {
+    return `${asOf.slice(0, 8)}…`;
+  }
+  return asOf;
 }

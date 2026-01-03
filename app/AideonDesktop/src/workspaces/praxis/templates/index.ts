@@ -33,6 +33,7 @@ export interface CanvasTemplate {
 
 export interface TemplateContext {
   scenario?: string;
+  asOf?: string;
 }
 
 /**
@@ -44,7 +45,7 @@ export function instantiateTemplate(
   template: CanvasTemplate,
   context: TemplateContext,
 ): PraxisCanvasWidget[] {
-  const asOf = new Date().toISOString();
+  const asOf = context.asOf ?? new Date().toISOString();
   return template.widgets.map((widget) => {
     if (widget.kind === 'graph') {
       return {

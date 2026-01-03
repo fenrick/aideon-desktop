@@ -7,7 +7,7 @@ import {
 } from 'praxis/templates';
 
 describe('templates', () => {
-  it('instantiates templates with current timestamps', () => {
+  it('instantiates templates with default timestamps when asOf is omitted', () => {
     const template = BUILT_IN_TEMPLATES[0];
     expect(template).toBeDefined();
     if (!template) {
@@ -17,6 +17,19 @@ describe('templates', () => {
     expect(widgets).toHaveLength(template.widgets.length);
     for (const widget of widgets) {
       expect(widget.view.asOf).toBeTruthy();
+    }
+  });
+
+  it('instantiates templates with provided asOf context', () => {
+    const template = BUILT_IN_TEMPLATES[0];
+    expect(template).toBeDefined();
+    if (!template) {
+      return;
+    }
+    const widgets = instantiateTemplate(template, { asOf: 'c1', scenario: 'main' });
+    for (const widget of widgets) {
+      expect(widget.view.asOf).toBe('c1');
+      expect(widget.view.scenario).toBe('main');
     }
   });
 

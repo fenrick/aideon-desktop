@@ -344,8 +344,11 @@ function PraxisWorkspaceStateProvider({
     if (!activeTemplate) {
       return [];
     }
-    return instantiateTemplate(activeTemplate, { scenario: activeScenario?.branch });
-  }, [activeScenario?.branch, activeTemplate]);
+    return instantiateTemplate(activeTemplate, {
+      scenario: activeScenario?.branch ?? temporalState.branch,
+      asOf: temporalState.commitId,
+    });
+  }, [activeScenario?.branch, activeTemplate, temporalState.branch, temporalState.commitId]);
 
   const selectionKind = deriveSelectionKind(selectionState.selection);
   const selectionId = primarySelectionId(selectionState.selection);

@@ -22,6 +22,41 @@ import {
 const isTauriMock = vi.mocked(isTauri);
 const invokeMock = vi.mocked(invoke);
 
+/**
+ * Narrow unknown values to plain object records.
+ * @param value
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Extract requestId from invoke arguments.
+ * @param invokeArguments
+ */
+function requestIdFromInvokeArguments(invokeArguments: unknown): string | undefined {
+  if (!isRecord(invokeArguments)) {
+    return undefined;
+  }
+  const request = invokeArguments.request;
+  if (!isRecord(request)) {
+    return undefined;
+  }
+  const requestId = request.requestId;
+  return typeof requestId === 'string' ? requestId : undefined;
+}
+
+/**
+ * Create a successful IPC envelope response for the adapter boundary.
+ * @param result
+ */
+function mockIpcOk(result: unknown) {
+  invokeMock.mockImplementationOnce((_command: string, invokeArguments: unknown) => {
+    const requestId = requestIdFromInvokeArguments(invokeArguments) ?? 'req';
+    return Promise.resolve({ requestId, status: 'ok', result });
+  });
+}
+
 describe('praxis-api fallbacks and normalization', () => {
   beforeEach(() => {
     isTauriMock.mockReturnValue(false);
@@ -46,7 +81,7 @@ describe('praxis-api fallbacks and normalization', () => {
 
   it('normalizes branch payloads from the host', async () => {
     isTauriMock.mockReturnValue(true);
-    invokeMock.mockResolvedValue({ branches: [{ name: 'main', head: undefined }, { head: 'h1' }] });
+    mockIpcOk({ branches: [{ name: 'main', head: undefined }, { head: 'h1' }] });
 
     const branches = await listTemporalBranches();
 
@@ -58,7 +93,7 @@ describe('praxis-api fallbacks and normalization', () => {
 
   it('normalizes commit payloads and falls back to branch name', async () => {
     isTauriMock.mockReturnValue(true);
-    invokeMock.mockResolvedValue({
+    mockIpcOk({
       commits: [{ id: 'c1', parents: ['p1', 42], tags: ['t1', 99], change_count: 3 }, {}],
     });
 
@@ -85,7 +120,7 @@ describe('praxis-api fallbacks and normalization', () => {
         kind: 'graph',
         asOf: '2025-01-01',
       }),
-    ).rejects.toThrow("Host command 'praxis_graph_view' failed: bad news");
+    ).rejects.toThrow("Host command 'praxis.artefact.execute_graph' failed: bad news");
   });
 
   it('returns deterministic mock diff summary when offline', async () => {
@@ -98,7 +133,7 @@ describe('praxis-api fallbacks and normalization', () => {
 
   it('drops malformed merge conflicts and infers a conflicts result', async () => {
     isTauriMock.mockReturnValue(true);
-    invokeMock.mockResolvedValue({
+    mockIpcOk({
       conflicts: [{ reference: 'cap-1', kind: 5 }, { kind: 'node' }],
     });
 

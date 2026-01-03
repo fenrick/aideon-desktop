@@ -30,7 +30,7 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 use tokio::sync::oneshot;
 
-use crate::ipc::HostError;
+use crate::ipc::{EmptyPayload, HostError, IpcRequest, IpcResponse};
 use crate::worker::WorkerState;
 
 static SUBSCRIPTION_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -1258,6 +1258,704 @@ pub async fn mneme_list_edge_type_rules(
         .list_edge_type_rules(partition_id, edge_type_id)
         .await
         .map_err(host_error)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetEffectiveSchemaPayload {
+    pub partition_id: PartitionId,
+    pub type_id: aideon_praxis::mneme::Id,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListEdgeTypeRulesPayload {
+    pub partition_id: PartitionId,
+    #[serde(default)]
+    pub edge_type_id: Option<aideon_praxis::mneme::Id>,
+}
+
+/// Namespaced + requestId-wrapped Mneme commands.
+///
+/// These are the forward-compatible IPC surface. The legacy `mneme_*` commands remain available
+/// for existing renderer code; migrate callers to these as part of contract hardening.
+#[tauri::command(rename = "mneme.store.upsert_metamodel_batch")]
+pub async fn mneme_store_upsert_metamodel_batch(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<UpsertMetamodelBatchInput>,
+) -> Result<IpcResponse<OpResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_upsert_metamodel_batch_inner(state.inner(), request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.compile_effective_schema")]
+pub async fn mneme_store_compile_effective_schema(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<CompileEffectiveSchemaInput>,
+) -> Result<IpcResponse<SchemaVersion>, HostError> {
+    let request_id = request.request_id;
+    let response =
+        match mneme_compile_effective_schema_inner(state.inner(), request.payload).await {
+            Ok(result) => IpcResponse::ok(request_id, result),
+            Err(err) => IpcResponse::err(request_id, err),
+        };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.get_effective_schema")]
+pub async fn mneme_store_get_effective_schema(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<GetEffectiveSchemaPayload>,
+) -> Result<IpcResponse<Option<aideon_praxis::mneme::EffectiveSchema>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_get_effective_schema(
+        state,
+        request.payload.partition_id,
+        request.payload.type_id,
+    )
+    .await
+    {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.list_edge_type_rules")]
+pub async fn mneme_store_list_edge_type_rules(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ListEdgeTypeRulesPayload>,
+) -> Result<IpcResponse<Vec<EdgeTypeRule>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_list_edge_type_rules(
+        state,
+        request.payload.partition_id,
+        request.payload.edge_type_id,
+    )
+    .await
+    {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.create_node")]
+pub async fn mneme_store_create_node(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<CreateNodePayload>,
+) -> Result<IpcResponse<OpResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_create_node_inner(state.inner(), request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.create_edge")]
+pub async fn mneme_store_create_edge(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<CreateEdgePayload>,
+) -> Result<IpcResponse<OpResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_create_edge_inner(state.inner(), request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.set_edge_existence_interval")]
+pub async fn mneme_store_set_edge_existence_interval(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<SetEdgeExistencePayload>,
+) -> Result<IpcResponse<OpResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_set_edge_existence_interval_inner(state.inner(), request.payload).await
+    {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.tombstone_entity")]
+pub async fn mneme_store_tombstone_entity(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<TombstoneEntityPayload>,
+) -> Result<IpcResponse<OpResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_tombstone_entity_inner(state.inner(), request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.set_property_interval")]
+pub async fn mneme_store_set_property_interval(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<SetPropertyIntervalPayload>,
+) -> Result<IpcResponse<OpResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_set_property_interval_inner(state.inner(), request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.clear_property_interval")]
+pub async fn mneme_store_clear_property_interval(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ClearPropertyIntervalPayload>,
+) -> Result<IpcResponse<OpResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_clear_property_interval(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.or_set_update")]
+pub async fn mneme_store_or_set_update(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<OrSetUpdatePayload>,
+) -> Result<IpcResponse<OpResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_or_set_update(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.counter_update")]
+pub async fn mneme_store_counter_update(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<CounterUpdatePayload>,
+) -> Result<IpcResponse<OpResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_counter_update(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.read_entity_at_time")]
+pub async fn mneme_store_read_entity_at_time(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ReadEntityAtTimePayload>,
+) -> Result<IpcResponse<ReadEntityAtTimeResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_read_entity_at_time_inner(state.inner(), request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.traverse_at_time")]
+pub async fn mneme_store_traverse_at_time(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<TraverseAtTimePayload>,
+) -> Result<IpcResponse<Vec<TraverseEdgeItem>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_traverse_at_time_inner(state.inner(), request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.list_entities")]
+pub async fn mneme_store_list_entities(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ListEntitiesPayload>,
+) -> Result<IpcResponse<Vec<ListEntitiesResultItem>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_list_entities_inner(state.inner(), request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.get_changes_since")]
+pub async fn mneme_store_get_changes_since(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<GetChangesSincePayload>,
+) -> Result<IpcResponse<Vec<ChangeEvent>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_get_changes_since_inner(state.inner(), request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.subscribe_partition")]
+pub async fn mneme_store_subscribe_partition(
+    state: State<'_, WorkerState>,
+    window: Window,
+    request: IpcRequest<SubscribePartitionPayload>,
+) -> Result<IpcResponse<SubscriptionResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_subscribe_partition(state, window, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.unsubscribe_partition")]
+pub async fn mneme_store_unsubscribe_partition(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<UnsubscribePartitionPayload>,
+) -> Result<IpcResponse<bool>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_unsubscribe_partition(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.get_projection_edges")]
+pub async fn mneme_store_get_projection_edges(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<GetProjectionEdgesPayload>,
+) -> Result<IpcResponse<Vec<ProjectionEdge>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_get_projection_edges_inner(state.inner(), request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.get_graph_degree_stats")]
+pub async fn mneme_store_get_graph_degree_stats(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<GetGraphDegreeStatsPayload>,
+) -> Result<IpcResponse<Vec<GraphDegreeStat>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_get_graph_degree_stats(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.get_graph_edge_type_counts")]
+pub async fn mneme_store_get_graph_edge_type_counts(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<GetGraphEdgeTypeCountsPayload>,
+) -> Result<IpcResponse<Vec<GraphEdgeTypeCount>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_get_graph_edge_type_counts(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.store_pagerank_scores")]
+pub async fn mneme_store_store_pagerank_scores(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<StorePageRankScoresPayload>,
+) -> Result<IpcResponse<PageRankRunResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_store_pagerank_scores(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.get_pagerank_scores")]
+pub async fn mneme_store_get_pagerank_scores(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<GetPageRankScoresPayload>,
+) -> Result<IpcResponse<Vec<PageRankScoreItem>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_get_pagerank_scores(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.export_ops")]
+pub async fn mneme_store_export_ops(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ExportOpsPayload>,
+) -> Result<IpcResponse<Vec<OpEnvelope>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_export_ops_inner(state.inner(), request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.ingest_ops")]
+pub async fn mneme_store_ingest_ops(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<IngestOpsPayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_ingest_ops(state, request.payload).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.get_partition_head")]
+pub async fn mneme_store_get_partition_head(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<PartitionHeadPayload>,
+) -> Result<IpcResponse<PartitionHeadResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_get_partition_head(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.create_scenario")]
+pub async fn mneme_store_create_scenario(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<CreateScenarioPayload>,
+) -> Result<IpcResponse<ScenarioId>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_create_scenario(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.delete_scenario")]
+pub async fn mneme_store_delete_scenario(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<DeleteScenarioPayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_delete_scenario(state, request.payload).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.export_ops_stream")]
+pub async fn mneme_store_export_ops_stream(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ExportOpsStreamPayload>,
+) -> Result<IpcResponse<Vec<ExportRecord>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_export_ops_stream_inner(state.inner(), request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.import_ops_stream")]
+pub async fn mneme_store_import_ops_stream(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ImportOpsStreamPayload>,
+) -> Result<IpcResponse<ImportReport>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_import_ops_stream(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.export_snapshot_stream")]
+pub async fn mneme_store_export_snapshot_stream(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ExportSnapshotPayload>,
+) -> Result<IpcResponse<Vec<ExportRecord>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_export_snapshot_stream_inner(state.inner(), request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.import_snapshot_stream")]
+pub async fn mneme_store_import_snapshot_stream(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ImportSnapshotPayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_import_snapshot_stream(state, request.payload).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.upsert_validation_rules")]
+pub async fn mneme_store_upsert_validation_rules(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<UpsertValidationRulesPayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_upsert_validation_rules(state, request.payload).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.list_validation_rules")]
+pub async fn mneme_store_list_validation_rules(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ListValidationRulesPayload>,
+) -> Result<IpcResponse<Vec<ValidationRule>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_list_validation_rules(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.upsert_computed_rules")]
+pub async fn mneme_store_upsert_computed_rules(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<UpsertComputedRulesPayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_upsert_computed_rules(state, request.payload).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.list_computed_rules")]
+pub async fn mneme_store_list_computed_rules(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ListComputedRulesPayload>,
+) -> Result<IpcResponse<Vec<ComputedRule>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_list_computed_rules(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.upsert_computed_cache")]
+pub async fn mneme_store_upsert_computed_cache(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<UpsertComputedCachePayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_upsert_computed_cache(state, request.payload).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.list_computed_cache")]
+pub async fn mneme_store_list_computed_cache(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ListComputedCachePayload>,
+) -> Result<IpcResponse<Vec<ComputedCacheEntry>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_list_computed_cache(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.trigger_rebuild_effective_schema")]
+pub async fn mneme_store_trigger_rebuild_effective_schema(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<TriggerProcessingPayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_trigger_rebuild_effective_schema(state, request.payload).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.trigger_refresh_integrity")]
+pub async fn mneme_store_trigger_refresh_integrity(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<TriggerProcessingPayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_trigger_refresh_integrity(state, request.payload).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.trigger_refresh_analytics_projections")]
+pub async fn mneme_store_trigger_refresh_analytics_projections(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<TriggerProcessingPayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response =
+        match mneme_trigger_refresh_analytics_projections(state, request.payload).await {
+            Ok(()) => IpcResponse::ok(request_id, ()),
+            Err(err) => IpcResponse::err(request_id, err),
+        };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.trigger_retention")]
+pub async fn mneme_store_trigger_retention(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<TriggerRetentionPayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_trigger_retention(state, request.payload).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.trigger_compaction")]
+pub async fn mneme_store_trigger_compaction(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<TriggerCompactionPayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_trigger_compaction(state, request.payload).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.run_processing_worker")]
+pub async fn mneme_store_run_processing_worker(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<RunWorkerPayload>,
+) -> Result<IpcResponse<RunWorkerResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_run_processing_worker(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.list_jobs")]
+pub async fn mneme_store_list_jobs(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ListJobsPayload>,
+) -> Result<IpcResponse<Vec<JobSummary>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_list_jobs(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.get_integrity_head")]
+pub async fn mneme_store_get_integrity_head(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<IntegrityHeadPayload>,
+) -> Result<IpcResponse<Option<IntegrityHead>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_get_integrity_head(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.get_last_schema_compile")]
+pub async fn mneme_store_get_last_schema_compile(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<SchemaHeadPayload>,
+) -> Result<IpcResponse<Option<SchemaHead>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_get_last_schema_compile(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.list_failed_jobs")]
+pub async fn mneme_store_list_failed_jobs(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ListFailedJobsPayload>,
+) -> Result<IpcResponse<Vec<JobSummary>>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_list_failed_jobs(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.get_schema_manifest")]
+pub async fn mneme_store_get_schema_manifest(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<EmptyPayload>,
+) -> Result<IpcResponse<SchemaManifest>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_get_schema_manifest(state).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.explain_resolution")]
+pub async fn mneme_store_explain_resolution(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ExplainResolutionPayload>,
+) -> Result<IpcResponse<ExplainResolutionResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_explain_resolution(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+#[tauri::command(rename = "mneme.store.explain_traversal")]
+pub async fn mneme_store_explain_traversal(
+    state: State<'_, WorkerState>,
+    request: IpcRequest<ExplainTraversalPayload>,
+) -> Result<IpcResponse<ExplainTraversalResult>, HostError> {
+    let request_id = request.request_id;
+    let response = match mneme_explain_traversal(state, request.payload).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
 }
 
 fn host_error(err: MnemeError) -> HostError {

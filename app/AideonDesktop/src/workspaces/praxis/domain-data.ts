@@ -1,8 +1,7 @@
-import { invoke } from '@tauri-apps/api/core';
-
 import { isTauri } from 'praxis/platform';
 import { listScenarios, type ScenarioSummary } from 'praxis/praxis-api';
 import { BUILT_IN_TEMPLATES, type CanvasTemplate } from 'praxis/templates';
+import { invokeIpc } from '../../adapters/ipc';
 import { toErrorMessage } from './lib/errors';
 
 interface ProjectPayload {
@@ -23,8 +22,8 @@ export interface ProjectSummary {
 }
 
 const COMMANDS = {
-  listProjects: 'list_projects',
-  listTemplates: 'list_templates',
+  listProjects: 'workspace.projects.list',
+  listTemplates: 'workspace.templates.list',
 } as const;
 
 /**
@@ -37,7 +36,7 @@ export async function listProjectsWithScenarios(): Promise<ProjectSummary[]> {
   }
 
   try {
-    const payload = await invoke<ProjectPayload[]>(COMMANDS.listProjects);
+    const payload = await invokeIpc<ProjectPayload[]>(COMMANDS.listProjects, {});
     const projects = Array.isArray(payload) ? payload : [];
     if (projects.length === 0) {
       const fallback = await fallbackProjects();
@@ -59,7 +58,7 @@ export async function listTemplatesFromHost(): Promise<CanvasTemplate[]> {
     return BUILT_IN_TEMPLATES;
   }
   try {
-    const payload = await invoke<TemplatePayload[]>(COMMANDS.listTemplates);
+    const payload = await invokeIpc<TemplatePayload[]>(COMMANDS.listTemplates, {});
     const templates = Array.isArray(payload) ? payload : [];
     if (templates.length === 0) {
       return BUILT_IN_TEMPLATES;

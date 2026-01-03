@@ -14,10 +14,31 @@ const invokeMock = vi.mocked(invoke);
 const isTauriMock = vi.mocked(isTauri);
 const listScenariosMock = vi.mocked(listScenarios);
 
+/**
+ * Narrow unknown values to plain object records.
+ * @param value
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Create a successful IPC envelope response for the adapter boundary.
+ * @param result
+ */
+function mockIpcOk(result: unknown) {
+  return (_command: string, invokeArguments: unknown) => {
+    const request = isRecord(invokeArguments) ? invokeArguments.request : undefined;
+    const requestId =
+      isRecord(request) && typeof request.requestId === 'string' ? request.requestId : 'req';
+    return Promise.resolve({ requestId, status: 'ok', result });
+  };
+}
+
 describe('domain-data normalization', () => {
   it('falls back when host payload is not an array', async () => {
     isTauriMock.mockReturnValue(true);
-    invokeMock.mockResolvedValueOnce({ unexpected: true } as unknown);
+    invokeMock.mockImplementationOnce(mockIpcOk({ unexpected: true } as unknown));
     listScenariosMock.mockResolvedValueOnce([
       { id: 's1', name: 'Main', branch: 'main', updatedAt: '', isDefault: true },
     ]);
@@ -35,7 +56,9 @@ describe('domain-data normalization', () => {
     });
 
     isTauriMock.mockReturnValue(true);
-    invokeMock.mockResolvedValueOnce([{ name: '  Project X  ', scenarios: 'bad' }] as unknown);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([{ name: '  Project X  ', scenarios: 'bad' }] as unknown),
+    );
 
     const projects = await listProjectsWithScenarios();
     expect(projects).toHaveLength(1);
@@ -52,7 +75,9 @@ describe('domain-data normalization', () => {
     });
 
     isTauriMock.mockReturnValue(true);
-    invokeMock.mockResolvedValueOnce([{ description: undefined, widgets: [] }] as unknown);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([{ description: undefined, widgets: [] }] as unknown),
+    );
 
     const templates = await listTemplatesFromHost();
     expect(templates[0]?.id).toBe('template-uuid-2');

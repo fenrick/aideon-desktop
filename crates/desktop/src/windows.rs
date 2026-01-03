@@ -1,8 +1,9 @@
 #[cfg(target_os = "windows")]
 use log::warn;
+use serde::Deserialize;
 use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
 
-use crate::ipc::HostError;
+use crate::ipc::{HostError, IpcRequest, IpcResponse};
 
 const ROUTE_SPLASH: &str = "splash/";
 const ROUTE_MAIN: &str = "index.html";
@@ -112,6 +113,44 @@ pub fn open_styleguide(app: AppHandle<Wry>) -> Result<(), HostError> {
         .build()
         .map(|_| ())
         .map_err(|err| HostError::internal(err.to_string()))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenWindowPayload {
+    pub window: String,
+}
+
+/// Namespaced + requestId-wrapped window open command.
+#[tauri::command(rename = "system.window.open")]
+pub fn system_window_open(
+    app: AppHandle<Wry>,
+    request: IpcRequest<OpenWindowPayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match request.payload.window.as_str() {
+        "settings" => match open_settings(app) {
+            Ok(()) => IpcResponse::ok(request_id, ()),
+            Err(err) => IpcResponse::err(request_id, err),
+        },
+        "about" => match open_about(app) {
+            Ok(()) => IpcResponse::ok(request_id, ()),
+            Err(err) => IpcResponse::err(request_id, err),
+        },
+        "status" => match open_status(app) {
+            Ok(()) => IpcResponse::ok(request_id, ()),
+            Err(err) => IpcResponse::err(request_id, err),
+        },
+        "styleguide" => match open_styleguide(app) {
+            Ok(()) => IpcResponse::ok(request_id, ()),
+            Err(err) => IpcResponse::err(request_id, err),
+        },
+        unknown => IpcResponse::err(
+            request_id,
+            HostError::invalid_input(format!("unknown window '{unknown}'")),
+        ),
+    };
+    Ok(response)
 }
 
 fn to_string<E: std::fmt::Display>(error: E) -> String {

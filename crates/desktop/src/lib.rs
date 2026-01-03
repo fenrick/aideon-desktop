@@ -16,7 +16,7 @@ mod workspace;
 
 pub use aideon_praxis::mneme::WorkerHealth;
 pub use aideon_praxis::praxis::temporal::{DiffArgs, DiffSummary, StateAtArgs, StateAtResult};
-pub use ipc::HostError;
+pub use ipc::{HostError, IpcRequest, IpcResponse};
 
 pub fn run() {
     app::run();

@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type {
   ChangeEvent,
@@ -77,60 +76,90 @@ import type {
 } from 'dtos';
 
 import { isTauri } from './platform';
+import { invokeIpc } from '../../adapters/ipc';
 
 const COMMANDS = {
-  upsertMetamodelBatch: 'mneme_upsert_metamodel_batch',
-  compileEffectiveSchema: 'mneme_compile_effective_schema',
-  getEffectiveSchema: 'mneme_get_effective_schema',
-  listEdgeTypeRules: 'mneme_list_edge_type_rules',
-  createNode: 'mneme_create_node',
-  createEdge: 'mneme_create_edge',
-  setEdgeExistenceInterval: 'mneme_set_edge_existence_interval',
-  tombstoneEntity: 'mneme_tombstone_entity',
-  setPropertyInterval: 'mneme_set_property_interval',
-  clearPropertyInterval: 'mneme_clear_property_interval',
-  orSetUpdate: 'mneme_or_set_update',
-  counterUpdate: 'mneme_counter_update',
-  readEntityAtTime: 'mneme_read_entity_at_time',
-  traverseAtTime: 'mneme_traverse_at_time',
-  listEntities: 'mneme_list_entities',
-  getProjectionEdges: 'mneme_get_projection_edges',
-  getGraphDegreeStats: 'mneme_get_graph_degree_stats',
-  getGraphEdgeTypeCounts: 'mneme_get_graph_edge_type_counts',
-  storePageRankRun: 'mneme_store_pagerank_scores',
-  getPageRankScores: 'mneme_get_pagerank_scores',
-  exportOps: 'mneme_export_ops',
-  ingestOps: 'mneme_ingest_ops',
-  getPartitionHead: 'mneme_get_partition_head',
-  createScenario: 'mneme_create_scenario',
-  deleteScenario: 'mneme_delete_scenario',
-  exportOpsStream: 'mneme_export_ops_stream',
-  importOpsStream: 'mneme_import_ops_stream',
-  exportSnapshotStream: 'mneme_export_snapshot_stream',
-  importSnapshotStream: 'mneme_import_snapshot_stream',
-  upsertValidationRules: 'mneme_upsert_validation_rules',
-  listValidationRules: 'mneme_list_validation_rules',
-  upsertComputedRules: 'mneme_upsert_computed_rules',
-  listComputedRules: 'mneme_list_computed_rules',
-  upsertComputedCache: 'mneme_upsert_computed_cache',
-  listComputedCache: 'mneme_list_computed_cache',
-  triggerRebuildEffectiveSchema: 'mneme_trigger_rebuild_effective_schema',
-  triggerRefreshIntegrity: 'mneme_trigger_refresh_integrity',
-  triggerRefreshAnalyticsProjections: 'mneme_trigger_refresh_analytics_projections',
-  triggerRetention: 'mneme_trigger_retention',
-  triggerCompaction: 'mneme_trigger_compaction',
-  runProcessingWorker: 'mneme_run_processing_worker',
-  listJobs: 'mneme_list_jobs',
-  getChangesSince: 'mneme_get_changes_since',
-  subscribePartition: 'mneme_subscribe_partition',
-  unsubscribePartition: 'mneme_unsubscribe_partition',
-  getIntegrityHead: 'mneme_get_integrity_head',
-  getLastSchemaCompile: 'mneme_get_last_schema_compile',
-  listFailedJobs: 'mneme_list_failed_jobs',
-  getSchemaManifest: 'mneme_get_schema_manifest',
-  explainResolution: 'mneme_explain_resolution',
-  explainTraversal: 'mneme_explain_traversal',
+  upsertMetamodelBatch: 'mneme.store.upsert_metamodel_batch',
+  compileEffectiveSchema: 'mneme.store.compile_effective_schema',
+  getEffectiveSchema: 'mneme.store.get_effective_schema',
+  listEdgeTypeRules: 'mneme.store.list_edge_type_rules',
+  createNode: 'mneme.store.create_node',
+  createEdge: 'mneme.store.create_edge',
+  setEdgeExistenceInterval: 'mneme.store.set_edge_existence_interval',
+  tombstoneEntity: 'mneme.store.tombstone_entity',
+  setPropertyInterval: 'mneme.store.set_property_interval',
+  clearPropertyInterval: 'mneme.store.clear_property_interval',
+  orSetUpdate: 'mneme.store.or_set_update',
+  counterUpdate: 'mneme.store.counter_update',
+  readEntityAtTime: 'mneme.store.read_entity_at_time',
+  traverseAtTime: 'mneme.store.traverse_at_time',
+  listEntities: 'mneme.store.list_entities',
+  getProjectionEdges: 'mneme.store.get_projection_edges',
+  getGraphDegreeStats: 'mneme.store.get_graph_degree_stats',
+  getGraphEdgeTypeCounts: 'mneme.store.get_graph_edge_type_counts',
+  storePageRankRun: 'mneme.store.store_pagerank_scores',
+  getPageRankScores: 'mneme.store.get_pagerank_scores',
+  exportOps: 'mneme.store.export_ops',
+  ingestOps: 'mneme.store.ingest_ops',
+  getPartitionHead: 'mneme.store.get_partition_head',
+  createScenario: 'mneme.store.create_scenario',
+  deleteScenario: 'mneme.store.delete_scenario',
+  exportOpsStream: 'mneme.store.export_ops_stream',
+  importOpsStream: 'mneme.store.import_ops_stream',
+  exportSnapshotStream: 'mneme.store.export_snapshot_stream',
+  importSnapshotStream: 'mneme.store.import_snapshot_stream',
+  upsertValidationRules: 'mneme.store.upsert_validation_rules',
+  listValidationRules: 'mneme.store.list_validation_rules',
+  upsertComputedRules: 'mneme.store.upsert_computed_rules',
+  listComputedRules: 'mneme.store.list_computed_rules',
+  upsertComputedCache: 'mneme.store.upsert_computed_cache',
+  listComputedCache: 'mneme.store.list_computed_cache',
+  triggerRebuildEffectiveSchema: 'mneme.store.trigger_rebuild_effective_schema',
+  triggerRefreshIntegrity: 'mneme.store.trigger_refresh_integrity',
+  triggerRefreshAnalyticsProjections: 'mneme.store.trigger_refresh_analytics_projections',
+  triggerRetention: 'mneme.store.trigger_retention',
+  triggerCompaction: 'mneme.store.trigger_compaction',
+  runProcessingWorker: 'mneme.store.run_processing_worker',
+  listJobs: 'mneme.store.list_jobs',
+  getChangesSince: 'mneme.store.get_changes_since',
+  subscribePartition: 'mneme.store.subscribe_partition',
+  unsubscribePartition: 'mneme.store.unsubscribe_partition',
+  getIntegrityHead: 'mneme.store.get_integrity_head',
+  getLastSchemaCompile: 'mneme.store.get_last_schema_compile',
+  listFailedJobs: 'mneme.store.list_failed_jobs',
+  getSchemaManifest: 'mneme.store.get_schema_manifest',
+  explainResolution: 'mneme.store.explain_resolution',
+  explainTraversal: 'mneme.store.explain_traversal',
 } as const;
+
+/**
+ * Convert host/IPC errors into a readable message string.
+ * @param error - Unknown thrown value.
+ */
+function formatIpcError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'object' && error !== null) {
+    const record = error as Record<string, unknown>;
+    if (typeof record.message === 'string') {
+      return record.message;
+    }
+  }
+  return String(error);
+}
+
+/**
+ * Invoke a host command using the request/response envelope contract.
+ * @param command - Command name.
+ * @param payload - Payload object.
+ */
+async function invokeHost<T>(
+  command: string,
+  payload: Record<string, unknown> = {},
+): Promise<T> {
+  return invokeIpc<T>(command, payload);
+}
 
 /**
  * Coerce command payloads into the invoke arguments shape.
@@ -186,7 +215,7 @@ export async function upsertMetamodelBatch(
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.upsertMetamodelBatch, {
+    return await invokeHost<MnemeOpResult>(COMMANDS.upsertMetamodelBatch, {
       partitionId: input.partitionId,
       actorId: input.actorId,
       assertedAt: input.assertedAt,
@@ -194,7 +223,7 @@ export async function upsertMetamodelBatch(
       batch: toRustMetamodelBatch(input.batch),
     });
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.upsertMetamodelBatch}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.upsertMetamodelBatch}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -211,12 +240,12 @@ export async function compileEffectiveSchema(
     return { schemaVersionHash: 'mock-schema-hash' };
   }
   try {
-    return await invoke<SchemaCompileResult>(
+    return await invokeHost<SchemaCompileResult>(
       COMMANDS.compileEffectiveSchema,
       toInvokeArguments(input),
     );
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.compileEffectiveSchema}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.compileEffectiveSchema}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -231,9 +260,9 @@ export async function createNode(input: CreateNodeInput): Promise<MnemeOpResult>
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.createNode, toInvokeArguments(input));
+    return await invokeHost<MnemeOpResult>(COMMANDS.createNode, toInvokeArguments(input));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.createNode}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.createNode}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -248,9 +277,9 @@ export async function createEdge(input: CreateEdgeInput): Promise<MnemeOpResult>
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.createEdge, toInvokeArguments(input));
+    return await invokeHost<MnemeOpResult>(COMMANDS.createEdge, toInvokeArguments(input));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.createEdge}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.createEdge}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -267,10 +296,13 @@ export async function setEdgeExistenceInterval(
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.setEdgeExistenceInterval, toInvokeArguments(input));
+    return await invokeHost<MnemeOpResult>(
+      COMMANDS.setEdgeExistenceInterval,
+      toInvokeArguments(input),
+    );
   } catch (error) {
     throw new Error(
-      `Host command '${COMMANDS.setEdgeExistenceInterval}' failed: ${String(error)}`,
+      `Host command '${COMMANDS.setEdgeExistenceInterval}' failed: ${formatIpcError(error)}`,
       {
         cause: error,
       },
@@ -287,9 +319,9 @@ export async function tombstoneEntity(input: TombstoneEntityInput): Promise<Mnem
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.tombstoneEntity, toInvokeArguments(input));
+    return await invokeHost<MnemeOpResult>(COMMANDS.tombstoneEntity, toInvokeArguments(input));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.tombstoneEntity}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.tombstoneEntity}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -304,12 +336,12 @@ export async function setPropertyInterval(input: SetPropertyIntervalInput): Prom
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.setPropertyInterval, {
+    return await invokeHost<MnemeOpResult>(COMMANDS.setPropertyInterval, {
       ...input,
       value: toRustValue(input.value),
     });
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.setPropertyInterval}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.setPropertyInterval}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -326,11 +358,17 @@ export async function clearPropertyInterval(
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.clearPropertyInterval, toInvokeArguments(input));
+    return await invokeHost<MnemeOpResult>(
+      COMMANDS.clearPropertyInterval,
+      toInvokeArguments(input),
+    );
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.clearPropertyInterval}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.clearPropertyInterval}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -343,12 +381,12 @@ export async function orSetUpdate(input: OrSetUpdateInput): Promise<MnemeOpResul
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.orSetUpdate, {
+    return await invokeHost<MnemeOpResult>(COMMANDS.orSetUpdate, {
       ...input,
       element: toRustValue(input.element),
     });
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.orSetUpdate}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.orSetUpdate}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -363,9 +401,9 @@ export async function counterUpdate(input: CounterUpdateInput): Promise<MnemeOpR
     return { opId: 'mock-op' };
   }
   try {
-    return await invoke<MnemeOpResult>(COMMANDS.counterUpdate, toInvokeArguments(input));
+    return await invokeHost<MnemeOpResult>(COMMANDS.counterUpdate, toInvokeArguments(input));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.counterUpdate}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.counterUpdate}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -387,13 +425,13 @@ export async function readEntityAtTime(
     };
   }
   try {
-    const raw = await invoke<RustReadEntityAtTimeResult>(
+    const raw = await invokeHost<RustReadEntityAtTimeResult>(
       COMMANDS.readEntityAtTime,
       toInvokeArguments(input),
     );
     return fromRustReadEntityAtTime(raw);
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.readEntityAtTime}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.readEntityAtTime}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -408,7 +446,7 @@ export async function traverseAtTime(input: TraverseAtTimeInput): Promise<Traver
     return [];
   }
   try {
-    const raw = await invoke<RustTraverseEdgeItem[]>(
+    const raw = await invokeHost<RustTraverseEdgeItem[]>(
       COMMANDS.traverseAtTime,
       toInvokeArguments(input),
     );
@@ -419,7 +457,7 @@ export async function traverseAtTime(input: TraverseAtTimeInput): Promise<Traver
       edgeTypeId: edge.type_id ?? undefined,
     }));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.traverseAtTime}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.traverseAtTime}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -434,7 +472,7 @@ export async function listEntities(input: ListEntitiesInput): Promise<ListEntiti
     return [];
   }
   try {
-    const raw = await invoke<RustListEntitiesResultItem[]>(COMMANDS.listEntities, {
+    const raw = await invokeHost<RustListEntitiesResultItem[]>(COMMANDS.listEntities, {
       ...input,
       filters: (input.filters ?? []).map((item) => toRustFieldFilter(item)),
     });
@@ -444,7 +482,7 @@ export async function listEntities(input: ListEntitiesInput): Promise<ListEntiti
       typeId: item.type_id ?? undefined,
     }));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.listEntities}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.listEntities}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -461,15 +499,18 @@ export async function getProjectionEdges(
     return [];
   }
   try {
-    const raw = await invoke<RustProjectionEdge[]>(
+    const raw = await invokeHost<RustProjectionEdge[]>(
       COMMANDS.getProjectionEdges,
       toInvokeArguments(input),
     );
     return raw.map((item) => fromRustProjectionEdge(item));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.getProjectionEdges}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.getProjectionEdges}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -484,15 +525,18 @@ export async function getGraphDegreeStats(
     return [];
   }
   try {
-    const raw = await invoke<RustGraphDegreeStat[]>(
+    const raw = await invokeHost<RustGraphDegreeStat[]>(
       COMMANDS.getGraphDegreeStats,
       toInvokeArguments(input),
     );
     return raw.map((item) => fromRustGraphDegreeStat(item));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.getGraphDegreeStats}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.getGraphDegreeStats}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -507,15 +551,18 @@ export async function getGraphEdgeTypeCounts(
     return [];
   }
   try {
-    const raw = await invoke<RustGraphEdgeTypeCount[]>(
+    const raw = await invokeHost<RustGraphEdgeTypeCount[]>(
       COMMANDS.getGraphEdgeTypeCounts,
       toInvokeArguments(input),
     );
     return raw.map((item) => fromRustGraphEdgeTypeCount(item));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.getGraphEdgeTypeCounts}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.getGraphEdgeTypeCounts}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -528,12 +575,12 @@ export async function storePageRankRun(input: StorePageRankRunInput): Promise<Pa
     return { runId: 'mock-run' };
   }
   try {
-    return await invoke<PageRankRunResult>(COMMANDS.storePageRankRun, {
+    return await invokeHost<PageRankRunResult>(COMMANDS.storePageRankRun, {
       ...input,
       params: toRustPageRankParameters(input.params),
     });
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.storePageRankRun}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.storePageRankRun}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -548,9 +595,12 @@ export async function getPageRankScores(input: GetPageRankScoresInput): Promise<
     return [];
   }
   try {
-    return await invoke<PageRankScore[]>(COMMANDS.getPageRankScores, toInvokeArguments(input));
+    return await invokeHost<PageRankScore[]>(
+      COMMANDS.getPageRankScores,
+      toInvokeArguments(input),
+    );
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.getPageRankScores}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.getPageRankScores}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -565,10 +615,10 @@ export async function exportOps(input: ExportOpsInput): Promise<ExportOpsResult>
     return { ops: [] };
   }
   try {
-    const raw = await invoke<RustOpEnvelope[]>(COMMANDS.exportOps, toInvokeArguments(input));
+    const raw = await invokeHost<RustOpEnvelope[]>(COMMANDS.exportOps, toInvokeArguments(input));
     return { ops: raw.map((item) => fromRustOpEnvelope(item)) };
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.exportOps}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.exportOps}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -583,12 +633,12 @@ export async function ingestOps(input: IngestOpsInput): Promise<void> {
     return;
   }
   try {
-    await invoke(COMMANDS.ingestOps, {
+    await invokeHost(COMMANDS.ingestOps, {
       ...input,
       ops: input.ops.map((item) => toRustOpEnvelope(item)),
     });
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.ingestOps}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.ingestOps}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -603,9 +653,12 @@ export async function getPartitionHead(input: GetPartitionHeadInput): Promise<Pa
     return { head: '0' };
   }
   try {
-    return await invoke<PartitionHeadResult>(COMMANDS.getPartitionHead, toInvokeArguments(input));
+    return await invokeHost<PartitionHeadResult>(
+      COMMANDS.getPartitionHead,
+      toInvokeArguments(input),
+    );
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.getPartitionHead}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.getPartitionHead}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -620,9 +673,9 @@ export async function createScenario(input: CreateScenarioInput): Promise<string
     return 'mock-scenario';
   }
   try {
-    return await invoke<string>(COMMANDS.createScenario, toInvokeArguments(input));
+    return await invokeHost<string>(COMMANDS.createScenario, toInvokeArguments(input));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.createScenario}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.createScenario}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -637,9 +690,9 @@ export async function deleteScenario(input: DeleteScenarioInput): Promise<void> 
     return;
   }
   try {
-    await invoke(COMMANDS.deleteScenario, toInvokeArguments(input));
+    await invokeHost(COMMANDS.deleteScenario, toInvokeArguments(input));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.deleteScenario}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.deleteScenario}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -656,13 +709,13 @@ export async function exportOpsStream(
     return toAsyncIterable([]);
   }
   try {
-    const raw = await invoke<RustExportRecord[]>(
+    const raw = await invokeHost<RustExportRecord[]>(
       COMMANDS.exportOpsStream,
       toInvokeArguments(options),
     );
     return toAsyncIterable(raw.map((item) => fromRustExportRecord(item)));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.exportOpsStream}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.exportOpsStream}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -682,13 +735,13 @@ export async function importOpsStream(
   }
   try {
     const collected = await collectAsyncIterable(records);
-    const raw = await invoke<RustImportReport>(COMMANDS.importOpsStream, {
+    const raw = await invokeHost<RustImportReport>(COMMANDS.importOpsStream, {
       ...options,
       records: collected.map((item) => toRustExportRecord(item)),
     });
     return fromRustImportReport(raw);
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.importOpsStream}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.importOpsStream}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -705,15 +758,18 @@ export async function exportSnapshotStream(
     return toAsyncIterable([]);
   }
   try {
-    const raw = await invoke<RustExportRecord[]>(
+    const raw = await invokeHost<RustExportRecord[]>(
       COMMANDS.exportSnapshotStream,
       toInvokeArguments(options),
     );
     return toAsyncIterable(raw.map((item) => fromRustExportRecord(item)));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.exportSnapshotStream}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.exportSnapshotStream}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -731,14 +787,17 @@ export async function importSnapshotStream(
   }
   try {
     const collected = await collectAsyncIterable(records);
-    await invoke(COMMANDS.importSnapshotStream, {
+    await invokeHost(COMMANDS.importSnapshotStream, {
       ...options,
       records: collected.map((item) => toRustExportRecord(item)),
     });
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.importSnapshotStream}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.importSnapshotStream}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -810,14 +869,17 @@ export async function upsertValidationRules(input: UpsertValidationRulesInput): 
     return;
   }
   try {
-    await invoke(COMMANDS.upsertValidationRules, {
+    await invokeHost(COMMANDS.upsertValidationRules, {
       ...input,
       rules: input.rules.map((item) => toRustValidationRule(item)),
     });
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.upsertValidationRules}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.upsertValidationRules}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -830,12 +892,17 @@ export async function listValidationRules(partitionId: string): Promise<Validati
     return [];
   }
   try {
-    const raw = await invoke<RustValidationRule[]>(COMMANDS.listValidationRules, { partitionId });
+    const raw = await invokeHost<RustValidationRule[]>(COMMANDS.listValidationRules, {
+      partitionId,
+    });
     return raw.map((item) => fromRustValidationRule(item));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.listValidationRules}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.listValidationRules}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -848,14 +915,17 @@ export async function upsertComputedRules(input: UpsertComputedRulesInput): Prom
     return;
   }
   try {
-    await invoke(COMMANDS.upsertComputedRules, {
+    await invokeHost(COMMANDS.upsertComputedRules, {
       ...input,
       rules: input.rules.map((item) => toRustComputedRule(item)),
     });
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.upsertComputedRules}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.upsertComputedRules}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -868,12 +938,15 @@ export async function listComputedRules(partitionId: string): Promise<ComputedRu
     return [];
   }
   try {
-    const raw = await invoke<RustComputedRule[]>(COMMANDS.listComputedRules, { partitionId });
+    const raw = await invokeHost<RustComputedRule[]>(COMMANDS.listComputedRules, { partitionId });
     return raw.map((item) => fromRustComputedRule(item));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.listComputedRules}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.listComputedRules}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -886,14 +959,17 @@ export async function upsertComputedCache(input: UpsertComputedCacheInput): Prom
     return;
   }
   try {
-    await invoke(COMMANDS.upsertComputedCache, {
+    await invokeHost(COMMANDS.upsertComputedCache, {
       partitionId: input.partitionId,
       entries: input.entries.map((item) => toRustComputedCacheEntry(item)),
     });
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.upsertComputedCache}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.upsertComputedCache}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -908,15 +984,18 @@ export async function listComputedCache(
     return [];
   }
   try {
-    const raw = await invoke<RustComputedCacheEntry[]>(
+    const raw = await invokeHost<RustComputedCacheEntry[]>(
       COMMANDS.listComputedCache,
       toInvokeArguments(input),
     );
     return raw.map((item) => fromRustComputedCacheEntry(item));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.listComputedCache}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.listComputedCache}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -929,10 +1008,10 @@ export async function triggerRebuildEffectiveSchema(input: TriggerProcessingInpu
     return;
   }
   try {
-    await invoke(COMMANDS.triggerRebuildEffectiveSchema, toInvokeArguments(input));
+    await invokeHost(COMMANDS.triggerRebuildEffectiveSchema, toInvokeArguments(input));
   } catch (error) {
     throw new Error(
-      `Host command '${COMMANDS.triggerRebuildEffectiveSchema}' failed: ${String(error)}`,
+      `Host command '${COMMANDS.triggerRebuildEffectiveSchema}' failed: ${formatIpcError(error)}`,
       { cause: error },
     );
   }
@@ -947,11 +1026,14 @@ export async function triggerRefreshIntegrity(input: TriggerProcessingInput): Pr
     return;
   }
   try {
-    await invoke(COMMANDS.triggerRefreshIntegrity, toInvokeArguments(input));
+    await invokeHost(COMMANDS.triggerRefreshIntegrity, toInvokeArguments(input));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.triggerRefreshIntegrity}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.triggerRefreshIntegrity}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -966,10 +1048,13 @@ export async function triggerRefreshAnalyticsProjections(
     return;
   }
   try {
-    await invoke(COMMANDS.triggerRefreshAnalyticsProjections, toInvokeArguments(input));
+    await invokeHost(
+      COMMANDS.triggerRefreshAnalyticsProjections,
+      toInvokeArguments(input),
+    );
   } catch (error) {
     throw new Error(
-      `Host command '${COMMANDS.triggerRefreshAnalyticsProjections}' failed: ${String(error)}`,
+      `Host command '${COMMANDS.triggerRefreshAnalyticsProjections}' failed: ${formatIpcError(error)}`,
       { cause: error },
     );
   }
@@ -984,9 +1069,9 @@ export async function triggerRetention(input: TriggerRetentionInput): Promise<vo
     return;
   }
   try {
-    await invoke(COMMANDS.triggerRetention, toInvokeArguments(input));
+    await invokeHost(COMMANDS.triggerRetention, toInvokeArguments(input));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.triggerRetention}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.triggerRetention}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -1001,9 +1086,9 @@ export async function triggerCompaction(input: TriggerCompactionInput): Promise<
     return;
   }
   try {
-    await invoke(COMMANDS.triggerCompaction, toInvokeArguments(input));
+    await invokeHost(COMMANDS.triggerCompaction, toInvokeArguments(input));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.triggerCompaction}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.triggerCompaction}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -1020,12 +1105,12 @@ export async function runProcessingWorker(
     return { jobsProcessed: 0 };
   }
   try {
-    return await invoke<RunProcessingWorkerResult>(
+    return await invokeHost<RunProcessingWorkerResult>(
       COMMANDS.runProcessingWorker,
       toInvokeArguments(input),
     );
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.runProcessingWorker}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.runProcessingWorker}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -1040,10 +1125,10 @@ export async function listJobs(input: ListJobsInput): Promise<JobSummary[]> {
     return [];
   }
   try {
-    const raw = await invoke<RustJobSummary[]>(COMMANDS.listJobs, toInvokeArguments(input));
+    const raw = await invokeHost<RustJobSummary[]>(COMMANDS.listJobs, toInvokeArguments(input));
     return raw.map((item) => fromRustJobSummary(item));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.listJobs}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.listJobs}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -1058,10 +1143,10 @@ export async function getChangesSince(input: GetChangesSinceInput): Promise<Chan
     return [];
   }
   try {
-    const raw = await invoke<RustChangeEvent[]>(COMMANDS.getChangesSince, toInvokeArguments(input));
+    const raw = await invokeHost<RustChangeEvent[]>(COMMANDS.getChangesSince, toInvokeArguments(input));
     return raw.map((item) => fromRustChangeEvent(item));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.getChangesSince}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.getChangesSince}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -1078,9 +1163,12 @@ export async function subscribePartition(
     return { subscriptionId: 'mock-sub' };
   }
   try {
-    return await invoke<SubscriptionResult>(COMMANDS.subscribePartition, toInvokeArguments(input));
+    return await invokeHost<SubscriptionResult>(
+      COMMANDS.subscribePartition,
+      toInvokeArguments(input),
+    );
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.subscribePartition}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.subscribePartition}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -1095,11 +1183,14 @@ export async function unsubscribePartition(input: UnsubscribePartitionInput): Pr
     return true;
   }
   try {
-    return await invoke<boolean>(COMMANDS.unsubscribePartition, toInvokeArguments(input));
+    return await invokeHost<boolean>(COMMANDS.unsubscribePartition, toInvokeArguments(input));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.unsubscribePartition}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.unsubscribePartition}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -1132,13 +1223,13 @@ export async function getIntegrityHead(
     return undefined;
   }
   try {
-    const raw = await invoke<RustIntegrityHead | null>(COMMANDS.getIntegrityHead, {
+    const raw = await invokeHost<RustIntegrityHead | null>(COMMANDS.getIntegrityHead, {
       partitionId,
       scenarioId,
     });
     return raw ? fromRustIntegrityHead(raw) : undefined;
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.getIntegrityHead}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.getIntegrityHead}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -1157,15 +1248,18 @@ export async function getLastSchemaCompile(
     return undefined;
   }
   try {
-    const raw = await invoke<RustSchemaHead | null>(COMMANDS.getLastSchemaCompile, {
+    const raw = await invokeHost<RustSchemaHead | null>(COMMANDS.getLastSchemaCompile, {
       partitionId,
       typeId,
     });
     return raw ? fromRustSchemaHead(raw) : undefined;
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.getLastSchemaCompile}' failed: ${String(error)}`, {
+    throw new Error(
+      `Host command '${COMMANDS.getLastSchemaCompile}' failed: ${formatIpcError(error)}`,
+      {
       cause: error,
-    });
+      },
+    );
   }
 }
 
@@ -1179,10 +1273,13 @@ export async function listFailedJobs(partitionId: string, limit: number): Promis
     return [];
   }
   try {
-    const raw = await invoke<RustJobSummary[]>(COMMANDS.listFailedJobs, { partitionId, limit });
+    const raw = await invokeHost<RustJobSummary[]>(COMMANDS.listFailedJobs, {
+      partitionId,
+      limit,
+    });
     return raw.map((item) => fromRustJobSummary(item));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.listFailedJobs}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.listFailedJobs}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -1196,10 +1293,10 @@ export async function getSchemaManifest(): Promise<SchemaManifest> {
     return { manifestVersion: '0', migrations: [], tables: [] };
   }
   try {
-    const raw = await invoke<RustSchemaManifest>(COMMANDS.getSchemaManifest);
+    const raw = await invokeHost<RustSchemaManifest>(COMMANDS.getSchemaManifest);
     return fromRustSchemaManifest(raw);
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.getSchemaManifest}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.getSchemaManifest}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -1220,13 +1317,13 @@ export async function explainResolution(
     };
   }
   try {
-    const raw = await invoke<RustExplainResolutionResult>(
+    const raw = await invokeHost<RustExplainResolutionResult>(
       COMMANDS.explainResolution,
       toInvokeArguments(input),
     );
     return fromRustExplainResolution(raw);
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.explainResolution}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.explainResolution}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -1247,13 +1344,13 @@ export async function explainTraversal(
     };
   }
   try {
-    const raw = await invoke<RustExplainTraversalResult>(
+    const raw = await invokeHost<RustExplainTraversalResult>(
       COMMANDS.explainTraversal,
       toInvokeArguments(input),
     );
     return fromRustExplainTraversal(raw);
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.explainTraversal}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.explainTraversal}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -1272,13 +1369,13 @@ export async function getEffectiveSchema(
     return undefined;
   }
   try {
-    const raw = await invoke<RustEffectiveSchema | null>(COMMANDS.getEffectiveSchema, {
+    const raw = await invokeHost<RustEffectiveSchema | null>(COMMANDS.getEffectiveSchema, {
       partitionId,
       typeId,
     });
     return raw ? fromRustEffectiveSchema(raw) : undefined;
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.getEffectiveSchema}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.getEffectiveSchema}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }
@@ -1297,13 +1394,13 @@ export async function listEdgeTypeRules(
     return [];
   }
   try {
-    const raw = await invoke<RustEdgeTypeRule[]>(COMMANDS.listEdgeTypeRules, {
+    const raw = await invokeHost<RustEdgeTypeRule[]>(COMMANDS.listEdgeTypeRules, {
       partitionId,
       edgeTypeId,
     });
     return raw.map((rule) => fromRustEdgeTypeRule(rule));
   } catch (error) {
-    throw new Error(`Host command '${COMMANDS.listEdgeTypeRules}' failed: ${String(error)}`, {
+    throw new Error(`Host command '${COMMANDS.listEdgeTypeRules}' failed: ${formatIpcError(error)}`, {
       cause: error,
     });
   }

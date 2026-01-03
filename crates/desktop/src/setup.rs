@@ -1,10 +1,11 @@
 use std::sync::Mutex;
 
 use log::{error, info, warn};
+use serde::Deserialize;
 use serde::Serialize;
 use tauri::{AppHandle, Manager, State, Wry};
 
-use crate::ipc::HostError;
+use crate::ipc::{EmptyPayload, HostError, IpcRequest, IpcResponse};
 use crate::worker::init_temporal;
 
 #[derive(Default)]
@@ -112,6 +113,41 @@ pub async fn run_backend_setup(app: AppHandle<Wry>) -> Result<(), HostError> {
 
     info!("host: backend setup marked complete");
     Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetupCompletePayload {
+    pub task: String,
+}
+
+/// Namespaced + requestId-wrapped setup completion signal.
+#[tauri::command(rename = "system.setup.complete")]
+pub async fn system_setup_complete(
+    app: AppHandle<Wry>,
+    state: State<'_, Mutex<SetupState>>,
+    request: IpcRequest<SetupCompletePayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match set_complete(app, state, request.payload.task).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+/// Namespaced + requestId-wrapped setup state query.
+#[tauri::command(rename = "system.setup.state")]
+pub fn system_setup_state(
+    state: State<'_, Mutex<SetupState>>,
+    request: IpcRequest<EmptyPayload>,
+) -> Result<IpcResponse<SetupFlags>, HostError> {
+    let request_id = request.request_id;
+    let response = match get_setup_state(state) {
+        Ok(flags) => IpcResponse::ok(request_id, flags),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
 }
 
 #[cfg(test)]

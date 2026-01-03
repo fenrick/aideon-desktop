@@ -87,6 +87,77 @@ async function* yieldRecords<T>(records: T[]): AsyncIterable<T> {
   }
 }
 
+/**
+ * Narrow unknown values to plain object records.
+ * @param value
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Extract requestId from invoke arguments.
+ * @param invokeArguments
+ */
+function requestIdFromInvokeArguments(invokeArguments: unknown): string | undefined {
+  if (!isRecord(invokeArguments)) {
+    return undefined;
+  }
+  const request = invokeArguments.request;
+  if (!isRecord(request)) {
+    return undefined;
+  }
+  const requestId = request.requestId;
+  return typeof requestId === 'string' ? requestId : undefined;
+}
+
+/**
+ * Extract payload from invoke arguments.
+ * @param invokeArguments
+ */
+function payloadFromInvokeArguments(invokeArguments: unknown): unknown {
+  if (!isRecord(invokeArguments)) {
+    return undefined;
+  }
+  const request = invokeArguments.request;
+  if (!isRecord(request)) {
+    return undefined;
+  }
+  return request.payload;
+}
+
+/**
+ * Find invoke args for a given command.
+ * @param calls
+ * @param command
+ */
+function findInvokeArguments(calls: unknown[][], command: string): unknown {
+  const call = calls.find((entry) => entry[0] === command);
+  return call?.[1];
+}
+
+/**
+ * Create a successful IPC envelope response for the adapter boundary.
+ * @param result
+ */
+function mockIpcOk(result: unknown) {
+  return (_command: string, invokeArguments: unknown) => {
+    const requestId = requestIdFromInvokeArguments(invokeArguments) ?? 'req';
+    return Promise.resolve({ requestId, status: 'ok', result });
+  };
+}
+
+/**
+ * Assert that an IPC call with `command` was invoked and carries the expected payload.
+ * @param command
+ * @param payload
+ */
+function expectIpcInvoke(command: string, payload: Record<string, unknown>) {
+  const calls = (invokeMock as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+  const invokeArguments = findInvokeArguments(calls, command);
+  expect(payloadFromInvokeArguments(invokeArguments)).toEqual(payload);
+}
+
 describe('mneme-api metamodel bindings', () => {
   beforeEach(() => {
     isTauriMock.mockReturnValue(true);
@@ -95,7 +166,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps metamodel batch payloads to rust shapes', async () => {
-    invokeMock.mockResolvedValue({ opId: 'op-1' });
+    invokeMock.mockImplementationOnce(mockIpcOk({ opId: 'op-1' }));
     await upsertMetamodelBatch({
       partitionId: 'p-1',
       actorId: 'a-1',
@@ -137,7 +208,7 @@ describe('mneme-api metamodel bindings', () => {
       },
     });
 
-    expect(invokeMock).toHaveBeenCalledWith('mneme_upsert_metamodel_batch', {
+    expectIpcInvoke('mneme.store.upsert_metamodel_batch', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '123',
@@ -198,7 +269,8 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps effective schema results from rust to ts', async () => {
-    invokeMock.mockResolvedValue({
+    invokeMock.mockImplementationOnce(
+      mockIpcOk({
       type_id: 't-1',
       applies_to: 'Node',
       fields: [
@@ -213,7 +285,8 @@ describe('mneme-api metamodel bindings', () => {
           disallow_overlap: false,
         },
       ],
-    });
+      }),
+    );
 
     const schema = await getEffectiveSchema('p-1', 't-1');
 
@@ -236,14 +309,16 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps edge type rules from rust to ts', async () => {
-    invokeMock.mockResolvedValue([
-      {
-        edge_type_id: 'e-1',
-        semantic_direction: 'supports',
-        allowed_src_type_ids: ['t-1'],
-        allowed_dst_type_ids: ['t-2'],
-      },
-    ]);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([
+        {
+          edge_type_id: 'e-1',
+          semantic_direction: 'supports',
+          allowed_src_type_ids: ['t-1'],
+          allowed_dst_type_ids: ['t-2'],
+        },
+      ]),
+    );
 
     const rules = await listEdgeTypeRules('p-1');
 
@@ -258,7 +333,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('passes create node inputs through to the host', async () => {
-    invokeMock.mockResolvedValue({ opId: 'op-node' });
+    invokeMock.mockImplementationOnce(mockIpcOk({ opId: 'op-node' }));
 
     await createNode({
       partitionId: 'p-1',
@@ -269,7 +344,7 @@ describe('mneme-api metamodel bindings', () => {
       scenarioId: 's-1',
     });
 
-    expect(invokeMock).toHaveBeenCalledWith('mneme_create_node', {
+    expectIpcInvoke('mneme.store.create_node', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '123',
@@ -280,7 +355,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('passes create edge inputs through to the host', async () => {
-    invokeMock.mockResolvedValue({ opId: 'op-edge' });
+    invokeMock.mockImplementationOnce(mockIpcOk({ opId: 'op-edge' }));
 
     await createEdge({
       partitionId: 'p-1',
@@ -297,7 +372,7 @@ describe('mneme-api metamodel bindings', () => {
       scenarioId: 's-1',
     });
 
-    expect(invokeMock).toHaveBeenCalledWith('mneme_create_edge', {
+    expectIpcInvoke('mneme.store.create_edge', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '123',
@@ -314,7 +389,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('passes edge existence interval updates through to the host', async () => {
-    invokeMock.mockResolvedValue({ opId: 'op-exists' });
+    invokeMock.mockImplementationOnce(mockIpcOk({ opId: 'op-exists' }));
 
     await setEdgeExistenceInterval({
       partitionId: 'p-1',
@@ -326,7 +401,7 @@ describe('mneme-api metamodel bindings', () => {
       isTombstone: true,
     });
 
-    expect(invokeMock).toHaveBeenCalledWith('mneme_set_edge_existence_interval', {
+    expectIpcInvoke('mneme.store.set_edge_existence_interval', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '123',
@@ -338,7 +413,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('passes tombstone entity inputs through to the host', async () => {
-    invokeMock.mockResolvedValue({ opId: 'op-tomb' });
+    invokeMock.mockImplementationOnce(mockIpcOk({ opId: 'op-tomb' }));
 
     await tombstoneEntity({
       partitionId: 'p-1',
@@ -347,7 +422,7 @@ describe('mneme-api metamodel bindings', () => {
       entityId: 'n-1',
     });
 
-    expect(invokeMock).toHaveBeenCalledWith('mneme_tombstone_entity', {
+    expectIpcInvoke('mneme.store.tombstone_entity', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '123',
@@ -356,7 +431,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('converts property values to rust enum shapes', async () => {
-    invokeMock.mockResolvedValue({ opId: 'op-prop' });
+    invokeMock.mockImplementationOnce(mockIpcOk({ opId: 'op-prop' }));
     const validFrom = '2025-01-01T00:00:00Z';
 
     await setPropertyInterval({
@@ -370,7 +445,7 @@ describe('mneme-api metamodel bindings', () => {
       layer: 'Actual',
     });
 
-    expect(invokeMock).toHaveBeenCalledWith('mneme_set_property_interval', {
+    expectIpcInvoke('mneme.store.set_property_interval', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '123',
@@ -385,7 +460,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('passes clear property interval inputs through to the host', async () => {
-    invokeMock.mockResolvedValue({ opId: 'op-clear' });
+    invokeMock.mockImplementationOnce(mockIpcOk({ opId: 'op-clear' }));
 
     await clearPropertyInterval({
       partitionId: 'p-1',
@@ -396,7 +471,7 @@ describe('mneme-api metamodel bindings', () => {
       validFrom: '2025-01-01T00:00:00Z',
     });
 
-    expect(invokeMock).toHaveBeenCalledWith('mneme_clear_property_interval', {
+    expectIpcInvoke('mneme.store.clear_property_interval', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '123',
@@ -410,7 +485,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('converts OR-set elements to rust enum shapes', async () => {
-    invokeMock.mockResolvedValue({ opId: 'op-or' });
+    invokeMock.mockImplementationOnce(mockIpcOk({ opId: 'op-or' }));
 
     await orSetUpdate({
       partitionId: 'p-1',
@@ -423,7 +498,7 @@ describe('mneme-api metamodel bindings', () => {
       validFrom: '2025-01-01T00:00:00Z',
     });
 
-    expect(invokeMock).toHaveBeenCalledWith('mneme_or_set_update', {
+    expectIpcInvoke('mneme.store.or_set_update', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '123',
@@ -439,7 +514,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('passes counter update inputs through to the host', async () => {
-    invokeMock.mockResolvedValue({ opId: 'op-counter' });
+    invokeMock.mockImplementationOnce(mockIpcOk({ opId: 'op-counter' }));
 
     await counterUpdate({
       partitionId: 'p-1',
@@ -451,7 +526,7 @@ describe('mneme-api metamodel bindings', () => {
       validFrom: '2025-01-01T00:00:00Z',
     });
 
-    expect(invokeMock).toHaveBeenCalledWith('mneme_counter_update', {
+    expectIpcInvoke('mneme.store.counter_update', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '123',
@@ -466,7 +541,8 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps read entity results from rust to ts', async () => {
-    invokeMock.mockResolvedValue({
+    invokeMock.mockImplementationOnce(
+      mockIpcOk({
       entity_id: 'n-1',
       kind: 'Node',
       type_id: 't-1',
@@ -478,7 +554,8 @@ describe('mneme-api metamodel bindings', () => {
           MultiLimited: { values: [{ Bool: true }], more_available: true },
         },
       },
-    });
+      }),
+    );
 
     const result = await readEntityAtTime({
       partitionId: 'p-1',
@@ -509,9 +586,9 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps traverse results from rust to ts', async () => {
-    invokeMock.mockResolvedValue([
-      { edge_id: 'e-1', src_id: 'n-1', dst_id: 'n-2', type_id: 'et-1' },
-    ]);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([{ edge_id: 'e-1', src_id: 'n-1', dst_id: 'n-2', type_id: 'et-1' }]),
+    );
 
     const edges = await traverseAtTime({
       partitionId: 'p-1',
@@ -524,7 +601,9 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps list entity inputs and results', async () => {
-    invokeMock.mockResolvedValue([{ entity_id: 'n-1', kind: 'Node', type_id: 't-1' }]);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([{ entity_id: 'n-1', kind: 'Node', type_id: 't-1' }]),
+    );
 
     const results = await listEntities({
       partitionId: 'p-1',
@@ -533,7 +612,7 @@ describe('mneme-api metamodel bindings', () => {
       limit: 5,
     });
 
-    expect(invokeMock).toHaveBeenCalledWith('mneme_list_entities', {
+    expectIpcInvoke('mneme.store.list_entities', {
       partitionId: 'p-1',
       at: '2025-01-01T00:00:00Z',
       filters: [{ fieldId: 'f-1', op: 'Eq', value: { Str: 'alpha' } }],
@@ -543,15 +622,17 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps projection edges from rust to ts', async () => {
-    invokeMock.mockResolvedValue([
-      {
-        edge_id: 'e-1',
-        src_id: 'n-1',
-        dst_id: 'n-2',
-        edge_type_id: 't-1',
-        weight: 0.8,
-      },
-    ]);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([
+        {
+          edge_id: 'e-1',
+          src_id: 'n-1',
+          dst_id: 'n-2',
+          edge_type_id: 't-1',
+          weight: 0.8,
+        },
+      ]),
+    );
 
     const edges = await getProjectionEdges({ partitionId: 'p-1' });
 
@@ -561,15 +642,17 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps degree stats from rust to ts', async () => {
-    invokeMock.mockResolvedValue([
-      {
-        entity_id: 'n-1',
-        out_degree: 2,
-        in_degree: 1,
-        as_of_valid_time: 1_735_689_600_000_000,
-        computed_asserted_at: 555,
-      },
-    ]);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([
+        {
+          entity_id: 'n-1',
+          out_degree: 2,
+          in_degree: 1,
+          as_of_valid_time: 1_735_689_600_000_000,
+          computed_asserted_at: 555,
+        },
+      ]),
+    );
 
     const stats = await getGraphDegreeStats({ partitionId: 'p-1' });
 
@@ -583,7 +666,9 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps edge type counts from rust to ts', async () => {
-    invokeMock.mockResolvedValue([{ edge_type_id: 't-1', count: 4, computed_asserted_at: 777 }]);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([{ edge_type_id: 't-1', count: 4, computed_asserted_at: 777 }]),
+    );
 
     const counts = await getGraphEdgeTypeCounts({ partitionId: 'p-1' });
 
@@ -591,7 +676,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('stores pagerank runs with seed conversion', async () => {
-    invokeMock.mockResolvedValue({ runId: 'r-1' });
+    invokeMock.mockImplementationOnce(mockIpcOk({ runId: 'r-1' }));
 
     const result = await storePageRankRun({
       partitionId: 'p-1',
@@ -607,7 +692,7 @@ describe('mneme-api metamodel bindings', () => {
     });
 
     expect(result.runId).toBe('r-1');
-    expect(invokeMock).toHaveBeenCalledWith('mneme_store_pagerank_scores', {
+    expectIpcInvoke('mneme.store.store_pagerank_scores', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '123',
@@ -622,7 +707,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('returns pagerank scores', async () => {
-    invokeMock.mockResolvedValue([{ id: 'n-1', score: 0.9 }]);
+    invokeMock.mockImplementationOnce(mockIpcOk([{ id: 'n-1', score: 0.9 }]));
 
     const scores = await getPageRankScores({ partitionId: 'p-1', runId: 'r-1', topN: 3 });
 
@@ -630,16 +715,18 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('exports ops and normalizes payloads', async () => {
-    invokeMock.mockResolvedValue([
-      {
-        op_id: 'op-1',
-        actor_id: 'a-1',
-        asserted_at: 123,
-        op_type: 7,
-        payload: [1, 2, 3],
-        deps: ['op-0'],
-      },
-    ]);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([
+        {
+          op_id: 'op-1',
+          actor_id: 'a-1',
+          asserted_at: 123,
+          op_type: 7,
+          payload: [1, 2, 3],
+          deps: ['op-0'],
+        },
+      ]),
+    );
 
     const result = await exportOps({ partitionId: 'p-1' });
 
@@ -654,10 +741,12 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('exports op streams and yields records', async () => {
-    invokeMock.mockResolvedValue([
-      { record_type: 'header', data: { version: 1 } },
-      { record_type: 'op', data: { opId: 'o-1' } },
-    ]);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([
+        { record_type: 'header', data: { version: 1 } },
+        { record_type: 'op', data: { opId: 'o-1' } },
+      ]),
+    );
 
     const iterable = await exportOpsStream({ partitionId: 'p-1' });
     const records: { recordType: string; data: unknown }[] = [];
@@ -669,16 +758,16 @@ describe('mneme-api metamodel bindings', () => {
       { recordType: 'header', data: { version: 1 } },
       { recordType: 'op', data: { opId: 'o-1' } },
     ]);
-    expect(invokeMock).toHaveBeenCalledWith('mneme_export_ops_stream', {
+    expectIpcInvoke('mneme.store.export_ops_stream', {
       partitionId: 'p-1',
     });
   });
 
   it('exposes export/import/snapshot wrappers', async () => {
     invokeMock
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce({ ops_imported: 0, ops_skipped: 0, errors: 0 })
-      .mockResolvedValueOnce([]);
+      .mockImplementationOnce(mockIpcOk([]))
+      .mockImplementationOnce(mockIpcOk({ ops_imported: 0, ops_skipped: 0, errors: 0 }))
+      .mockImplementationOnce(mockIpcOk([]));
 
     const records = await mnemeExportApi.exportOps({ partitionId: 'p-1' });
     const exported: { recordType: string; data: unknown }[] = [];
@@ -714,7 +803,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('ingests ops with byte payload conversion', async () => {
-    invokeMock.mockResolvedValue({});
+    invokeMock.mockImplementationOnce(mockIpcOk({}));
 
     await ingestOps({
       partitionId: 'p-1',
@@ -730,7 +819,7 @@ describe('mneme-api metamodel bindings', () => {
       ],
     });
 
-    expect(invokeMock).toHaveBeenCalledWith('mneme_ingest_ops', {
+    expectIpcInvoke('mneme.store.ingest_ops', {
       partitionId: 'p-1',
       ops: [
         {
@@ -746,7 +835,9 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('imports op streams and maps reports', async () => {
-    invokeMock.mockResolvedValue({ ops_imported: 2, ops_skipped: 1, errors: 0 });
+    invokeMock.mockImplementationOnce(
+      mockIpcOk({ ops_imported: 2, ops_skipped: 1, errors: 0 }),
+    );
 
     const report = await importOpsStream(
       {
@@ -758,7 +849,7 @@ describe('mneme-api metamodel bindings', () => {
     );
 
     expect(report).toEqual({ opsImported: 2, opsSkipped: 1, errors: 0 });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_import_ops_stream', {
+    expectIpcInvoke('mneme.store.import_ops_stream', {
       targetPartition: 'p-1',
       allowPartitionCreate: true,
       strictSchema: true,
@@ -767,7 +858,9 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('exports snapshot streams', async () => {
-    invokeMock.mockResolvedValue([{ record_type: 'header', data: { snap: true } }]);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([{ record_type: 'header', data: { snap: true } }]),
+    );
 
     const iterable = await exportSnapshotStream({
       partitionId: 'p-1',
@@ -779,14 +872,14 @@ describe('mneme-api metamodel bindings', () => {
     }
 
     expect(records).toEqual([{ recordType: 'header', data: { snap: true } }]);
-    expect(invokeMock).toHaveBeenCalledWith('mneme_export_snapshot_stream', {
+    expectIpcInvoke('mneme.store.export_snapshot_stream', {
       partitionId: 'p-1',
       asOfAssertedAt: '123',
     });
   });
 
   it('imports snapshot streams', async () => {
-    invokeMock.mockResolvedValue({});
+    invokeMock.mockImplementationOnce(mockIpcOk({}));
 
     await importSnapshotStream(
       {
@@ -796,7 +889,7 @@ describe('mneme-api metamodel bindings', () => {
       yieldRecords([{ recordType: 'header', data: { snap: true } }]),
     );
 
-    expect(invokeMock).toHaveBeenCalledWith('mneme_import_snapshot_stream', {
+    expectIpcInvoke('mneme.store.import_snapshot_stream', {
       targetPartition: 'p-1',
       allowPartitionCreate: false,
       records: [{ record_type: 'header', data: { snap: true } }],
@@ -804,16 +897,20 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('upserts and lists validation rules', async () => {
-    invokeMock.mockResolvedValueOnce({}).mockResolvedValueOnce([
-      {
-        rule_id: 'r-1',
-        scope_kind: 2,
-        scope_id: 't-1',
-        severity: 1,
-        template_kind: 'required',
-        params: { field: 'name' },
-      },
-    ]);
+    invokeMock
+      .mockImplementationOnce(mockIpcOk({}))
+      .mockImplementationOnce(
+        mockIpcOk([
+          {
+            rule_id: 'r-1',
+            scope_kind: 2,
+            scope_id: 't-1',
+            severity: 1,
+            template_kind: 'required',
+            params: { field: 'name' },
+          },
+        ]),
+      );
 
     await upsertValidationRules({
       partitionId: 'p-1',
@@ -843,7 +940,7 @@ describe('mneme-api metamodel bindings', () => {
         params: { field: 'name' },
       },
     ]);
-    expect(invokeMock).toHaveBeenCalledWith('mneme_upsert_validation_rules', {
+    expectIpcInvoke('mneme.store.upsert_validation_rules', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '123',
@@ -858,21 +955,25 @@ describe('mneme-api metamodel bindings', () => {
         },
       ],
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_list_validation_rules', {
+    expectIpcInvoke('mneme.store.list_validation_rules', {
       partitionId: 'p-1',
     });
   });
 
   it('upserts and lists computed rules', async () => {
-    invokeMock.mockResolvedValueOnce({}).mockResolvedValueOnce([
-      {
-        rule_id: 'c-1',
-        target_type_id: 't-1',
-        output_field_id: 'f-1',
-        template_kind: 'sum',
-        params: { fields: ['f-2'] },
-      },
-    ]);
+    invokeMock
+      .mockImplementationOnce(mockIpcOk({}))
+      .mockImplementationOnce(
+        mockIpcOk([
+          {
+            rule_id: 'c-1',
+            target_type_id: 't-1',
+            output_field_id: 'f-1',
+            template_kind: 'sum',
+            params: { fields: ['f-2'] },
+          },
+        ]),
+      );
 
     await upsertComputedRules({
       partitionId: 'p-1',
@@ -900,7 +1001,7 @@ describe('mneme-api metamodel bindings', () => {
         params: { fields: ['f-2'] },
       },
     ]);
-    expect(invokeMock).toHaveBeenCalledWith('mneme_upsert_computed_rules', {
+    expectIpcInvoke('mneme.store.upsert_computed_rules', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '555',
@@ -914,23 +1015,27 @@ describe('mneme-api metamodel bindings', () => {
         },
       ],
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_list_computed_rules', {
+    expectIpcInvoke('mneme.store.list_computed_rules', {
       partitionId: 'p-1',
     });
   });
 
   it('upserts and lists computed cache entries', async () => {
-    invokeMock.mockResolvedValueOnce({}).mockResolvedValueOnce([
-      {
-        entity_id: 'n-1',
-        field_id: 'f-1',
-        valid_from: 1_000_000,
-        valid_to: undefined,
-        value: { Str: 'value' },
-        rule_version_hash: 'hash-1',
-        computed_asserted_at: 321,
-      },
-    ]);
+    invokeMock
+      .mockImplementationOnce(mockIpcOk({}))
+      .mockImplementationOnce(
+        mockIpcOk([
+          {
+            entity_id: 'n-1',
+            field_id: 'f-1',
+            valid_from: 1_000_000,
+            valid_to: undefined,
+            value: { Str: 'value' },
+            rule_version_hash: 'hash-1',
+            computed_asserted_at: 321,
+          },
+        ]),
+      );
 
     await upsertComputedCache({
       partitionId: 'p-1',
@@ -963,7 +1068,7 @@ describe('mneme-api metamodel bindings', () => {
         computedAssertedAt: '321',
       },
     ]);
-    expect(invokeMock).toHaveBeenCalledWith('mneme_upsert_computed_cache', {
+    expectIpcInvoke('mneme.store.upsert_computed_cache', {
       partitionId: 'p-1',
       entries: [
         {
@@ -977,7 +1082,7 @@ describe('mneme-api metamodel bindings', () => {
         },
       ],
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_list_computed_cache', {
+    expectIpcInvoke('mneme.store.list_computed_cache', {
       partitionId: 'p-1',
       fieldId: 'f-1',
       limit: 25,
@@ -985,19 +1090,21 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('fetches partition head', async () => {
-    invokeMock.mockResolvedValue({ head: '999' });
+    invokeMock.mockImplementationOnce(mockIpcOk({ head: '999' }));
 
     const result = await getPartitionHead({ partitionId: 'p-1' });
 
     expect(result.head).toBe('999');
-    expect(invokeMock).toHaveBeenCalledWith('mneme_get_partition_head', {
+    expectIpcInvoke('mneme.store.get_partition_head', {
       partitionId: 'p-1',
       scenarioId: undefined,
     });
   });
 
   it('creates and deletes scenarios', async () => {
-    invokeMock.mockResolvedValueOnce('s-1').mockResolvedValueOnce({});
+    invokeMock
+      .mockImplementationOnce(mockIpcOk('s-1'))
+      .mockImplementationOnce(mockIpcOk({}));
 
     const scenarioId = await createScenario({
       partitionId: 'p-1',
@@ -1013,13 +1120,13 @@ describe('mneme-api metamodel bindings', () => {
     });
 
     expect(scenarioId).toBe('s-1');
-    expect(invokeMock).toHaveBeenCalledWith('mneme_create_scenario', {
+    expectIpcInvoke('mneme.store.create_scenario', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '123',
       name: 'Plan A',
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_delete_scenario', {
+    expectIpcInvoke('mneme.store.delete_scenario', {
       partitionId: 'p-1',
       actorId: 'a-1',
       assertedAt: '124',
@@ -1028,7 +1135,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('triggers processing jobs', async () => {
-    invokeMock.mockResolvedValue({});
+    invokeMock.mockImplementation(mockIpcOk({}));
 
     await triggerRebuildEffectiveSchema({ partitionId: 'p-1', reason: 'rebuild' });
     await triggerRefreshIntegrity({ partitionId: 'p-1', reason: 'integrity' });
@@ -1040,47 +1147,51 @@ describe('mneme-api metamodel bindings', () => {
     });
     await triggerCompaction({ partitionId: 'p-1', reason: 'compact' });
 
-    expect(invokeMock).toHaveBeenCalledWith('mneme_trigger_rebuild_effective_schema', {
+    expectIpcInvoke('mneme.store.trigger_rebuild_effective_schema', {
       partitionId: 'p-1',
       reason: 'rebuild',
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_trigger_refresh_integrity', {
+    expectIpcInvoke('mneme.store.trigger_refresh_integrity', {
       partitionId: 'p-1',
       reason: 'integrity',
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_trigger_refresh_analytics_projections', {
+    expectIpcInvoke('mneme.store.trigger_refresh_analytics_projections', {
       partitionId: 'p-1',
       reason: 'analytics',
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_trigger_retention', {
+    expectIpcInvoke('mneme.store.trigger_retention', {
       partitionId: 'p-1',
       reason: 'cleanup',
       policy: { keepOpsDays: 30 },
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_trigger_compaction', {
+    expectIpcInvoke('mneme.store.trigger_compaction', {
       partitionId: 'p-1',
       reason: 'compact',
     });
   });
 
   it('runs processing workers and maps job summaries', async () => {
-    invokeMock.mockResolvedValueOnce({ jobsProcessed: 2 }).mockResolvedValueOnce([
-      {
-        partition: 'p-1',
-        job_id: 'j-1',
-        job_type: 'schema',
-        status: 1,
-        priority: 5,
-        attempts: 0,
-        max_attempts: 3,
-        lease_expires_at: undefined,
-        next_run_after: undefined,
-        created_asserted_at: 11,
-        updated_asserted_at: 22,
-        dedupe_key: undefined,
-        last_error: undefined,
-      },
-    ]);
+    invokeMock
+      .mockImplementationOnce(mockIpcOk({ jobsProcessed: 2 }))
+      .mockImplementationOnce(
+        mockIpcOk([
+          {
+            partition: 'p-1',
+            job_id: 'j-1',
+            job_type: 'schema',
+            status: 1,
+            priority: 5,
+            attempts: 0,
+            max_attempts: 3,
+            lease_expires_at: undefined,
+            next_run_after: undefined,
+            created_asserted_at: 11,
+            updated_asserted_at: 22,
+            dedupe_key: undefined,
+            last_error: undefined,
+          },
+        ]),
+      );
 
     const workerResult = await runProcessingWorker({ maxJobs: 5, leaseMillis: 1000 });
     const jobs = await listJobs({ partitionId: 'p-1', limit: 10 });
@@ -1100,17 +1211,19 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps change feed events from rust to ts', async () => {
-    invokeMock.mockResolvedValue([
-      {
-        partition: 'p-1',
-        sequence: 10,
-        op_id: 'op-1',
-        asserted_at: 101,
-        entity_id: 'n-1',
-        change_kind: 2,
-        payload: { note: 'changed' },
-      },
-    ]);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([
+        {
+          partition: 'p-1',
+          sequence: 10,
+          op_id: 'op-1',
+          asserted_at: 101,
+          entity_id: 'n-1',
+          change_kind: 2,
+          payload: { note: 'changed' },
+        },
+      ]),
+    );
 
     const events = await getChangesSince({ partitionId: 'p-1' });
 
@@ -1128,17 +1241,19 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('subscribes and unsubscribes to change feeds', async () => {
-    invokeMock.mockResolvedValueOnce({ subscriptionId: 'sub-1' }).mockResolvedValueOnce(true);
+    invokeMock
+      .mockImplementationOnce(mockIpcOk({ subscriptionId: 'sub-1' }))
+      .mockImplementationOnce(mockIpcOk(true));
 
     const sub = await subscribePartition({ partitionId: 'p-1' });
     const ok = await unsubscribePartition({ subscriptionId: 'sub-1' });
 
     expect(sub.subscriptionId).toBe('sub-1');
     expect(ok).toBe(true);
-    expect(invokeMock).toHaveBeenCalledWith('mneme_subscribe_partition', {
+    expectIpcInvoke('mneme.store.subscribe_partition', {
       partitionId: 'p-1',
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_unsubscribe_partition', {
+    expectIpcInvoke('mneme.store.unsubscribe_partition', {
       subscriptionId: 'sub-1',
     });
   });
@@ -1157,12 +1272,14 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps integrity heads from rust', async () => {
-    invokeMock.mockResolvedValue({
-      partition: 'p-1',
-      scenario_id: undefined,
-      run_id: 'run-1',
-      updated_asserted_at: 90_210,
-    });
+    invokeMock.mockImplementationOnce(
+      mockIpcOk({
+        partition: 'p-1',
+        scenario_id: undefined,
+        run_id: 'run-1',
+        updated_asserted_at: 90_210,
+      }),
+    );
 
     const result = await getIntegrityHead('p-1');
 
@@ -1172,19 +1289,21 @@ describe('mneme-api metamodel bindings', () => {
       runId: 'run-1',
       updatedAssertedAt: '90210',
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_get_integrity_head', {
+    expectIpcInvoke('mneme.store.get_integrity_head', {
       partitionId: 'p-1',
       scenarioId: undefined,
     });
   });
 
   it('maps schema compile heads from rust', async () => {
-    invokeMock.mockResolvedValue({
-      partition: 'p-1',
-      type_id: 't-1',
-      schema_version_hash: 'hash-1',
-      updated_asserted_at: 12,
-    });
+    invokeMock.mockImplementationOnce(
+      mockIpcOk({
+        partition: 'p-1',
+        type_id: 't-1',
+        schema_version_hash: 'hash-1',
+        updated_asserted_at: 12,
+      }),
+    );
 
     const result = await getLastSchemaCompile('p-1', 't-1');
 
@@ -1194,30 +1313,32 @@ describe('mneme-api metamodel bindings', () => {
       schemaVersionHash: 'hash-1',
       updatedAssertedAt: '12',
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_get_last_schema_compile', {
+    expectIpcInvoke('mneme.store.get_last_schema_compile', {
       partitionId: 'p-1',
       typeId: 't-1',
     });
   });
 
   it('lists failed jobs', async () => {
-    invokeMock.mockResolvedValue([
-      {
-        partition: 'p-1',
-        job_id: 'j-1',
-        job_type: 'schema',
-        status: 3,
-        priority: 1,
-        attempts: 2,
-        max_attempts: 3,
-        lease_expires_at: undefined,
-        next_run_after: undefined,
-        created_asserted_at: 11,
-        updated_asserted_at: 22,
-        dedupe_key: 'key',
-        last_error: 'oops',
-      },
-    ]);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([
+        {
+          partition: 'p-1',
+          job_id: 'j-1',
+          job_type: 'schema',
+          status: 3,
+          priority: 1,
+          attempts: 2,
+          max_attempts: 3,
+          lease_expires_at: undefined,
+          next_run_after: undefined,
+          created_asserted_at: 11,
+          updated_asserted_at: 22,
+          dedupe_key: 'key',
+          last_error: 'oops',
+        },
+      ]),
+    );
 
     const result = await listFailedJobs('p-1', 5);
 
@@ -1234,27 +1355,29 @@ describe('mneme-api metamodel bindings', () => {
       dedupeKey: 'key',
       lastError: 'oops',
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_list_failed_jobs', {
+    expectIpcInvoke('mneme.store.list_failed_jobs', {
       partitionId: 'p-1',
       limit: 5,
     });
   });
 
   it('maps schema manifest rows', async () => {
-    invokeMock.mockResolvedValue({
-      manifest_version: 'v2',
-      migrations: ['001_init', '002_next'],
-      tables: [
-        {
-          name: 'nodes',
-          columns: [
-            { name: 'id', logical_type: 'uuid', nullable: false },
-            { name: 'name', logical_type: 'text', nullable: true },
-          ],
-          indexes: [{ name: 'idx_nodes_id', columns: ['id'], unique: true }],
-        },
-      ],
-    });
+    invokeMock.mockImplementationOnce(
+      mockIpcOk({
+        manifest_version: 'v2',
+        migrations: ['001_init', '002_next'],
+        tables: [
+          {
+            name: 'nodes',
+            columns: [
+              { name: 'id', logical_type: 'uuid', nullable: false },
+              { name: 'name', logical_type: 'text', nullable: true },
+            ],
+            indexes: [{ name: 'idx_nodes_id', columns: ['id'], unique: true }],
+          },
+        ],
+      }),
+    );
 
     const result = await getSchemaManifest();
 
@@ -1275,27 +1398,29 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps explain resolution results', async () => {
-    invokeMock.mockResolvedValue({
-      entity_id: 'n-1',
-      field_id: 'f-1',
-      resolved: { Single: { Str: 'ok' } },
-      winner: {
-        value: { Str: 'ok' },
-        valid_from: 1_000_000,
-        valid_to: undefined,
-        layer: 2,
-        asserted_at: 100,
-        op_id: 'op-1',
-        is_tombstone: false,
-        precedence: {
+    invokeMock.mockImplementationOnce(
+      mockIpcOk({
+        entity_id: 'n-1',
+        field_id: 'f-1',
+        resolved: { Single: { Str: 'ok' } },
+        winner: {
+          value: { Str: 'ok' },
+          valid_from: 1_000_000,
+          valid_to: undefined,
           layer: 2,
-          interval_width: 1,
           asserted_at: 100,
           op_id: 'op-1',
+          is_tombstone: false,
+          precedence: {
+            layer: 2,
+            interval_width: 1,
+            asserted_at: 100,
+            op_id: 'op-1',
+          },
         },
-      },
-      candidates: [],
-    });
+        candidates: [],
+      }),
+    );
 
     const result = await explainResolution({
       partitionId: 'p-1',
@@ -1317,7 +1442,7 @@ describe('mneme-api metamodel bindings', () => {
         isTombstone: false,
       },
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_explain_resolution', {
+    expectIpcInvoke('mneme.store.explain_resolution', {
       partitionId: 'p-1',
       entityId: 'n-1',
       fieldId: 'f-1',
@@ -1328,29 +1453,31 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('maps explain traversal results', async () => {
-    invokeMock.mockResolvedValue({
-      edge_id: 'e-1',
-      active: true,
-      winner: {
+    invokeMock.mockImplementationOnce(
+      mockIpcOk({
         edge_id: 'e-1',
-        src_id: 'n-1',
-        dst_id: 'n-2',
-        edge_type_id: 'rel',
-        valid_from: 2_000_000,
-        valid_to: 3_000_000,
-        layer: 1,
-        asserted_at: 200,
-        op_id: 'op-2',
-        is_tombstone: false,
-        precedence: {
+        active: true,
+        winner: {
+          edge_id: 'e-1',
+          src_id: 'n-1',
+          dst_id: 'n-2',
+          edge_type_id: 'rel',
+          valid_from: 2_000_000,
+          valid_to: 3_000_000,
           layer: 1,
-          interval_width: 1,
           asserted_at: 200,
           op_id: 'op-2',
+          is_tombstone: false,
+          precedence: {
+            layer: 1,
+            interval_width: 1,
+            asserted_at: 200,
+            op_id: 'op-2',
+          },
         },
-      },
-      candidates: [],
-    });
+        candidates: [],
+      }),
+    );
 
     const result = await explainTraversal({
       partitionId: 'p-1',
@@ -1374,7 +1501,7 @@ describe('mneme-api metamodel bindings', () => {
         isTombstone: false,
       },
     });
-    expect(invokeMock).toHaveBeenCalledWith('mneme_explain_traversal', {
+    expectIpcInvoke('mneme.store.explain_traversal', {
       partitionId: 'p-1',
       edgeId: 'e-1',
       at: '2024-01-02T00:00:00.000Z',

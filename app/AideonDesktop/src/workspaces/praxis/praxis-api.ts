@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
 import type {
   TemporalDiffParameters,
   TemporalDiffSnapshot,
@@ -7,21 +6,24 @@ import type {
   WorkerHealth,
 } from '../../dtos';
 
+import { invokeIpc } from '../../adapters/ipc';
+
 import { isTauri } from './platform';
+import { toErrorMessage } from './lib/errors';
 
 const COMMANDS = {
-  workerHealth: 'worker_health',
-  graphView: 'praxis_graph_view',
-  catalogueView: 'praxis_catalogue_view',
-  matrixView: 'praxis_matrix_view',
-  chartView: 'praxis_chart_view',
-  listBranches: 'list_branches',
-  listCommits: 'list_commits',
-  stateAt: 'temporal_state_at',
-  diffSummary: 'temporal_diff',
-  mergeBranches: 'merge_branches',
-  applyOperations: 'praxis_apply_operations',
-  listScenarios: 'praxis_list_scenarios',
+  workerHealth: 'system.worker.health',
+  graphView: 'praxis.artefact.execute_graph',
+  catalogueView: 'praxis.artefact.execute_catalogue',
+  matrixView: 'praxis.artefact.execute_matrix',
+  chartView: 'praxis.artefact.execute_chart',
+  listBranches: 'chrona.temporal.list_branches',
+  listCommits: 'chrona.temporal.list_commits',
+  stateAt: 'chrona.temporal.state_at',
+  diffSummary: 'chrona.temporal.diff',
+  mergeBranches: 'chrona.temporal.merge_branches',
+  applyOperations: 'praxis.task.apply_operations',
+  listScenarios: 'praxis.scenario.list',
 } as const;
 
 export interface TwinNode {
@@ -262,12 +264,19 @@ interface TemporalCommitSummaryPayload {
   time?: string;
   message?: string;
   tags?: unknown;
+  changeCount?: number;
   change_count?: number;
 }
 
 interface DiffSummaryResponse {
   from?: string;
   to?: string;
+  nodeAdds?: number;
+  nodeMods?: number;
+  nodeDels?: number;
+  edgeAdds?: number;
+  edgeMods?: number;
+  edgeDels?: number;
   node_adds?: number;
   node_mods?: number;
   node_dels?: number;
@@ -294,7 +303,7 @@ export async function getWorkerHealth(): Promise<WorkerHealth> {
   if (!isTauri()) {
     return { ...MOCK_HEALTH, timestamp_ms: Date.now() };
   }
-  return invoke<WorkerHealth>(COMMANDS.workerHealth, {});
+  return invokeIpc(COMMANDS.workerHealth, {});
 }
 
 /**
@@ -302,7 +311,7 @@ export async function getWorkerHealth(): Promise<WorkerHealth> {
  * @param definition Graph view request parameters.
  */
 export async function getGraphView(definition: GraphViewDefinition): Promise<GraphViewModel> {
-  return callOrMock(COMMANDS.graphView, { definition }, () => mockGraphView(definition));
+  return callOrMock(COMMANDS.graphView, definition, () => mockGraphView(definition));
 }
 
 /**
@@ -312,7 +321,7 @@ export async function getGraphView(definition: GraphViewDefinition): Promise<Gra
 export async function getCatalogueView(
   definition: CatalogueViewDefinition,
 ): Promise<CatalogueViewModel> {
-  return callOrMock(COMMANDS.catalogueView, { definition }, () => mockCatalogueView(definition));
+  return callOrMock(COMMANDS.catalogueView, definition, () => mockCatalogueView(definition));
 }
 
 /**
@@ -320,7 +329,7 @@ export async function getCatalogueView(
  * @param definition matrix view definition.
  */
 export async function getMatrixView(definition: MatrixViewDefinition): Promise<MatrixViewModel> {
-  return callOrMock(COMMANDS.matrixView, { definition }, () => mockMatrixView(definition));
+  return callOrMock(COMMANDS.matrixView, definition, () => mockMatrixView(definition));
 }
 
 /**
@@ -328,7 +337,7 @@ export async function getMatrixView(definition: MatrixViewDefinition): Promise<M
  * @param definition chart view definition.
  */
 export async function getChartView(definition: ChartViewDefinition): Promise<ChartViewModel> {
-  return callOrMock(COMMANDS.chartView, { definition }, () => mockChartView(definition));
+  return callOrMock(COMMANDS.chartView, definition, () => mockChartView(definition));
 }
 
 /**
@@ -337,7 +346,7 @@ export async function getChartView(definition: ChartViewDefinition): Promise<Cha
 export async function listTemporalBranches(): Promise<TemporalBranchSummary[]> {
   const response = await callOrMock<ListBranchesResponse | TemporalBranchSummary[]>(
     COMMANDS.listBranches,
-    undefined,
+    {},
     () => mockBranches(),
   );
   if (Array.isArray(response)) {
@@ -374,7 +383,7 @@ export async function listTemporalCommits(branch: string): Promise<TemporalCommi
 export async function getStateAtSnapshot(request: StateAtRequest): Promise<StateAtSnapshot> {
   const snapshot = await callOrMock<StateAtSnapshot>(
     COMMANDS.stateAt,
-    { payload: serializeStateAtArguments(request) },
+    serializeStateAtArguments(request),
     () => mockStateAt(request),
   );
   return {
@@ -389,28 +398,21 @@ export async function getStateAtSnapshot(request: StateAtRequest): Promise<State
  * @param request diff request containing `from`, `to`, and optional scope.
  */
 export async function getTemporalDiff(request: TemporalDiffRequest): Promise<TemporalDiffSnapshot> {
-  const payload: Record<string, unknown> = {
-    payload: {
-      from: request.from,
-      to: request.to,
-    },
-  };
-  if (request.scope) {
-    (payload.payload as Record<string, unknown>).scope = request.scope;
-  }
-  const summary = await callOrMock<DiffSummaryResponse>(COMMANDS.diffSummary, payload, () =>
-    mockDiffSummary(request),
+  const summary = await callOrMock<DiffSummaryResponse>(
+    COMMANDS.diffSummary,
+    serializeDiffArguments(request),
+    () => mockDiffSummary(request),
   );
   return {
     from: summary.from ?? request.from,
     to: summary.to ?? request.to,
     metrics: {
-      nodeAdds: summary.node_adds ?? 0,
-      nodeMods: summary.node_mods ?? 0,
-      nodeDels: summary.node_dels ?? 0,
-      edgeAdds: summary.edge_adds ?? 0,
-      edgeMods: summary.edge_mods ?? 0,
-      edgeDels: summary.edge_dels ?? 0,
+      nodeAdds: summary.nodeAdds ?? summary.node_adds ?? 0,
+      nodeMods: summary.nodeMods ?? summary.node_mods ?? 0,
+      nodeDels: summary.nodeDels ?? summary.node_dels ?? 0,
+      edgeAdds: summary.edgeAdds ?? summary.edge_adds ?? 0,
+      edgeMods: summary.edgeMods ?? summary.edge_mods ?? 0,
+      edgeDels: summary.edgeDels ?? summary.edge_dels ?? 0,
     },
   };
 }
@@ -429,7 +431,7 @@ export async function mergeTemporalBranches(request: {
 }): Promise<TemporalMergeResult> {
   const response = await callOrMock<MergeResponsePayload>(
     COMMANDS.mergeBranches,
-    { payload: request },
+    request,
     () => mockMerge(request),
   );
   const conflicts = Array.isArray(response.conflicts)
@@ -460,29 +462,29 @@ export async function applyOperations(
  * List available scenarios; returns mock scenarios when running outside Tauri.
  */
 export async function listScenarios(): Promise<ScenarioSummary[]> {
-  return callOrMock(COMMANDS.listScenarios, undefined, () => mockScenarios());
+  return callOrMock(COMMANDS.listScenarios, {}, () => mockScenarios());
 }
 
 /**
  * Invoke a Tauri command when available; otherwise return a mock fallback.
  * Wraps host errors with a readable message.
  * @param command Tauri command name.
- * @param payload optional payload for the command.
+ * @param payload payload for the command.
  * @param fallback function returning mock data when not in Tauri.
  */
 async function callOrMock<T>(
   command: string,
-  payload: Record<string, unknown> | undefined,
+  payload: object,
   fallback: () => T | Promise<T>,
 ): Promise<T> {
   if (!isTauri()) {
     return fallback();
   }
   try {
-    const result = await invoke<T>(command, payload ?? {});
+    const result = await invokeIpc<T>(command, payload as Record<string, unknown>);
     return result;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = toErrorMessage(error);
     throw new Error(`Host command '${command}' failed: ${message}`);
   }
 }
@@ -502,6 +504,12 @@ function normalizeCommit(
   const tags = Array.isArray(payload.tags)
     ? (payload.tags as unknown[]).filter((value): value is string => typeof value === 'string')
     : [];
+  let changeCount = 0;
+  if (typeof payload.changeCount === 'number') {
+    changeCount = payload.changeCount;
+  } else if (typeof payload.change_count === 'number') {
+    changeCount = payload.change_count;
+  }
   return {
     id: payload.id ?? 'unknown',
     branch: payload.branch ?? fallbackBranch,
@@ -510,7 +518,7 @@ function normalizeCommit(
     time: payload.time ?? undefined,
     message: payload.message ?? 'Commit',
     tags,
-    changeCount: typeof payload.change_count === 'number' ? payload.change_count : 0,
+    changeCount,
   };
 }
 
@@ -946,9 +954,21 @@ function randomScore(seed: string): number {
  */
 function serializeStateAtArguments(request: StateAtRequest): Record<string, unknown> {
   return {
-    asOf: request.asOf,
+    asOf: { id: request.asOf },
     scenario: request.scenario ?? undefined,
     confidence: request.confidence ?? undefined,
+  };
+}
+
+/**
+ * Serialize `diff` arguments for host invocation.
+ * @param request
+ */
+function serializeDiffArguments(request: TemporalDiffRequest): Record<string, unknown> {
+  return {
+    from: { id: request.from },
+    to: { id: request.to },
+    scope: request.scope ?? undefined,
   };
 }
 

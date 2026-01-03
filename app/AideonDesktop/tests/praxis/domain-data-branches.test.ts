@@ -13,6 +13,27 @@ const invokeMock = vi.mocked(invoke);
 const isTauriMock = vi.mocked(isTauri);
 const listScenariosMock = vi.mocked(listScenarios);
 
+/**
+ * Narrow unknown values to plain object records.
+ * @param value
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Create a successful IPC envelope response for the adapter boundary.
+ * @param result
+ */
+function mockIpcOk(result: unknown) {
+  return (_command: string, invokeArguments: unknown) => {
+    const request = isRecord(invokeArguments) ? invokeArguments.request : undefined;
+    const requestId =
+      isRecord(request) && typeof request.requestId === 'string' ? request.requestId : 'req';
+    return Promise.resolve({ requestId, status: 'ok', result });
+  };
+}
+
 describe('domain-data branches', () => {
   it('falls back to built-ins when not running in Tauri', async () => {
     isTauriMock.mockReturnValue(false);
@@ -35,11 +56,13 @@ describe('domain-data branches', () => {
 
   it('normalises host results and falls back on errors or empty payloads', async () => {
     isTauriMock.mockReturnValue(true);
-    invokeMock.mockResolvedValueOnce([{ id: 'p1', name: 'Proj', scenarios: [] }]);
+    invokeMock.mockImplementationOnce(
+      mockIpcOk([{ id: 'p1', name: 'Proj', scenarios: [] }]),
+    );
     const projects = await listProjectsWithScenarios();
     expect(projects[0]).toMatchObject({ id: 'p1', name: 'Proj' });
 
-    invokeMock.mockResolvedValueOnce([]);
+    invokeMock.mockImplementationOnce(mockIpcOk([]));
     const templatesEmpty = await listTemplatesFromHost();
     expect(templatesEmpty.length).toBeGreaterThan(0);
 

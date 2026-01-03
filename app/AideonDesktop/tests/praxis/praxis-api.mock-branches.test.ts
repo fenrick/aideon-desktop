@@ -20,6 +20,52 @@ import {
 const isTauriMock = vi.mocked(isTauri);
 const invokeMock = vi.mocked(invoke);
 
+/**
+ * Narrow unknown values to plain object records.
+ * @param value
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Extract payload from invoke arguments.
+ * @param invokeArguments
+ */
+function payloadFromInvokeArguments(invokeArguments: unknown): unknown {
+  if (!isRecord(invokeArguments)) {
+    return undefined;
+  }
+  const request = invokeArguments.request;
+  if (!isRecord(request)) {
+    return undefined;
+  }
+  return request.payload;
+}
+
+/**
+ * Find invoke args for a given command.
+ * @param calls
+ * @param command
+ */
+function findInvokeArguments(calls: unknown[][], command: string): unknown {
+  const call = calls.find((entry) => entry[0] === command);
+  return call?.[1];
+}
+
+/**
+ * Create a successful IPC envelope response for the adapter boundary.
+ * @param result
+ */
+function mockIpcOk(result: unknown) {
+  return (_command: string, invokeArguments: unknown) => {
+    const request = isRecord(invokeArguments) ? invokeArguments.request : undefined;
+    const requestId =
+      isRecord(request) && typeof request.requestId === 'string' ? request.requestId : 'req';
+    return Promise.resolve({ requestId, status: 'ok', result });
+  };
+}
+
 describe('praxis-api mock branches', () => {
   it('covers mock builders for catalogue, matrix, chart, commits, merge, operations, state-at', async () => {
     isTauriMock.mockReturnValue(false);
@@ -105,10 +151,18 @@ describe('praxis-api mock branches', () => {
       nodes: [{ id: 'n1', label: 'Node 1' }],
       edges: [],
     };
-    invokeMock.mockResolvedValueOnce(graphView);
+    invokeMock.mockImplementationOnce(mockIpcOk(graphView));
 
     await expect(
       getGraphView({ id: 'g1', name: 'Graph', kind: 'graph', asOf: '2025-01-01' }),
     ).resolves.toMatchObject({ stats: { nodes: 1 } });
+    const calls = (invokeMock as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    const invokeArguments = findInvokeArguments(calls, 'praxis.artefact.execute_graph');
+    expect(payloadFromInvokeArguments(invokeArguments)).toEqual({
+      id: 'g1',
+      name: 'Graph',
+      kind: 'graph',
+      asOf: '2025-01-01',
+    });
   });
 });

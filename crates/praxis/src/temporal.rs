@@ -160,6 +160,7 @@ impl StateAtArgs {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StateAtResult {
+    #[serde(rename = "asOf")]
     pub commit_id: String,
     pub scenario: Option<String>,
     pub confidence: Option<f64>,

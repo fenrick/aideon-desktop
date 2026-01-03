@@ -4,6 +4,27 @@ beforeEach(() => {
   vi.resetModules();
 });
 
+/**
+ * Narrow unknown values to plain object records.
+ * @param value
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Create a successful IPC envelope response for the adapter boundary.
+ * @param result
+ */
+function mockIpcOk(result: unknown) {
+  return (_command: string, invokeArguments: unknown) => {
+    const request = isRecord(invokeArguments) ? invokeArguments.request : undefined;
+    const requestId =
+      isRecord(request) && typeof request.requestId === 'string' ? request.requestId : 'req';
+    return Promise.resolve({ requestId, status: 'ok', result });
+  };
+}
+
 describe('praxis-api negative paths', () => {
   it('wraps host errors when Tauri invoke fails', async () => {
     const invokeMock = vi.fn().mockRejectedValue(new Error('boom'));
@@ -13,26 +34,30 @@ describe('praxis-api negative paths', () => {
 
     await expect(
       getGraphView({ id: 'g1', name: 'Graph', kind: 'graph', asOf: 'now' }),
-    ).rejects.toThrow("Host command 'praxis_graph_view' failed: boom");
+    ).rejects.toThrow("Host command 'praxis.artefact.execute_graph' failed: boom");
   });
 
   it('normalises host branch/commit payloads from invoke responses', async () => {
     const invokeMock = vi
       .fn()
       // listBranches
-      .mockResolvedValueOnce({ branches: [{ name: 'main' }, { head: 'abc' }] })
+      .mockImplementationOnce(
+        mockIpcOk({ branches: [{ name: 'main' }, { head: 'abc' }] }),
+      )
       // listCommits
-      .mockResolvedValueOnce({
-        commits: [
-          {
-            id: undefined,
-            parents: ['p1'],
-            tags: ['tag', 1],
-            message: undefined,
-            change_count: 'x',
-          },
-        ],
-      });
+      .mockImplementationOnce(
+        mockIpcOk({
+          commits: [
+            {
+              id: undefined,
+              parents: ['p1'],
+              tags: ['tag', 1],
+              message: undefined,
+              change_count: 'x',
+            },
+          ],
+        }),
+      );
     vi.doMock('praxis/platform', () => ({ isTauri: () => true }));
     vi.doMock('@tauri-apps/api/core', () => ({ invoke: invokeMock }));
 

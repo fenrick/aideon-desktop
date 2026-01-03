@@ -5,7 +5,7 @@
 
 use serde::Serialize;
 
-use crate::ipc::HostError;
+use crate::ipc::{EmptyPayload, HostError, IpcRequest, IpcResponse};
 use crate::praxis_api::ScenarioSummary;
 
 #[derive(Debug, Serialize)]
@@ -29,6 +29,19 @@ pub async fn list_projects() -> Result<Vec<ProjectPayload>, HostError> {
     }])
 }
 
+/// Namespaced + requestId-wrapped project list query.
+#[tauri::command(rename = "workspace.projects.list")]
+pub async fn workspace_projects_list(
+    request: IpcRequest<EmptyPayload>,
+) -> Result<IpcResponse<Vec<ProjectPayload>>, HostError> {
+    let request_id = request.request_id;
+    let response = match list_projects().await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TemplatePayload {
@@ -43,4 +56,17 @@ pub struct TemplatePayload {
 #[tauri::command]
 pub async fn list_templates() -> Result<Vec<TemplatePayload>, HostError> {
     Ok(vec![])
+}
+
+/// Namespaced + requestId-wrapped template list query.
+#[tauri::command(rename = "workspace.templates.list")]
+pub async fn workspace_templates_list(
+    request: IpcRequest<EmptyPayload>,
+) -> Result<IpcResponse<Vec<TemplatePayload>>, HostError> {
+    let request_id = request.request_id;
+    let response = match list_templates().await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
 }

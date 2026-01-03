@@ -4,8 +4,9 @@ use aideon_chrona::scene::generate_demo_scene;
 use aideon_praxis::continuum::{FileSnapshotStore, SnapshotStore};
 use aideon_praxis::praxis::canvas::{CanvasLayoutSaveRequest, CanvasShape};
 use log::info;
+use serde::Deserialize;
 
-use crate::ipc::HostError;
+use crate::ipc::{HostError, IpcRequest, IpcResponse};
 
 /// Return a raw scene for the canvas. The renderer performs layout when needed.
 #[tauri::command]
@@ -15,6 +16,26 @@ pub async fn canvas_scene(as_of: Option<String>) -> Result<Vec<CanvasShape>, Hos
     let shapes = generate_demo_scene();
     info!("host: canvas_scene returning {} shapes (raw)", shapes.len());
     Ok(shapes)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CanvasScenePayload {
+    #[serde(default)]
+    pub as_of: Option<String>,
+}
+
+/// Namespaced + requestId-wrapped canvas scene query.
+#[tauri::command(rename = "praxis.canvas.get_scene")]
+pub async fn praxis_canvas_scene_get(
+    request: IpcRequest<CanvasScenePayload>,
+) -> Result<IpcResponse<Vec<CanvasShape>>, HostError> {
+    let request_id = request.request_id;
+    let response = match canvas_scene(request.payload.as_of).await {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
 }
 
 /// Resolve the on-disk path used to persist a canvas layout snapshot for a document and asOf.
@@ -45,6 +66,19 @@ pub async fn canvas_save_layout(payload: CanvasLayoutSaveRequest) -> Result<(), 
         .map_err(|e| HostError::internal(e.to_string()))?;
     info!("host: canvas_save_layout wrote {}/{}", base.display(), key);
     Ok(())
+}
+
+/// Namespaced + requestId-wrapped canvas layout persistence command.
+#[tauri::command(rename = "praxis.canvas.save_layout")]
+pub async fn praxis_canvas_layout_save(
+    request: IpcRequest<CanvasLayoutSaveRequest>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match canvas_save_layout(request.payload).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
 }
 
 #[cfg(test)]

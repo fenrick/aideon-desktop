@@ -77,7 +77,7 @@ refer to `ARCHITECTURE-BOUNDARY.md`. The notes below focus on product/module nam
   - No backend‑specific logic in the renderer; IPC only via the typed `praxisApi` bridge. React
     components must not reach for `@tauri-apps/api` directly.
   - UI components must not call invoke() directly; adapters own all IPC calls.
-  - Sanitise/validate data crossing the IPC boundary (Tauri invoke) via adapters; avoid leaking privileged data into renderer state. React Flow nodes/edges should carry only the data required for rendering.
+  - Sanitise/validate data crossing the IPC boundary (Tauri invoke); do not leak privileged host data into the renderer. React Flow nodes/edges should carry only the data required for rendering.
 - Keep code paths single and explicit; the app speaks to the host over typed IPC commands, and the
   host selects the appropriate engine adapter.
 - Coverage

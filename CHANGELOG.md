@@ -1,3 +1,7 @@
+# Architecture note
+
+• “Older entries mention preload/UDS/JSON-RPC. The current target desktop architecture is Tauri invoke IPC and in-process engines.”
+
 # [0.2.0](https://github.com/fenrick/aideon-desktop/compare/v0.1.0...v0.2.0) (2025-12-17)
 
 ### Bug Fixes

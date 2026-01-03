@@ -146,7 +146,7 @@ describe('color theme provider', () => {
 
     const preloadPromise = context?.preloadThemes();
     if (!preloadPromise) {
-      throw new Error('Expected preload promise to be available.');
+      throw new Error('Expected invoke/adapters to be available.');
     }
     await expect(preloadPromise).resolves.toBeUndefined();
   });

@@ -136,6 +136,7 @@ describe('Praxis canvas app shell', () => {
     listTemplatesMock.mockResolvedValue([
       {
         id: 'template-a',
+        documentId: 'canvasdoc-a',
         name: 'Template A',
         description: 'desc',
         widgets: [

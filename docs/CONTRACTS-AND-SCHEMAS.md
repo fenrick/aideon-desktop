@@ -36,3 +36,15 @@ shapes in feature code.
 3. Update IPC handlers and adapters.
 4. Extend contract tests (Rust + TypeScript).
 5. Update the affected module `README.md`/`DESIGN.md`.
+
+---
+
+## Canvas layout persistence (Praxis workspace)
+
+Canvas layout geometry is persisted by the host (desktop mode) and keyed by time context.
+
+- TS DTOs: `app/AideonDesktop/src/dtos/canvas.ts`
+- Rust DTOs: `crates/praxis/src/canvas.rs`
+- IPC commands:
+  - `praxis.canvas.get_layout` payload `CanvasLayoutGetRequest { docId, asOf, scenario?, layer? }` → `CanvasLayoutSnapshot | null`
+  - `praxis.canvas.save_layout` payload `CanvasLayoutSnapshot { docId, asOf, scenario?, layer?, nodes[], edges[], groups[] }` → `()`

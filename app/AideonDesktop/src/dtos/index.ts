@@ -2,6 +2,13 @@ export { ensureIsoDateTime } from './iso';
 
 export type { IsoDateTime } from './iso';
 export type {
+  CanvasEdge,
+  CanvasGroup,
+  CanvasLayoutGetRequest,
+  CanvasLayoutSnapshot,
+  CanvasNode,
+} from './canvas';
+export type {
   ConfidencePercent,
   GraphSnapshotMetrics,
   ScenarioKey,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { AideonCanvasRuntime } from 'aideon/canvas/canvas-runtime';
+import { AideonCanvasRuntime, type CanvasRuntimeLayoutPersistence } from 'aideon/canvas/canvas-runtime';
 import { fromWidgetSelection } from 'aideon/canvas/selection';
 import type { SelectionState, WidgetSelection } from 'aideon/canvas/types';
 import type { GraphViewModel } from 'praxis/praxis-api';
@@ -133,6 +133,8 @@ function useReloadVersion(reloadSignal?: number) {
 
 export interface PraxisCanvasWorkspaceProperties {
   readonly widgets: PraxisCanvasWidget[];
+  readonly canvasLayoutKey?: string;
+  readonly canvasLayoutPersistence?: CanvasRuntimeLayoutPersistence<PraxisCanvasWidget>;
   readonly selection: SelectionState;
   readonly onSelectionChange?: (selection: SelectionState) => void;
   readonly onRequestMetaModelFocus?: (types: string[]) => void;
@@ -164,6 +166,8 @@ const SUGGESTED_WIDGETS = ['KPI', 'Graph', 'Catalogue snapshot'] as const;
  */
 export function PraxisCanvasWorkspace({
   widgets,
+  canvasLayoutKey,
+  canvasLayoutPersistence,
   selection,
   onSelectionChange,
   onRequestMetaModelFocus,
@@ -266,6 +270,8 @@ export function PraxisCanvasWorkspace({
         <AideonCanvasRuntime<PraxisCanvasWidget>
           widgets={widgets}
           showPageBreaks={localShowPageBreaks}
+          layoutKey={canvasLayoutKey}
+          layoutPersistence={canvasLayoutPersistence}
           renderWidget={(widget: PraxisCanvasWidget) =>
             renderPraxisWidget({
               widget,

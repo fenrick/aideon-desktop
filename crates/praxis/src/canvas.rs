@@ -63,12 +63,25 @@ pub struct CanvasLayoutSaveRequest {
     pub as_of: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scenario: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layer: Option<String>,
     #[serde(default)]
     pub nodes: Vec<CanvasNode>,
     #[serde(default)]
     pub edges: Vec<CanvasEdge>,
     #[serde(default)]
     pub groups: Vec<CanvasGroup>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CanvasLayoutGetRequest {
+    pub doc_id: String,
+    pub as_of: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scenario: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layer: Option<String>,
 }
 
 #[cfg(test)]

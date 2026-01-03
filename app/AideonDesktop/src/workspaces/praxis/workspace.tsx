@@ -11,6 +11,7 @@ import {
 } from 'react';
 
 import { dedupeIds } from 'aideon/canvas/selection';
+import type { CanvasRuntimeLayoutPersistence } from 'aideon/canvas/canvas-runtime';
 import { Badge } from 'design-system/components/ui/badge';
 import { Button } from 'design-system/components/ui/button';
 import {
@@ -38,7 +39,13 @@ import {
 import { useCommandStack } from 'praxis/hooks/use-command-stack';
 import { track } from 'praxis/lib/analytics';
 import { toErrorMessage } from 'praxis/lib/errors';
-import { applyOperations, type ScenarioSummary } from 'praxis/praxis-api';
+import { isTauri } from 'praxis/platform';
+import {
+  applyOperations,
+  getCanvasLayout,
+  saveCanvasLayout,
+  type ScenarioSummary,
+} from 'praxis/praxis-api';
 import {
   BUILT_IN_TEMPLATES,
   captureTemplateFromWidgets,
@@ -123,6 +130,8 @@ interface PraxisWorkspaceContextValue {
   };
   readonly temporalState: ReturnType<typeof useTemporalPanel>[0];
   readonly temporalActions: ReturnType<typeof useTemporalPanel>[1];
+  readonly canvasLayoutKey?: string;
+  readonly canvasLayoutPersistence?: CanvasRuntimeLayoutPersistence<CanvasWidget>;
   readonly branchSelectReferenceCallback: RefCallback<HTMLButtonElement>;
   readonly onTemplateChange: (templateId: string) => void;
   readonly onTemplateSave: () => void;
@@ -260,6 +269,10 @@ function PraxisWorkspaceStateProvider({
     saving: false,
     reloadTick: 0,
   });
+
+  useEffect(() => {
+    onSelectionChange?.(selectionState.selection);
+  }, [onSelectionChange, selectionState.selection]);
   const [debugVisible, setDebugVisible] = useState(false);
   const branchSelectReference = useRef<HTMLButtonElement | undefined>(undefined);
   const branchSelectReferenceCallback: RefCallback<HTMLButtonElement> = useCallback((node) => {
@@ -378,15 +391,104 @@ function PraxisWorkspaceStateProvider({
     );
   }, [activeTemplateId, templatesState.data]);
 
+  const fallbackAsOfReference = useRef<string>(new Date().toISOString());
+  const runtimeScenario = activeScenario?.branch ?? temporalState.branch;
+  const runtimeAsOf = temporalState.commitId ?? fallbackAsOfReference.current;
+
   const widgets = useMemo<CanvasWidget[]>(() => {
     if (!activeTemplate) {
       return [];
     }
     return instantiateTemplate(activeTemplate, {
-      scenario: activeScenario?.branch ?? temporalState.branch,
-      asOf: temporalState.commitId,
+      scenario: runtimeScenario,
+      asOf: runtimeAsOf,
     });
-  }, [activeScenario?.branch, activeTemplate, temporalState.branch, temporalState.commitId]);
+  }, [activeTemplate, runtimeAsOf, runtimeScenario]);
+
+  const canvasLayoutKey = useMemo(() => {
+    const documentId = activeTemplate?.documentId;
+    if (!documentId) {
+      return;
+    }
+    const scenarioToken = runtimeScenario ?? 'default';
+    return `${documentId}::${scenarioToken}::${runtimeAsOf}`;
+  }, [activeTemplate?.documentId, runtimeAsOf, runtimeScenario]);
+
+  const canvasLayoutPersistence = useMemo<CanvasRuntimeLayoutPersistence<CanvasWidget> | undefined>(
+    () => {
+      const documentId = activeTemplate?.documentId;
+      if (!documentId) {
+        return;
+      }
+      if (!isTauri()) {
+        return;
+      }
+
+      const context = {
+        docId: documentId,
+        asOf: runtimeAsOf,
+        scenario: runtimeScenario,
+      } as const;
+
+      return {
+        load: async () => {
+          try {
+            const layout = await getCanvasLayout(context);
+            if (!layout) {
+              return;
+            }
+
+            const positions: Record<string, { x: number; y: number }> = {};
+            const sizes: Record<string, { w: number; h: number }> = {};
+
+            for (const node of layout.nodes) {
+              positions[node.id] = { x: node.x, y: node.y };
+              sizes[node.id] = { w: node.w, h: node.h };
+            }
+
+            return { positions, sizes };
+          } catch {
+            return;
+          }
+        },
+        save: async (canvasWidgets, snapshot) => {
+          try {
+            const nodes = canvasWidgets
+              .map((widget) => {
+                const position = snapshot.positions[widget.id];
+                const size = snapshot.sizes[widget.id];
+                if (!position || !size) {
+                  return;
+                }
+                return {
+                  id: widget.id,
+                  typeId: 'widget',
+                  x: position.x,
+                  y: position.y,
+                  w: size.w,
+                  h: size.h,
+                  z: 0,
+                  label: widget.title,
+                };
+              })
+              .filter((node): node is NonNullable<typeof node> => node !== undefined);
+
+            await saveCanvasLayout({
+              docId: context.docId,
+              asOf: context.asOf,
+              scenario: context.scenario,
+              nodes,
+              edges: [],
+              groups: [],
+            });
+          } catch {
+            // ignore persistence failures
+          }
+        },
+      };
+    },
+    [activeTemplate?.documentId, runtimeAsOf, runtimeScenario],
+  );
 
   const selectionKind = deriveSelectionKind(selectionState.selection);
   const selectionId = primarySelectionId(selectionState.selection);
@@ -632,6 +734,8 @@ function PraxisWorkspaceStateProvider({
       propertyState,
       temporalState,
       temporalActions,
+      canvasLayoutKey,
+      canvasLayoutPersistence,
       branchSelectReferenceCallback,
       onTemplateChange: handleTemplateChange,
       onTemplateSave: handleTemplateSave,
@@ -673,6 +777,8 @@ function PraxisWorkspaceStateProvider({
     templatesState,
     temporalActions,
     temporalState,
+    canvasLayoutKey,
+    canvasLayoutPersistence,
     widgetLibraryOpen,
     widgets,
   ]);
@@ -745,6 +851,8 @@ export function PraxisWorkspaceContent() {
     temporalState,
     temporalActions,
     widgets,
+    canvasLayoutKey,
+    canvasLayoutPersistence,
     selection,
     onSelectionChange,
     branchSelectReferenceCallback,
@@ -764,6 +872,8 @@ export function PraxisWorkspaceContent() {
           state={temporalState}
           actions={temporalActions}
           widgets={widgets}
+          canvasLayoutKey={canvasLayoutKey}
+          canvasLayoutPersistence={canvasLayoutPersistence}
           selection={selection}
           onSelectionChange={onSelectionChange}
           onRequestMetaModelFocus={(types) => {

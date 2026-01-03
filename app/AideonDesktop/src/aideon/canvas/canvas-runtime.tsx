@@ -1,7 +1,7 @@
 import { Button } from 'design-system/components/ui/button';
 import { cn } from 'design-system/lib/utilities';
 import { Maximize, MousePointer2, ZoomIn, ZoomOut } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { DraggableWidgetWrapper } from './draggable-widget-wrapper';
 import { useInfiniteCanvas } from './hooks/use-infinite-canvas';
@@ -9,14 +9,27 @@ import { calculateInitialLayout } from './layout-engine';
 import type { CanvasWidgetLayout } from './types';
 import { WidgetFrame } from './widget-frame';
 
-interface WidgetPosition {
+export interface WidgetPosition {
   x: number;
   y: number;
 }
 
-interface WidgetSize {
+export interface WidgetSize {
   w: number;
   h: number;
+}
+
+export interface CanvasRuntimeLayoutSnapshot {
+  readonly positions: Record<string, WidgetPosition>;
+  readonly sizes: Record<string, WidgetSize>;
+}
+
+export interface CanvasRuntimeLayoutPersistence<TWidget extends CanvasWidgetLayout> {
+  readonly load: (widgets: readonly TWidget[]) => Promise<CanvasRuntimeLayoutSnapshot | undefined>;
+  readonly save: (
+    widgets: readonly TWidget[],
+    snapshot: CanvasRuntimeLayoutSnapshot,
+  ) => Promise<void>;
 }
 
 interface AideonCanvasRuntimeProperties<TWidget extends CanvasWidgetLayout> {
@@ -24,103 +37,8 @@ interface AideonCanvasRuntimeProperties<TWidget extends CanvasWidgetLayout> {
   readonly renderWidget: (widget: TWidget) => React.ReactNode;
   readonly className?: string;
   readonly showPageBreaks?: boolean;
-}
-
-const STORAGE_LAYOUT_KEY = 'praxis-canvas-layout';
-const STORAGE_SIZES_KEY = 'praxis-canvas-sizes';
-
-/**
- * Reads a JSON value from localStorage.
- * @param key
- */
-function readJson(key: string): unknown {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as unknown) : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Narrowing helper for plain object records.
- * @param value
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/**
- * Runtime validator for position records loaded from storage.
- * @param value
- */
-function isWidgetPosition(value: unknown): value is WidgetPosition {
-  if (!isRecord(value)) {
-    return false;
-  }
-  return typeof value.x === 'number' && typeof value.y === 'number';
-}
-
-/**
- * Runtime validator for size records loaded from storage.
- * @param value
- */
-function isWidgetSize(value: unknown): value is WidgetSize {
-  if (!isRecord(value)) {
-    return false;
-  }
-  return typeof value.w === 'number' && typeof value.h === 'number';
-}
-
-/**
- * Parses a JSON value into a widget id -> position record.
- * @param value
- */
-function parseWidgetPositionRecord(value: unknown): Record<string, WidgetPosition> {
-  if (!isRecord(value)) {
-    return {};
-  }
-
-  const positions = new Map<string, WidgetPosition>();
-  for (const [id, position] of Object.entries(value)) {
-    if (isWidgetPosition(position)) {
-      positions.set(id, { x: position.x, y: position.y });
-    }
-  }
-
-  return Object.fromEntries(positions) as Record<string, WidgetPosition>;
-}
-
-/**
- * Parses a JSON value into a widget id -> size record.
- * @param value
- */
-function parseWidgetSizeRecord(value: unknown): Record<string, WidgetSize> {
-  if (!isRecord(value)) {
-    return {};
-  }
-
-  const sizes = new Map<string, WidgetSize>();
-  for (const [id, size] of Object.entries(value)) {
-    if (isWidgetSize(size)) {
-      sizes.set(id, { w: size.w, h: size.h });
-    }
-  }
-
-  return Object.fromEntries(sizes) as Record<string, WidgetSize>;
-}
-
-/**
- * Writes a JSON value to localStorage.
- * @param key
- * @param value
- */
-function writeJson(key: string, value: unknown): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // ignore (storage unavailable)
-  }
+  readonly layoutKey?: string;
+  readonly layoutPersistence?: CanvasRuntimeLayoutPersistence<TWidget>;
 }
 
 /**
@@ -141,7 +59,7 @@ function syncWidgetPositions(
   previous: Record<string, WidgetPosition>,
   widgets: CanvasWidgetLayout[],
 ): Record<string, WidgetPosition> {
-  const existing = { ...parseWidgetPositionRecord(readJson(STORAGE_LAYOUT_KEY)), ...previous };
+  const existing = { ...previous };
   const missing = widgets.filter((widget) => existing[widget.id] === undefined);
   if (missing.length === 0) {
     return existing;
@@ -153,8 +71,21 @@ function syncWidgetPositions(
  * Merges sizes from storage into the current widget size state.
  * @param previous
  */
-function syncWidgetSizes(previous: Record<string, WidgetSize>): Record<string, WidgetSize> {
-  return { ...parseWidgetSizeRecord(readJson(STORAGE_SIZES_KEY)), ...previous };
+function syncWidgetSizes(
+  previous: Record<string, WidgetSize>,
+  widgets: CanvasWidgetLayout[],
+): Record<string, WidgetSize> {
+  let didChange = false;
+  const next: Record<string, WidgetSize> = { ...previous };
+
+  for (const widget of widgets) {
+    if (next[widget.id] === undefined) {
+      didChange = true;
+      next[widget.id] = getWidgetDefaultSize(widget);
+    }
+  }
+
+  return didChange ? next : previous;
 }
 
 /**
@@ -171,6 +102,8 @@ function AideonCanvasRuntimeImpl<TWidget extends CanvasWidgetLayout>({
   renderWidget,
   className,
   showPageBreaks,
+  layoutKey,
+  layoutPersistence,
 }: AideonCanvasRuntimeProperties<TWidget>) {
   const { viewport, setViewport, containerReference, events } = useInfiniteCanvas({
     minScale: 0.1,
@@ -178,39 +111,116 @@ function AideonCanvasRuntimeImpl<TWidget extends CanvasWidgetLayout>({
     initialScale: 0.8,
   });
 
-  const [widgetPositions, setWidgetPositions] = useState<Record<string, WidgetPosition>>(() =>
-    parseWidgetPositionRecord(readJson(STORAGE_LAYOUT_KEY)),
-  );
-  const [widgetSizes, setWidgetSizes] = useState<Record<string, WidgetSize>>(() =>
-    parseWidgetSizeRecord(readJson(STORAGE_SIZES_KEY)),
+  const [widgetPositions, setWidgetPositions] = useState<Record<string, WidgetPosition>>({});
+  const [widgetSizes, setWidgetSizes] = useState<Record<string, WidgetSize>>({});
+  const [layoutHydrated, setLayoutHydrated] = useState(() => !layoutPersistence || !layoutKey);
+
+  const widgetPositionsReference = useRef(widgetPositions);
+  const widgetSizesReference = useRef(widgetSizes);
+  const layoutLoadCancelledReference = useRef(false);
+
+  useEffect(() => {
+    widgetPositionsReference.current = widgetPositions;
+  }, [widgetPositions]);
+
+  useEffect(() => {
+    widgetSizesReference.current = widgetSizes;
+  }, [widgetSizes]);
+
+  const persistSnapshot = useCallback(
+    (positions: Record<string, WidgetPosition>, sizes: Record<string, WidgetSize>) => {
+      if (!layoutHydrated) {
+        return;
+      }
+      if (!layoutPersistence || !layoutKey) {
+        return;
+      }
+      void layoutPersistence.save(widgets, { positions, sizes });
+    },
+    [layoutHydrated, layoutKey, layoutPersistence, widgets],
   );
 
   useEffect(() => {
+    if (!layoutPersistence || !layoutKey) {
+      setLayoutHydrated(true);
+      return;
+    }
+    layoutLoadCancelledReference.current = false;
+    setLayoutHydrated(false);
+    void (async () => {
+      try {
+        const snapshot = await layoutPersistence.load(widgets);
+        if (layoutLoadCancelledReference.current) {
+          return;
+        }
+        const positions = snapshot?.positions ?? {};
+        const sizes = snapshot?.sizes ?? {};
+        widgetPositionsReference.current = positions;
+        widgetSizesReference.current = sizes;
+        setWidgetPositions(positions);
+        setWidgetSizes(sizes);
+      } catch {
+        // ignore (layout persistence unavailable)
+      } finally {
+        if (!layoutLoadCancelledReference.current) {
+          setLayoutHydrated(true);
+        }
+      }
+    })();
+
+    return () => {
+      layoutLoadCancelledReference.current = true;
+    };
+  }, [layoutKey, layoutPersistence, widgets]);
+
+  useEffect(() => {
+    if (!layoutHydrated) {
+      return;
+    }
     const frame = requestAnimationFrame(() => {
-      setWidgetPositions((previous) => syncWidgetPositions(previous, widgets));
-      setWidgetSizes(syncWidgetSizes);
+      const currentPositions = widgetPositionsReference.current;
+      const currentSizes = widgetSizesReference.current;
+      const nextPositions = syncWidgetPositions(currentPositions, widgets);
+      const nextSizes = syncWidgetSizes(currentSizes, widgets);
+
+      const positionsChanged = nextPositions !== currentPositions;
+      const sizesChanged = nextSizes !== currentSizes;
+
+      if (positionsChanged) {
+        widgetPositionsReference.current = nextPositions;
+        setWidgetPositions(nextPositions);
+      }
+      if (sizesChanged) {
+        widgetSizesReference.current = nextSizes;
+        setWidgetSizes(nextSizes);
+      }
+      if (positionsChanged || sizesChanged) {
+        persistSnapshot(nextPositions, nextSizes);
+      }
     });
 
     return () => {
       cancelAnimationFrame(frame);
     };
-  }, [widgets]);
-
-  useEffect(() => {
-    writeJson(STORAGE_LAYOUT_KEY, widgetPositions);
-  }, [widgetPositions]);
-
-  useEffect(() => {
-    writeJson(STORAGE_SIZES_KEY, widgetSizes);
-  }, [widgetSizes]);
+  }, [layoutHydrated, persistSnapshot, widgets]);
 
   const handleDragEnd = useCallback((id: string, x: number, y: number) => {
-    setWidgetPositions((previous) => ({ ...previous, [id]: { x, y } }));
-  }, []);
+    setWidgetPositions((previous) => {
+      const next = { ...previous, [id]: { x, y } };
+      widgetPositionsReference.current = next;
+      persistSnapshot(next, widgetSizesReference.current);
+      return next;
+    });
+  }, [persistSnapshot]);
 
   const handleResizeEnd = useCallback((id: string, w: number, h: number) => {
-    setWidgetSizes((previous) => ({ ...previous, [id]: { w, h } }));
-  }, []);
+    setWidgetSizes((previous) => {
+      const next = { ...previous, [id]: { w, h } };
+      widgetSizesReference.current = next;
+      persistSnapshot(widgetPositionsReference.current, next);
+      return next;
+    });
+  }, [persistSnapshot]);
 
   const viewportTransform = useMemo(() => {
     const x = viewport.x.toString();

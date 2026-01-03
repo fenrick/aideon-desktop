@@ -1,4 +1,6 @@
 import type {
+  CanvasLayoutGetRequest,
+  CanvasLayoutSnapshot,
   MetaModelDocument,
   TemporalDiffParameters,
   TemporalDiffSnapshot,
@@ -19,6 +21,8 @@ const COMMANDS = {
   matrixView: 'praxis.artefact.execute_matrix',
   chartView: 'praxis.artefact.execute_chart',
   metaModel: 'praxis.metamodel.get',
+  canvasGetLayout: 'praxis.canvas.get_layout',
+  canvasSaveLayout: 'praxis.canvas.save_layout',
   listBranches: 'chrona.temporal.list_branches',
   listCommits: 'chrona.temporal.list_commits',
   stateAt: 'chrona.temporal.state_at',
@@ -137,6 +141,36 @@ export async function getMetaModelDocument(): Promise<MetaModelDocument> {
     throw new Error('Meta-model is only available from the host in Tauri runtime.');
   }
   return invokeIpc<MetaModelDocument>(COMMANDS.metaModel, {});
+}
+
+export async function getCanvasLayout(
+  request: CanvasLayoutGetRequest,
+): Promise<CanvasLayoutSnapshot | undefined> {
+  if (!isTauri()) {
+    return undefined;
+  }
+  const result = await invokeIpc<CanvasLayoutSnapshot | null>(COMMANDS.canvasGetLayout, {
+    docId: request.docId,
+    asOf: request.asOf,
+    scenario: request.scenario,
+    layer: request.layer,
+  });
+  return result ?? undefined;
+}
+
+export async function saveCanvasLayout(snapshot: CanvasLayoutSnapshot): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+  await invokeIpc<unknown>(COMMANDS.canvasSaveLayout, {
+    docId: snapshot.docId,
+    asOf: snapshot.asOf,
+    scenario: snapshot.scenario,
+    layer: snapshot.layer,
+    nodes: snapshot.nodes,
+    edges: snapshot.edges,
+    groups: snapshot.groups,
+  });
 }
 
 export interface CatalogueRow {

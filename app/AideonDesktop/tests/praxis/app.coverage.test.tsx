@@ -142,7 +142,9 @@ vi.mock('praxis/templates', async () => {
   const actual = await vi.importActual('praxis/templates');
   return {
     ...actual,
-    BUILT_IN_TEMPLATES: [{ id: 't1', name: 'Template 1', description: '', widgets: [] }],
+    BUILT_IN_TEMPLATES: [
+      { id: 't1', documentId: 'canvasdoc-t1', name: 'Template 1', description: '', widgets: [] },
+    ],
   };
 });
 
@@ -171,7 +173,7 @@ vi.mock('praxis/domain-data', () => ({
   ]),
   listTemplatesFromHost: vi
     .fn()
-    .mockResolvedValue([{ id: 't1', name: 'Template 1', description: '', widgets: [] }]),
+    .mockResolvedValue([{ id: 't1', documentId: 'canvasdoc-t1', name: 'Template 1', description: '', widgets: [] }]),
 }));
 vi.mock('praxis/platform', () => ({ isTauri: vi.fn(() => false) }));
 const useTemporalPanelMock = vi.hoisted(() =>

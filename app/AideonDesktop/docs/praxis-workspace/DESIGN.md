@@ -34,6 +34,9 @@ embedding during tests or previews.
   respects saved positions and only re-runs layout on demand.
 - Auto-layout is user-triggered; default layout uses React Flow/ELK-compatible routines but must not override existing coordinates unless explicitly requested.
 - Save/load flows go through typed adapters; no renderer-side storage beyond UI state.
+- Canvas templates carry a stable `documentId` (distinct from the template `id`) used as the
+  persistence key for layout snapshots; the renderer must not infer document identity from the
+  active template id.
 
 ## Data model and APIs
 

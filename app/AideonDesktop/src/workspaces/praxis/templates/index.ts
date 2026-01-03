@@ -26,6 +26,7 @@ export type TemplateWidgetConfig =
 
 export interface CanvasTemplate {
   id: string;
+  documentId: string;
   name: string;
   description: string;
   widgets: TemplateWidgetConfig[];
@@ -85,6 +86,7 @@ export function captureTemplateFromWidgets(
 ): CanvasTemplate {
   return {
     id: `custom-${Date.now().toString(36)}`,
+    documentId: createDocumentId('canvasdoc'),
     name,
     description,
     widgets: widgets.map((widget) => convertWidgetToTemplate(widget)),
@@ -177,6 +179,7 @@ const BAR_CHART: ChartTemplateView = {
 export const BUILT_IN_TEMPLATES: CanvasTemplate[] = [
   {
     id: 'template-executive',
+    documentId: 'canvasdoc-executive',
     name: 'Executive overview',
     description: 'Graph + KPI + catalogue snapshot for leadership reviews.',
     widgets: [
@@ -212,6 +215,7 @@ export const BUILT_IN_TEMPLATES: CanvasTemplate[] = [
   },
   {
     id: 'template-explorer',
+    documentId: 'canvasdoc-explorer',
     name: 'Explorer workspace',
     description: 'Graph, matrix, and comparative chart for deeper analysis.',
     widgets: [
@@ -246,3 +250,10 @@ export const BUILT_IN_TEMPLATES: CanvasTemplate[] = [
     ],
   },
 ];
+
+function createDocumentId(prefix: string): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now().toString(36)}`;
+}

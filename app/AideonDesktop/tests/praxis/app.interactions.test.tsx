@@ -92,17 +92,20 @@ vi.mock('praxis/domain-data', () => ({
       if (shouldFail) {
         throw new Error('templates-failed');
       }
-      return [{ id: 't1', name: 'Template 1', description: '', widgets: [] }];
+      return [{ id: 't1', documentId: 'canvasdoc-t1', name: 'Template 1', description: '', widgets: [] }];
     }),
 }));
 
 const templateSpy = vi.fn<(templates: { id: string; name: string }[]) => void>();
 
 vi.mock('praxis/templates', () => ({
-  BUILT_IN_TEMPLATES: [{ id: 'fallback', name: 'Fallback', description: 'built-in', widgets: [] }],
+  BUILT_IN_TEMPLATES: [
+    { id: 'fallback', documentId: 'canvasdoc-fallback', name: 'Fallback', description: 'built-in', widgets: [] },
+  ],
   instantiateTemplate: vi.fn(() => []),
   captureTemplateFromWidgets: vi.fn((name: string) => ({
     id: `${name}-id`,
+    documentId: `${name}-doc`,
     name,
     description: '',
     widgets: [],

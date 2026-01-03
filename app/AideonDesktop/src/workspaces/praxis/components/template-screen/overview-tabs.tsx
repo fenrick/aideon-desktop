@@ -8,6 +8,7 @@ import type { GraphViewModel } from 'praxis/praxis-api';
 import type { TemporalPanelActions, TemporalPanelState } from 'praxis/time/use-temporal-panel';
 import type { PraxisCanvasWidget, SelectionState } from 'praxis/types';
 
+import type { CanvasRuntimeLayoutPersistence } from 'aideon/canvas/canvas-runtime';
 import { Badge } from 'design-system/components/ui/badge';
 import { Button } from 'design-system/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from 'design-system/components/ui/tabs';
@@ -20,6 +21,8 @@ interface OverviewTabsProperties {
   readonly state: TemporalPanelState;
   readonly actions: TemporalPanelActions;
   readonly widgets: PraxisCanvasWidget[];
+  readonly canvasLayoutKey?: string;
+  readonly canvasLayoutPersistence?: CanvasRuntimeLayoutPersistence<PraxisCanvasWidget>;
   readonly selection: SelectionState;
   readonly onSelectionChange: (selection: SelectionState) => void;
   readonly onRequestMetaModelFocus: (types: string[]) => void;
@@ -53,6 +56,8 @@ export function OverviewTabs({
   state,
   actions,
   widgets,
+  canvasLayoutKey,
+  canvasLayoutPersistence,
   selection,
   onSelectionChange,
   onRequestMetaModelFocus,
@@ -134,6 +139,8 @@ export function OverviewTabs({
       <TabsContent value="canvas" className="min-h-0 flex-1">
         <PraxisCanvasWorkspace
           widgets={widgets}
+          canvasLayoutKey={canvasLayoutKey}
+          canvasLayoutPersistence={canvasLayoutPersistence}
           selection={selection}
           onSelectionChange={onSelectionChange}
           onRequestMetaModelFocus={onRequestMetaModelFocus}

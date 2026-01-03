@@ -13,6 +13,7 @@ interface ProjectPayload {
 interface TemplatePayload extends Partial<CanvasTemplate> {
   readonly id?: string;
   readonly name?: string;
+  readonly documentId?: string;
 }
 
 export interface ProjectSummary {
@@ -89,12 +90,15 @@ function normaliseProject(payload: ProjectPayload): ProjectSummary {
 function normaliseTemplate(payload: TemplatePayload): CanvasTemplate {
   const fallback = BUILT_IN_TEMPLATES[0] ?? {
     id: 'template-default',
+    documentId: 'canvasdoc-default',
     name: 'Template',
     description: '',
     widgets: [],
   };
+  const id = payload.id ?? cryptoRandomId('template');
   return {
-    id: payload.id ?? cryptoRandomId('template'),
+    id,
+    documentId: payload.documentId ?? `canvasdoc-${id}`,
     name: payload.name?.trim() ?? fallback.name,
     description: payload.description ?? fallback.description,
     widgets:

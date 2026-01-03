@@ -1,4 +1,5 @@
 import type {
+  MetaModelDocument,
   TemporalDiffParameters,
   TemporalDiffSnapshot,
   TemporalStateParameters,
@@ -17,6 +18,7 @@ const COMMANDS = {
   catalogueView: 'praxis.artefact.execute_catalogue',
   matrixView: 'praxis.artefact.execute_matrix',
   chartView: 'praxis.artefact.execute_chart',
+  metaModel: 'praxis.metamodel.get',
   listBranches: 'chrona.temporal.list_branches',
   listCommits: 'chrona.temporal.list_commits',
   stateAt: 'chrona.temporal.state_at',
@@ -122,6 +124,19 @@ export interface GraphViewModel {
   stats: ViewStats;
   nodes: GraphNodeView[];
   edges: GraphEdgeView[];
+}
+
+/**
+ * Fetch the Praxis meta-model document from the host.
+ *
+ * This is a contract surface (DTO) and must remain stable; mock-only usage should
+ * go through `praxis/lib/meta-model` for browser previews.
+ */
+export async function getMetaModelDocument(): Promise<MetaModelDocument> {
+  if (!isTauri()) {
+    throw new Error('Meta-model is only available from the host in Tauri runtime.');
+  }
+  return invokeIpc<MetaModelDocument>(COMMANDS.metaModel, {});
 }
 
 export interface CatalogueRow {

@@ -1,47 +1,22 @@
-export interface MetaModelSchema {
-  version: string;
-  description?: string;
-  types: MetaModelType[];
-  relationships: MetaModelRelationship[];
-}
+import type { MetaModelDocument } from '../../../dtos';
 
-export interface MetaModelType {
-  id: string;
-  label?: string;
-  category?: string;
-  extends?: string;
-  attributes?: MetaModelAttribute[];
-}
-
-export interface MetaModelRelationship {
-  id: string;
-  label?: string;
-  directed?: boolean;
-  from: string[];
-  to: string[];
-  attributes?: MetaModelAttribute[];
-}
-
-export interface MetaModelAttribute {
-  name: string;
-  type: string;
-  required?: boolean;
-  enum?: string[];
-}
+import { getMetaModelDocument } from 'praxis/praxis-api';
+import { isTauri } from 'praxis/platform';
 
 /**
- * Lightweight placeholder fetch that simulates loading a meta-model document.
- * Intended for demos until wired to the host adapter.
- * @returns {Promise<MetaModelSchema>} synthetic meta-model payload.
+ * Fetch the current meta-model document.
+ *
+ * - In Tauri: delegates to the host contract (`praxis.metamodel.get`).
+ * - Outside Tauri: returns a deterministic sample schema for previews/tests.
  */
-export async function fetchMetaModel(): Promise<MetaModelSchema> {
-  await new Promise((resolve) => {
-    setTimeout(resolve, 150);
-  });
+export async function fetchMetaModel(): Promise<MetaModelDocument> {
+  if (isTauri()) {
+    return getMetaModelDocument();
+  }
   return SAMPLE_SCHEMA;
 }
 
-const SAMPLE_SCHEMA: MetaModelSchema = {
+const SAMPLE_SCHEMA: MetaModelDocument = {
   version: '2025.4',
   description: 'Baseline schema for the Chrona digital twin.',
   types: [
@@ -50,7 +25,7 @@ const SAMPLE_SCHEMA: MetaModelSchema = {
       label: 'Business Capability',
       category: 'Business',
       attributes: [
-        { name: 'criticality', type: 'string', enum: ['low', 'medium', 'high'] },
+        { name: 'criticality', type: 'enum', enum: ['low', 'medium', 'high'] },
         { name: 'owner', type: 'string', required: true },
       ],
     },
@@ -60,7 +35,7 @@ const SAMPLE_SCHEMA: MetaModelSchema = {
       category: 'Technology',
       extends: 'Service',
       attributes: [
-        { name: 'lifecycle', type: 'string', enum: ['plan', 'live', 'retire'] },
+        { name: 'lifecycle', type: 'enum', enum: ['plan', 'live', 'retire'] },
         { name: 'platform', type: 'string' },
       ],
     },

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { fetchMetaModel, type MetaModelSchema } from 'praxis/lib/meta-model';
+import { fetchMetaModel } from 'praxis/lib/meta-model';
 
 import {
   Accordion,
@@ -19,6 +19,7 @@ import {
 } from 'design-system/components/ui/card';
 
 type Status = 'idle' | 'loading' | 'ready' | 'error';
+type MetaModelSchema = Awaited<ReturnType<typeof fetchMetaModel>>;
 
 interface MetaModelPanelProperties {
   readonly focusEntryId?: string;

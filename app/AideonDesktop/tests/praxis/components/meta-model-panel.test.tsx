@@ -15,7 +15,9 @@ vi.mock('praxis/lib/meta-model', async () => {
 
 import { MetaModelPanel } from 'praxis/components/dashboard/meta-model-panel';
 
-const SAMPLE_SCHEMA: MetaModelModule.MetaModelSchema = {
+type MetaModelSchema = Awaited<ReturnType<typeof MetaModelModule.fetchMetaModel>>;
+
+const SAMPLE_SCHEMA: MetaModelSchema = {
   version: '1.0',
   description: 'Test schema',
   types: [

@@ -2,12 +2,11 @@
 name = "aideon_chrona"
 version = "0.0.0"
 edition = "2024"
-authors = ["Aideon Praxis Contributors"]
+authors = ["Aideon Chrona Contributors"]
 license = "MIT"
 
 [dependencies]
-aideon_mneme = { path = "../mneme" }
-aideon_engine = { path = "../engine" }
+aideon_praxis = { path = "../praxis" }
 log = "0.4"
 
 [dev-dependencies]

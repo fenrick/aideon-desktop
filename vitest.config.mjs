@@ -5,11 +5,14 @@ import { defineConfig } from 'vitest/config';
 const srcRoot = path.resolve(__dirname, 'app/AideonDesktop/src');
 const testsRoot = path.resolve(__dirname, 'app/AideonDesktop/tests');
 
+const praxisRoot = path.join(srcRoot, 'workspaces/praxis');
+
 export default defineConfig({
   resolve: {
     alias: [
       { find: '@', replacement: srcRoot },
-      { find: 'canvas', replacement: path.join(srcRoot, 'canvas') },
+      { find: 'aideon', replacement: path.join(srcRoot, 'aideon') },
+      { find: 'praxis', replacement: praxisRoot },
       {
         find: 'design-system/reactflow',
         replacement: path.join(srcRoot, 'design-system/components'),
@@ -17,6 +20,7 @@ export default defineConfig({
       { find: 'design-system', replacement: path.join(srcRoot, 'design-system') },
       { find: 'adapters', replacement: path.join(srcRoot, 'adapters') },
       { find: 'dtos', replacement: path.join(srcRoot, 'dtos') },
+      { find: 'lib', replacement: path.join(srcRoot, 'lib') },
       {
         find: '@tauri-apps/api/core',
         replacement: path.join(testsRoot, 'adapters/stubs/tauri-core.ts'),
@@ -43,11 +47,15 @@ export default defineConfig({
         '**/*.test.*',
         'app/**/dist/**',
         'scripts/**',
+        '**/dist/**',
+        '**/build/**',
+        '**/out/**',
+        '**/.pnpm/**',
+        '**/node_modules/**',
+        '**/*.tsbuildinfo',
+        '**/*.map',
+        'crates/desktop/target/**',
         'app/AideonDesktop/src/design-system/components/**',
-        'app/AideonDesktop/src/types/**',
-        'app/AideonDesktop/src/main.tsx',
-        'app/AideonDesktop/src/canvas/main.tsx',
-        'app/AideonDesktop/src/canvas/canvas-runtime.tsx',
       ],
     },
   },

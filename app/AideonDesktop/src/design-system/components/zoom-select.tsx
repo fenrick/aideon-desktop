@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "design-system/components/ui/select";
-import { cn } from "design-system/lib/utilities";
+import { cn } from "design-system/lib/utils";
 
 export function ZoomSelect({
   className,

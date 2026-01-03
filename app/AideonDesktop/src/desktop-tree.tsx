@@ -8,6 +8,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from './design-system';
+import { Badge } from './design-system/components/ui/badge';
 import { Skeleton } from './design-system/components/ui/skeleton';
 
 import { useWorkspaceTree, type WorkspaceTreeItem } from './hooks/use-workspace-tree';
@@ -22,7 +23,7 @@ export function DesktopTree() {
   return (
     <SidebarContent className="p-2">
       <SidebarGroup>
-        <SidebarGroupLabel>Projects</SidebarGroupLabel>
+        <SidebarGroupLabel>Workspaces</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             {loading && (
@@ -78,8 +79,26 @@ function TreeNode({ item }: { readonly item: WorkspaceTreeItem }) {
       {item.children ? (
         <div className="ml-3 mt-1 space-y-1">
           {item.children.map((child) => (
-            <SidebarMenuButton key={child.id} size="sm" className="text-muted-foreground">
-              {child.label}
+            <SidebarMenuButton
+              key={child.id}
+              size="sm"
+              className="items-start gap-2 text-muted-foreground"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate">{child.label}</span>
+                  {child.meta?.isDefault ? (
+                    <Badge variant="secondary" className="h-5 px-2 text-[10px]">
+                      Default
+                    </Badge>
+                  ) : undefined}
+                </div>
+                {child.meta?.branch ? (
+                  <div className="truncate text-[11px] text-muted-foreground/80">
+                    {child.meta.branch}
+                  </div>
+                ) : undefined}
+              </div>
             </SidebarMenuButton>
           ))}
         </div>

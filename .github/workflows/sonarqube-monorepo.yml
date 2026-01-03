@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_VERSION: '24'
-      PNPM_VERSION: '10.19.0'
+      PNPM_VERSION: '10.26.2'
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' &&

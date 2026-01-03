@@ -1,11 +1,15 @@
+# Architecture note
+
+• “Older entries mention preload/UDS/JSON-RPC. The current target desktop architecture is Tauri invoke IPC and in-process engines.”
+
 # [0.2.0](https://github.com/fenrick/aideon-desktop/compare/v0.1.0...v0.2.0) (2025-12-17)
 
 ### Bug Fixes
 
 - **app/dev:** use uv run with required deps for worker server\n\n- Add --with uvicorn/fastapi/pydantic for dev spawn to prevent ModuleNotFoundError during yarn dev\n- Packaged behavior unchanged ([670f78f](https://github.com/fenrick/aideon-desktop/commit/670f78f89d2bf96f1930ab966f61a3afec655e68))
-- **app/main:** handle response error events and reject with Error instances; add test for UDS HTTP rejection ([ac23fd2](https://github.com/fenrick/aideon-desktop/commit/ac23fd27938c6925bb860c3eb7f29674d559a503))
+- **app/main:** handle response error events and reject with Error instances; add test for inter-process RPC rejection ([ac23fd2](https://github.com/fenrick/aideon-desktop/commit/ac23fd27938c6925bb860c3eb7f29674d559a503))
 - **app/splash:** remove unused seconds prop; use Geist Mono Local for loading copy ([3dfa529](https://github.com/fenrick/aideon-desktop/commit/3dfa529bf5569ab4cc8decc14d51ad338108f76c))
-- **app:** type-safe JSON-RPC parsing with tests; satisfy ESLint rules; add rpc parser unit tests ([2d57af4](https://github.com/fenrick/aideon-desktop/commit/2d57af438560d2ff3705058d6df89153754cab6d))
+- **app:** type-safe IPC parsing with tests; satisfy ESLint rules; add parser unit tests ([2d57af4](https://github.com/fenrick/aideon-desktop/commit/2d57af438560d2ff3705058d6df89153754cab6d))
 - **ci,issues,ts:** use worker:sync in CI; add issues split+dod; fix TS shim lint/typecheck (Refs [#95](https://github.com/fenrick/aideon-desktop/issues/95)) ([0c80901](https://github.com/fenrick/aideon-desktop/commit/0c80901d34f0e47f2a667fde65fa531c0f236e1f))
 - **ci:** stabilize svelte typecheck pipeline ([05c8a5c](https://github.com/fenrick/aideon-desktop/commit/05c8a5cfc06683c54c223ecbe64de0efae3efe4b))
 - **dev-server:** type middleware and format postbuild ([6c09cd5](https://github.com/fenrick/aideon-desktop/commit/6c09cd506efdd7966891f5d1a42c69138f5224e9))
@@ -18,14 +22,14 @@
 - **tauri:** remove invalid security.capabilities from v2 config; simplify host builder (Refs [#95](https://github.com/fenrick/aideon-desktop/issues/95)) ([691442d](https://github.com/fenrick/aideon-desktop/commit/691442da0e5445fac065c59fbb2b13c627da8688))
 - **theme:** platform toggle now drives --color-accent with distinct demo colors; convert internal state to ; reduce Svelte warnings\n\n- Style: map mac/win/linux to visible accent colors for demos\n- Refs: use in styleguide and inputs to silence non-reactive warnings\n- A11y: Tabs close control is keyboard-operable\n- Cleanup: remove unused splash selector\n\nNote: slot deprecation warnings remain; planning snippet migration separately. ([cd1c99e](https://github.com/fenrick/aideon-desktop/commit/cd1c99e07890c62dc6793086a7930ab8230ae5e6))
 - **worker/cli:** satisfy pyright by narrowing json result before dict.get() ([6602173](https://github.com/fenrick/aideon-desktop/commit/660217346c8f318c6002f5c93835ac96932a27dc))
-- **worker/cli:** silence JSON-RPC notifications ([2c7648f](https://github.com/fenrick/aideon-desktop/commit/2c7648f343a5c146e11ad2afc55a95a06fcb9572))
+- **worker/cli:** silence IPC notifications ([2c7648f](https://github.com/fenrick/aideon-desktop/commit/2c7648f343a5c146e11ad2afc55a95a06fcb9572))
 - **worker/lint:** import AsyncIterator from collections.abc (Refs [#95](https://github.com/fenrick/aideon-desktop/issues/95)) ([cd80dc4](https://github.com/fenrick/aideon-desktop/commit/cd80dc4e078d984e9790fc9956a29cc8cf480f02))
-- **worker:** type-safe JSON-RPC and legacy param parsing; satisfy mypy and ruff (use collections.abc.Mapping) ([fc90c74](https://github.com/fenrick/aideon-desktop/commit/fc90c74121f61fd4e70ae32b9f07839cbeccca4c))
+- **worker:** type-safe IPC and legacy param parsing; satisfy mypy and ruff (use collections.abc.Mapping) ([fc90c74](https://github.com/fenrick/aideon-desktop/commit/fc90c74121f61fd4e70ae32b9f07839cbeccca4c))
 
 ### Features
 
 - **app:** make renderer mount coverage-safe (dynamic import + noop in tests); add vitest config for Svelte transform ([1571fd7](https://github.com/fenrick/aideon-desktop/commit/1571fd70bc0a7df272b69c42e90830a75894214d))
-- **app:** server-only worker mode over UDS; remove JSON-RPC path; update tests to mock HTTP; ensure uv-only Python flow works in CI ([#25](https://github.com/fenrick/aideon-desktop/issues/25), [#62](https://github.com/fenrick/aideon-desktop/issues/62)) ([0a90f7b](https://github.com/fenrick/aideon-desktop/commit/0a90f7b113a4644922526830b05a9a6c8089f2ac))
+- **app:** Desktop mode uses in-process engines; no inter-process RPC. ([#25](https://github.com/fenrick/aideon-desktop/issues/25), [#62](https://github.com/fenrick/aideon-desktop/issues/62)) ([0a90f7b](https://github.com/fenrick/aideon-desktop/commit/0a90f7b113a4644922526830b05a9a6c8089f2ac))
 - **debug:** add Style Guide window and Debug menu item\n\n- Tauri menu: add Debug > UI Style Guide\n- Windows: new open_styleguide() opens /styleguide route\n- App: platform toggle in /styleguide to preview mac/win/linux token effects\n- CSS: fix platform class scoping (:root.platform-\*) ([f9ca5ca](https://github.com/fenrick/aideon-desktop/commit/f9ca5cad44ca9b811a5e555672c1194651a325d4))
 - **design-system M0:** tokens v1, core components, layout, styleguide\n\n- Tokens (roles/elevation/spacing) and themed root\n- Core components: Button, Field, TextField, Select, Checkbox, Radio, Switch\n- Primitives: Toolbar(+Button), Tooltip, Toast host, SplitPane\n- Adaptive registries already added (shapes/docs/editors) with tests\n- Styleguide route (/styleguide) to preview tokens and components\n- Refactor Titlebar/MainView to tokens; lint/typecheck/test green ([64b903e](https://github.com/fenrick/aideon-desktop/commit/64b903e6506613d9aa668f5e4de453d7a454491a))
 - **desktop:** adopt sveltekit renderer with splash route ([f07c742](https://github.com/fenrick/aideon-desktop/commit/f07c742efeceba25f40cf38463eae75e8659b33e))
@@ -37,11 +41,11 @@
 - **logging:** broaden renderer and host observability ([5bc79a2](https://github.com/fenrick/aideon-desktop/commit/5bc79a2c82e5fd9365fe53a277646d8a2754165c))
 - **logging:** enrich telemetry and stabilize type tooling ([18b549b](https://github.com/fenrick/aideon-desktop/commit/18b549b4ab2446d8014c6d3a09e1315755dcb25b))
 - **m1:** Praxis canvas foundations + Sonar/coverage hardening ([#137](https://github.com/fenrick/aideon-desktop/issues/137)) ([082ce46](https://github.com/fenrick/aideon-desktop/commit/082ce467fd66540b2886816dfacb918979825b3f))
-- **rpc:** selectively restore JSON-RPC changes from 12209b6 (exclude generated .aideon and docs/issues) ([4a79840](https://github.com/fenrick/aideon-desktop/commit/4a79840e38fad83688cf5ff2f0f99b73d85241d7))
+- **rpc:** selectively restore IPC changes from 12209b6 (exclude generated .aideon and docs/issues) ([4a79840](https://github.com/fenrick/aideon-desktop/commit/4a79840e38fad83688cf5ff2f0f99b73d85241d7))
 - **ui:** introduce adaptive layer primitives\n\n- Tokens: add CSS design tokens and wire to theme\n- UI primitives: Tabs (multi-document), Modal (accessible skeleton)\n- Registries: shapes, documents, property editors (extensible) with tests\n\nstyle: normalize naming for lint rules; tests cover registries ([0192e5c](https://github.com/fenrick/aideon-desktop/commit/0192e5c8e64080276475e6a34e904b12cb7a2f41))
 - **ui:** platform-aware design system parity (Windows/macOS/Neutral)\n\n- Add theme manager and OS preview; inject Fluent/Puppertino/Tailwind on demand\n- Wrap Button, TextField, Select, Checkbox, Radio, Switch, ToolbarButton, Tooltip, Modal\n- Style Guide: platform toggle reactive; remove unused selectors; fix a11y/events\n- Tests: ensure Tailwind only loads for Neutral; platform class toggles\n\nRefs: M0 foundations, prepares M1 MVP UI ([449f3d6](https://github.com/fenrick/aideon-desktop/commit/449f3d63de83eb33fab71b4ee1853c537408a89f))
 - **worker): add /health endpoint; feat(app): use health check for readiness; ci(sonar:** wait for Quality Gate; docs: add 80% coverage gates to AGENTS.md and reference branch for new code ([de5da2b](https://github.com/fenrick/aideon-desktop/commit/de5da2b9bd5ff1ed55ad011e952b810d8163b40d))
-- **worker:** add FastAPI UDS server and remove CLI; add server tests and runner script (Refs [#95](https://github.com/fenrick/aideon-desktop/issues/95)) ([2329521](https://github.com/fenrick/aideon-desktop/commit/2329521cb84819eab990bc466e8e3bfd002abd56))
+- **worker:** add server and remove CLI; Desktop mode uses in-process engines; no inter-process RPC. (Refs [#95](https://github.com/fenrick/aideon-desktop/issues/95)) ([2329521](https://github.com/fenrick/aideon-desktop/commit/2329521cb84819eab990bc466e8e3bfd002abd56))
 
 # [0.1.0](https://github.com/fenrick/aideon-praxis/compare/v0.0.0...v0.1.0) (2025-10-18)
 
@@ -58,7 +62,7 @@
 ### Features
 
 - **adapters:** add adapter interfaces and unit test ([2a4a814](https://github.com/fenrick/aideon-praxis/commit/2a4a8146bce8357fba130f2b5c980f6edafb2e78))
-- **app:** expose typed stateAt on preload; add IPC handler; render worker result in UI; update global typings and tests ([ebc9948](https://github.com/fenrick/aideon-praxis/commit/ebc994838d6674c1b753eead7204142091890efe))
+- **app:** expose typed stateAt; Renderer calls Host via Tauri invoke (typed adapters). ([ebc9948](https://github.com/fenrick/aideon-praxis/commit/ebc994838d6674c1b753eead7204142091890efe))
 - **app:** scaffold secure Electron host + React renderer with packaging ([fec07a4](https://github.com/fenrick/aideon-praxis/commit/fec07a442af9c4888b8090e71eaf48c2e7687410))
-- **e2e:** wire renderer↔preload↔main↔worker roundtrip; expose stateAt via IPC and display worker JSON on load ([1ce514e](https://github.com/fenrick/aideon-praxis/commit/1ce514e19cfd183a67966f862ca2bbef337b0c94))
+- **e2e:** wire renderer↔host↔engines roundtrip; Renderer calls Host via Tauri invoke (typed adapters). Desktop mode runs engines in-process. Host calls engines via Rust traits. No sockets. ([1ce514e](https://github.com/fenrick/aideon-praxis/commit/1ce514e19cfd183a67966f862ca2bbef337b0c94))
 - **worker:** add Python sidecar with Temporal.StateAt and CLI ([1facad5](https://github.com/fenrick/aideon-praxis/commit/1facad5388ad795257fa65a21340b39f60288074))

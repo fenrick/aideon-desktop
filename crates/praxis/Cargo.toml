@@ -1,0 +1,26 @@
+[package]
+name = "aideon_praxis"
+version = "0.0.0"
+edition = "2024"
+authors = ["Aideon Praxis Contributors"]
+license = "MIT"
+
+[dependencies]
+aideon_continuum = { path = "../continuum" }
+aideon_metis = { path = "../metis" }
+aideon_mneme = { path = "../mneme" }
+async-recursion = "1.1"
+async-trait = "0.1"
+blake3 = "1"
+rusqlite = "0.32"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+thiserror = "2"
+time = { version = "0.3", features = ["formatting", "parsing"] }
+tokio = { version = "1", features = ["sync"] }
+futures = "0.3"
+
+[dev-dependencies]
+tempfile = "3.24"
+tokio = { version = "1", features = ["macros", "rt"] }

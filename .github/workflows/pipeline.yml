@@ -8,7 +8,7 @@ on:
 
 env:
   NODE_VERSION: '24'
-  PNPM_VERSION: '10.19.0'
+  PNPM_VERSION: '10.26.2'
   CARGO_TERM_COLOR: always
 
 permissions:
@@ -71,7 +71,8 @@ jobs:
       - name: Ensure macOS Homebrew cache is up to date
         if: runner.os == 'macOS'
         run: |
-          brew update --quiet
+          # Homebrew can intermittently fail to reach GitHub from hosted runners; this step is best-effort.
+          brew update --quiet || echo "::warning::brew update failed; continuing"
           echo "macOS runners ship with WebKit / Cocoa frameworks pre-installed; no extra deps needed"
 
       - name: Ensure MSVC build tools

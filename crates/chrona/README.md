@@ -24,6 +24,6 @@ other clients.
 
 ## Design and architecture
 
-Chrona follows the time-first principles captured in `Architecture-Boundary.md` and `docs/DESIGN.md`
+Chrona follows the time-first principles captured in `ARCHITECTURE-BOUNDARY.md` and `docs/DESIGN.md`
 while focusing purely on temporal views. As this crate evolves, document internal modules and
 performance constraints in `crates/chrona/DESIGN.md`.

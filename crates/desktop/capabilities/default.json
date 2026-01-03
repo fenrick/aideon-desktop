@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["splash", "main", "settings", "about", "status"],
+  "windows": ["splash", "main", "settings", "about", "status", "styleguide"],
   "permissions": [
     "core:default",
     "core:app:default",
@@ -10,6 +10,7 @@
     "core:webview:default",
     "core:event:default",
     "log:default",
+    "dialog:default",
     "opener:default"
   ]
 }

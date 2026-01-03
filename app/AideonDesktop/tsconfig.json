@@ -2,15 +2,31 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "baseUrl": "./src",
+    "types": ["node"],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "paths": {
       "@/*": ["./*"],
-      "canvas/*": ["canvas/*"],
+      "aideon/*": ["aideon/*"],
+      "praxis": ["workspaces/praxis/index.ts"],
+      "praxis/*": ["workspaces/praxis/*"],
       "design-system/*": ["design-system/*"],
       "design-system/reactflow/*": ["design-system/components/*"],
       "adapters/*": ["adapters/*"],
-      "dtos/*": ["dtos/*"]
-    }
+      "dtos/*": ["dtos/*"],
+      "lib/*": ["lib/*"]
+    },
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "noEmit": true,
+    "incremental": true,
+    "module": "esnext",
+    "isolatedModules": true,
+    "jsx": "preserve"
   },
-  "include": ["src"],
+  "include": ["app", "next-env.d.ts", "src", "tests", ".next/types/**/*.ts"],
   "exclude": ["src/design-system/components/**/*"]
 }

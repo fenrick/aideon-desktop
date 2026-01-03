@@ -1,42 +1,49 @@
-# Meta-Model Artifacts
+# Metamodel Packages and Registry
 
 ## Purpose
 
-Explain how the Aideon Suite meta-model is delivered and managed as data rather than code: where the
-baseline schema lives, how it is seeded into the twin, and how overrides are applied. This is the
-primary reference for meta-model payloads and registry behaviour.
+Explain how the Aideon Suite metamodel is delivered and managed as **packages** rather than hard-
+coded enums: where package definitions live, how they are published into Mneme, and how the Praxis
+registry maps domain concepts to storage IDs.
 
-The **baseline schema** is a payload inside the dataset (`docs/data/meta/core-v1.json`) so it can be
-versioned, imported, and branched along with the rest of the graph. The renderer and host load that
-document through `MetaModelRegistry`, so runtime validation and UI forms always stay data-driven.
+Praxis owns the **meaning** of the twin (master types, domain types, verbs). Mneme owns the
+**persistence** of schema data (types, fields, edge rules). This split keeps the system portable and
+extensible without leaking storage details to the UI.
 
 ## Structure
 
-The payload expresses the schema using a graph-style hierarchy of object types where each node
-represents an ArchiMate concept (`Capability`, `Application`, `PlanEvent`, etc.). Each type
-includes attribute definitions, enum constraints, and allowed relationships to other types. The
-host treats the payload as a commit-level artifact, and future configuration screens will let
-stewards build these structures interactively (nesting attributes, grouping relationships, and
-linking effects) instead of editing JSON manually.
+Metamodel packages define:
 
-## Code-first seeding
+- Master types (anchors) and their semantics
+- Domain types (single inheritance) and defaults
+- Domain verbs mapped to master edge semantics
+- Field definitions and constraints
 
-`crates/engine/src/meta_seed.rs` contains the code representation of this schema. When a new
-database is created, `PraxisEngine::ensure_seeded` calls `meta_model_seed_change_set` so the
-meta-model and relationship descriptors are built as regular nodes/edges via the commit APIs
-instead of reading the JSON at runtime. This dog-foots the same APIs the renderer uses and keeps
-the schema aligned with the baseline dataset without introducing JSON parsing hooks in production.
+Packages are compiled by Praxis into a Mneme `MetamodelBatch`, which upserts:
 
-## Overrides
+- `aideon_types` / `aideon_type_extends`
+- `aideon_fields` / `aideon_type_fields`
+- `aideon_edge_type_rules`
 
-Overrides live alongside the baseline payload, such as `.praxis/meta/<tenant>.json` or as
-scenario-specific commits. The registry merges them in order, so the desktop renderer always
-receives the effective schema via `temporal_metamodel_get`. Since they are just data, adding new
-object types or constraints is handled by extending the dataset rather than editing Rust.
+All type/field/edge IDs are **stable UUIDs** committed in source to ensure long-term compatibility.
 
-## SeaORM persistence
+## Domain registry
 
-The SQLite persistence layer now runs through SeaORM/SeaQuery 1.1.19 located in `crates/mneme`.
-Startup migrations create the `commits`, `refs`, `snapshots`, and readonly `metis_events` tables and
-the meta-model dataset is seeded via those tables so analytics can consume both the graph and the
-flattened Metis view without embedding schema logic in the renderer.
+Praxis maintains a registry that maps:
+
+- `DomainTypeKey` -> Mneme `type_id`
+- `DomainFieldKey` -> Mneme `field_id`
+- `DomainVerb` -> Mneme `edge_type_id` + direction
+
+The registry is used by task APIs so callers never need to handle storage IDs directly.
+
+## Overrides and extensions
+
+Additional packages can be installed per partition. Package evolution is versioned and can be
+validated before publication. Praxis enforces single inheritance, endpoint constraints, and rule
+compatibility when packages are applied.
+
+## Storage notes
+
+Mneme persists schema and edge semantics in its portable tables; no raw SQL is used in migrations or
+runtime paths. See `crates/mneme/DESIGN.md` for schema details.

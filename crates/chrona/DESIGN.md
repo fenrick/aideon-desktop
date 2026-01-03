@@ -11,7 +11,7 @@ Canvas and other clients.
 - Rust 2024 with workspace defaults.
 - Core deps: `tokio` for async, `serde`/`serde_json` for (de)serialisation, `thiserror` for errors,
   `tracing` + `log` facade for logging.
-- Twin access via `aideon_engine` and persistence through `aideon_mneme` traits only;
+- Twin access via `praxis` and persistence through `mneme` traits only;
   no direct DB drivers here.
 
 ## Anti-goals
@@ -30,4 +30,4 @@ Canvas and other clients.
 ## Evergreen notes
 
 - Migrate any legacy, untyped JSON helpers to typed structs + serde.
-- Replace ad-hoc diff logic with shared semantics defined in Praxis Engine/ADRs.
+- Replace ad-hoc diff logic with shared semantics defined in Praxis engine design docs.

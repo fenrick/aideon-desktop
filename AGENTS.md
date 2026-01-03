@@ -14,16 +14,14 @@ Before making changes, agents should read:
 
 - Root `README.md` (suite overview and modules)
 - `docs/DESIGN.md` (suite-level design and principles)
-- `Architecture-Boundary.md` (layers, adapters, time-first boundaries)
-- `docs/CODING_STANDARDS.md` (coding rules and boundaries)
-- `docs/testing-strategy.md` (testing expectations)
+- `ARCHITECTURE-BOUNDARY.md` (layers, adapters, time-first boundaries)
+- `docs/CODING-STANDARDS.md` (coding rules and boundaries)
+- `docs/TESTING-STRATEGY.md` (testing expectations)
 - The `README.md` and `DESIGN.md` for the module they are working in
-
-Before coding, skim any recent ADRs touching your area.
 
 ## Documentation index
 
-- **Canonical**: `README.md`, `docs/DESIGN.md`, `Architecture-Boundary.md`, `docs/CODING_STANDARDS.md`, `docs/testing-strategy.md`, `docs/design-system.md`, `docs/UX-DESIGN.md`, `docs/tauri-capabilities.md`, `docs/tauri-client-server-pivot.md`, module-level `README.md` + `DESIGN.md`, and accepted ADRs in `docs/adr/`.
+- **Canonical**: `README.md`, `docs/DESIGN.md`, `ARCHITECTURE-BOUNDARY.md`, `docs/CODING-STANDARDS.md`, `docs/TESTING-STRATEGY.md`, `docs/DESIGN-SYSTEM.md`, `docs/UX-DESIGN.md`, and module-level `README.md` + `DESIGN.md`.
 - Legacy Svelte renderer (`app/PraxisDesktop/`) has been removed; ignore any remaining references to it.
 
 > **Scope:** These instructions apply exclusively to the `aideon-praxis` codebase. Do not spend time optimising for downstream consumers, SDKs, or hypothetical adopters outside this repository unless explicitly directed in a task.
@@ -35,17 +33,17 @@ Before coding, skim any recent ADRs touching your area.
 
 ## Core principles (do not break)
 
-- **Time‑first digital twin:** `state_at()`, snapshots, scenarios, Plan Events, plateaus/gaps are
-  authoritative.
+- **Time-first digital twin:** time context (valid time + asserted time), scenarios, plan/actual layers,
+  and Plan Events are authoritative.
 - **Local‑first, cloud‑ready:** Desktop works offline; server mode is a config switch, not a fork.
-- **Strict boundaries:** Renderer ↔ Host via preload IPC; Host ↔ Worker via pipes/UDS RPC. No
-  DB‑specific logic in the renderer.
+- **Strict boundaries:** Renderer calls Host via Tauri invoke (typed adapters). Desktop mode runs engines in-process. Host calls engines via Rust traits. No sockets. No DB‑specific logic in the renderer.
+- This repository’s documentation defines the target architecture; code is updated to match it.
 - **Security by default:** No renderer HTTP; no open TCP ports in desktop mode; PII redaction on
   exports; least privilege.
 - **Adapters, not entanglement:** Graph, Storage, Worker are interface‑driven. Backends swap without
   UI change.
-- **Evergreen:** Treat older patterns as candidates for upgrade; current ADRs and suite docs take
-  precedence over legacy notes. Favour refactoring toward the current stack instead of extending
+- **Evergreen:** Treat older patterns as candidates for upgrade; current suite and module design docs
+  take precedence over legacy notes. Favour refactoring toward the current stack instead of extending
   legacy seams.
 
 ## UX Shell (Aideon Desktop)
@@ -64,11 +62,11 @@ Before coding, skim any recent ADRs touching your area.
   helpers.
 
 Do not build your own UI kits, form/state helpers, logging wrappers, or async executors unless an
-ADR requires it.
+design docs require it.
 
 ## Repository boundaries (monorepo)
 
-High-level module boundaries are documented in `Architecture-Boundary.md` and in each module’s
+High-level module boundaries are documented in `ARCHITECTURE-BOUNDARY.md` and in each module’s
 `README.md`/`DESIGN.md` (see the “Aideon Suite modules” table in `README.md`). Never cross those
 boundaries with imports or side-effects (e.g., no renderer ↔ DB access, no engines importing Tauri).
 
@@ -77,10 +75,9 @@ boundaries with imports or side-effects (e.g., no renderer ↔ DB access, no eng
 This repository is an evergreen, fast-evolving codebase. Code, docs, and patterns are continuously improved and may change frequently. When resolving conflicts or ambiguity, use the following order of precedence:
 
 - **1. Code on `main`** is always authoritative.
-- **2. Accepted ADRs** in `docs/adr/` (architectural decisions).
-- **3. Suite-level docs:** `docs/DESIGN.md`, `Architecture-Boundary.md`, `docs/CODING_STANDARDS.md`, `docs/testing-strategy.md`, `docs/ROADMAP.md`.
-- **4. Module docs:** `<module>/README.md`, `<module>/DESIGN.md`.
-- **5. Supporting docs in `docs/`** (not listed above).
+- **2. Suite-level docs:** `docs/DESIGN.md`, `ARCHITECTURE-BOUNDARY.md`, `docs/CODING-STANDARDS.md`, `docs/TESTING-STRATEGY.md`, `docs/ROADMAP.md`.
+- **3. Module docs:** `<module>/README.md`, `<module>/DESIGN.md`.
+- **4. Supporting docs in `docs/`** (not listed above).
 - **Anything else** is informational only and does not override the above.
 
 **Behaviour rules:**
@@ -88,14 +85,14 @@ This repository is an evergreen, fast-evolving codebase. Code, docs, and pattern
 - Prefer updating to current patterns over preserving legacy. When you touch code, refactor it toward the current architecture and coding standards.
 - Clean as you go: when modifying a file, remove or clearly mark obsolete TODOs, comments, and dead code in the area you touch, if safe and reasonable.
 - Do not add new features on top of obviously legacy seams (e.g., pre-refactor patterns, deprecated UIs). Only maintain or migrate these; do not extend them.
-- After changing behaviour or design, update the relevant module `README.md`, `DESIGN.md`, and applicable ADRs. Remove or archive outdated doc sections rather than adding conflicting ones.
-- Minimise new `.md` files: only create new module `README.md`/`DESIGN.md` docs or ADRs. Prefer updating existing docs.
+- After changing behaviour or design, update the relevant module `README.md` and `DESIGN.md`. Remove or archive outdated doc sections rather than adding conflicting ones.
+- Minimise new `.md` files: only create new module `README.md`/`DESIGN.md` docs. Prefer updating existing docs.
 
 ## Checklists
 
 **Before you start a task**
 
-- Skim the docs listed at the top plus recent ADRs for your area.
+- Skim the docs listed at the top for your area.
 - Identify the target module (`app/AideonDesktop/src/canvas`, host crate, engine crate, etc.) and open its
   `README.md`/`DESIGN.md`.
 - If you touch legacy code, plan to migrate toward the current stack where safe.
@@ -106,7 +103,7 @@ This repository is an evergreen, fast-evolving codebase. Code, docs, and pattern
 - Run relevant tests/lints: `pnpm run node:test` (or scoped), `pnpm run node:typecheck`, `pnpm run
 host:lint && pnpm run host:check`, `cargo test --all --all-targets` as applicable.
 - Check coverage impact (goal ≥80% on new code) and note any gaps.
-- Update docs you touched (module `README`/`DESIGN`, ADR references) and this file if behaviours
+- Update docs you touched (module `README`/`DESIGN`) and this file if behaviours
   changed.
 - Re-verify boundaries and security: no renderer HTTP, no new ports, renderer uses typed IPC only.
 
@@ -118,19 +115,19 @@ host:lint && pnpm run host:check`, `cargo test --all --all-targets` as applicabl
 **When touching a boundary (Rust ↔ host ↔ renderer)**
 
 - Update/validate DTO types on both sides (TS in `app/PraxisDtos`, Rust in `crates/mneme`).
-- Update `docs/contracts-and-schemas.md` when schemas or IPC error shapes change.
+- Update `docs/CONTRACTS-AND-SCHEMAS.md` when schemas or IPC error shapes change.
 - Ensure error structures are documented and consistent across layers before merging.
 
 **When adding or changing UI components (Praxis Canvas)**
 
-- Copy the golden pattern from the temporal panel/commit timeline stack: hooks expose `[state, actions]`, IPC via `praxis-api.ts`, shadcn cards for layout, alerts/skeletons for loading/error.
+- Copy the golden pattern from the time cursor + temporal panel stack: hooks expose `[state, actions]`, IPC via `praxis-api.ts`, shadcn cards for layout, alerts/skeletons for loading/error.
 - Use design-system components directly; avoid bespoke wrappers.
 - Ensure loading/error/empty states are covered by tests; mock IPC at the boundary.
 
 **When adding engine/host functionality**
 
-- Follow the patterns in `crates/engine/DESIGN.md` and `crates/desktop/DESIGN.md` (errors via `PraxisError`/`HostError`, logging with `log`/`tracing`, datastore via Mneme helpers).
-- Use `crates/desktop/src/temporal.rs` and `crates/engine/tests/merge_flow.rs` as golden paths for command wiring and engine flows.
+- Follow the patterns in `crates/praxis/DESIGN.md` and `crates/desktop/DESIGN.md` (errors via `PraxisError`/`HostError`, logging with `log`/`tracing`, datastore via Mneme helpers).
+- Use `crates/desktop/src/temporal.rs` and `crates/praxis/tests/merge_flow.rs` as golden paths for command wiring and engine flows.
 
 ## Task menu for agents (allowed)
 
@@ -139,8 +136,8 @@ host:lint && pnpm run host:check`, `cargo test --all --all-targets` as applicabl
 - Analytics in the Rust worker crates (Chrona/Metis) with tests and metrics.
 - Connectors via Continuum scheduler (e.g., CMDB), CSV wizard features, PII redaction,
   encryption‑at‑rest.
-- Docs: module `README.md`/`DESIGN.md`, global README, `docs/DESIGN.md`, `Architecture‑Boundary.md`,
-  ROADMAP, ADRs, C4 diagrams‑as‑code.
+- Docs: module `README.md`/`DESIGN.md`, global README, `docs/DESIGN.md`, `ARCHITECTURE-BOUNDARY.md`,
+  ROADMAP, C4 diagrams-as-code.
 
 ## Examples (golden patterns)
 
@@ -184,7 +181,7 @@ Token scopes required: `repo`, `project`, `read:project`, and `read:org` if the 
 For any item labeled `status/in-progress`, ensure the issue body contains this section (added via `pnpm run issues:dod`):
 
 - CI: lint, typecheck, unit tests updated
-- Docs: user & dev docs updated (README/ADR/CHANGELOG)
+- Docs: user & dev docs updated (README/CHANGELOG)
 - Security: renderer IPC boundaries respected; no new ports
 - Performance: SLO notes or benches if applicable
 - UX: matches GitHub‑inspired style (light/dark)
@@ -192,7 +189,7 @@ For any item labeled `status/in-progress`, ensure the issue body contains this s
 - Tracking: PRs linked; Project Status updated; local mirror refreshed
 
 When finishing work, follow the DoD and workflow expectations in `CONTRIBUTING.md` (including labels,
-milestones, PR linkage, and ADR requirements for boundary/protocol/meta-model changes).
+milestones, and PR linkage).
 
 ## Output contract (must follow in every proposal/PR)
 
@@ -226,7 +223,7 @@ defaults consistent with this guide.
 ## Coding standards
 
 For coding standards (quality gates, coverage targets, tooling, and CI rules), see
-`docs/CODING_STANDARDS.md`. For testing expectations, see `docs/testing-strategy.md`.
+`docs/CODING-STANDARDS.md`. For testing expectations, see `docs/TESTING-STRATEGY.md`.
 
 ## Per-module guidance (where to look)
 
@@ -236,12 +233,12 @@ For coding standards (quality gates, coverage targets, tooling, and CI rules), s
   - Tests: JS/TS tests via `pnpm run node:test` (Vitest).
 
 - **Aideon Host (`crates/desktop`)**
-  - Read: `crates/desktop/README.md`, `crates/desktop/DESIGN.md`, `docs/tauri-capabilities.md`, `docs/tauri-client-server-pivot.md`.
+  - Read: `crates/desktop/README.md`, `crates/desktop/DESIGN.md`, `ARCHITECTURE-BOUNDARY.md`.
   - Constraints: no renderer HTTP; no open ports in desktop mode; typed commands only.
   - Tests: Rust tests via `cargo test -p aideon_desktop`; workspace checks via `pnpm run host:lint && pnpm run host:check`.
 
-- **Engines (`crates/engine`, `crates/chrona`, `crates/metis`, `crates/continuum`, `crates/mneme`)**
-  - Read: each crate’s `README.md`, `DESIGN.md` (where present), `docs/DESIGN.md`, `Architecture-Boundary.md`, relevant ADRs (`0005` meta-model, `0006` storage).
+- **Engines (`crates/praxis`, `crates/chrona`, `crates/metis`, `crates/continuum`, `crates/mneme`)**
+  - Read: each crate’s `README.md`, `DESIGN.md` (where present), `docs/DESIGN.md`, `ARCHITECTURE-BOUNDARY.md`.
   - Constraints: no Tauri or UI dependencies; obey time-first commit model and adapter boundaries.
   - Tests: crate-level `cargo test -p <crate>` plus workspace Rust checks.
 
@@ -251,7 +248,7 @@ For coding standards (quality gates, coverage targets, tooling, and CI rules), s
 
 – Node 24, React 19. Strict TS config; ESLint + Prettier. All new surface/canvas work targets the
 React + React Flow + shadcn/ui stack
-described in `docs/UX-DESIGN.md`, `docs/design-system.md`, and
+described in `docs/UX-DESIGN.md`, `docs/DESIGN-SYSTEM.md`, and
 `app/AideonDesktop/docs/praxis-canvas/DESIGN.md`.
 
 - Tauri renderer: no Node integration; `contextIsolation: true`; strict CSP; capabilities restrict
@@ -270,10 +267,10 @@ described in `docs/UX-DESIGN.md`, `docs/design-system.md`, and
 - Use check-only hooks locally; CI enforces the same rules.
 - Coverage targets (Node/TS and Rust): Lines ≥ 80%, Branches ≥ 80%, Functions ≥ 80% on new code; overall should trend upward.
 - Sonar: `sonar.new_code.referenceBranch=main` configured; CI waits for the Sonar Quality Gate before merging.
-- Keep code paths single and explicit (server-only worker over UDS) to reduce maintenance cost.
+- Keep code paths single and explicit. Desktop mode runs engines in-process. Host calls engines via Rust traits. No sockets.
   - It is acceptable to expose test-only helpers (e.g., `__test__`) to raise branch coverage when they don’t affect runtime. For React widgets, add Vitest + Testing Library smoke tests alongside the new runtime as soon as it exists.
 
-### Rust worker crates (crates/chrona, crates/metis, crates/engine, crates/continuum)
+### Rust worker crates (crates/chrona, crates/metis, crates/praxis, crates/continuum)
 
 – Rust 2024 edition, `cargo fmt` + `cargo clippy --all-targets --all-features` clean.
 
@@ -284,20 +281,19 @@ described in `docs/UX-DESIGN.md`, `docs/design-system.md`, and
 
 - Markdown, markdownlint clean (no heading jumps; 2‑space nested bullets).
 - Diagrams‑as‑code preferred (Structurizr DSL, Mermaid, PlantUML) stored under `docs/c4/`.
-- When updating docs, prefer editing existing suite/module docs or ADRs; avoid creating new `.md`
-  files unless they are a new module `README.md`/`DESIGN.md` or ADR.
+- When updating docs, prefer editing existing suite/module docs; avoid creating new `.md`
+  files unless they are a new module `README.md`/`DESIGN.md`.
 
 ## Contracts snapshot (reference only)
 
-The current worker jobs and time APIs are defined by engine contracts and ADRs:
+The current worker jobs and time APIs are defined by engine contracts and module design docs:
 
-- Worker job types and payloads: see Metis and temporal engine design docs plus ADRs `0002`, `0003`,
-  and `0010`.
-- Time APIs and PlanEvent schema: see Praxis Engine design docs and ADRs `0005`, `0007`, and `0008`.
+- Worker job types and payloads: see Metis and temporal engine design docs.
+- Time APIs and PlanEvent schema: see Praxis engine design docs.
 
 - `Analytics.Centrality { algorithm: degree|betweenness, scope }`
 - `Analytics.Impact { seedRefs[], filters{} }`
-- `Temporal.StateAt { asOf, scenario?, confidence? }`
+- `Temporal.StateAt { asOf, scenario?, layer? }`
 - `Temporal.Diff { from: plateauId|date, to: plateauId|date, scope? }`
 - `Temporal.TopologyDelta { from, to }`
 - `Finance.TCO { scope, asOf, scenario?, policies? }`
@@ -309,7 +305,7 @@ The current worker jobs and time APIs are defined by engine contracts and ADRs:
 - `GET /topology_delta?from=...&to=...`
 - `GET /tco?scope=...&as_of=...&scenario=...`
 
-### Minimal PlanEvent schema (do not change without ADR)
+### Minimal PlanEvent schema (do not change without updating design docs)
 
 - `id, name, effective_at, confidence, source{ work_package?, priority? }, effects[]`
 - `effects[]` items: `{ op: create|update|delete|link|unlink, target_ref, payload }`
@@ -330,7 +326,7 @@ The current worker jobs and time APIs are defined by engine contracts and ADRs:
 
 ## Testing guidance
 
-- TS: unit tests for adapters, preload bridges, UI state; avoid DOM‑heavy tests unless needed.
+- TS: unit tests for adapters. Renderer calls Host via Tauri invoke (typed adapters). UI state; avoid DOM‑heavy tests unless needed.
 - Rust: unit tests/integration tests for host and domain crates (chrona/metis/praxis);
   deterministic seeds for graph generators.
 - Golden datasets: provide small synthetic graphs for 5k/50k nodes to assert performance envelopes.
@@ -359,7 +355,7 @@ The current worker jobs and time APIs are defined by engine contracts and ADRs:
 
 - Use milestone (M0–M6), labels (`type/*`, `area/*`, `module/*`, `priority/*`).
 - Conventional Commits in PR title and commits (e.g., `feat(time): add plateau diff endpoint`).
-- Link to ADRs when changing boundaries, protocols, or the meta‑model.
+- Link to updated design docs when changing boundaries, protocols, or the meta-model.
 
 ## When to ask vs. when to proceed
 

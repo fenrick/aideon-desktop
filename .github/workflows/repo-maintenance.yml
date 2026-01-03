@@ -1,19 +1,20 @@
 name: GitHub Maintenance
+
 on:
-    workflow_dispatch: # Allow manual triggering
-    schedule:
-        -   cron: '0 3 * * *' # Run daily at 03:00 UTC
+  workflow_dispatch: # Allow manual triggering
+  schedule:
+    - cron: '0 3 * * *' # Run daily at 03:00 UTC
 
 jobs:
-    github_maintenance:
-        name: Execute Maintenance
-        runs-on: ubuntu-latest
+  github_maintenance:
+    name: Execute Maintenance
+    runs-on: ubuntu-latest
 
-        permissions:
-            actions: write # Required to delete workflow runs / logs / artifacts
+    permissions:
+      actions: write # Required to delete workflow runs / logs / artifacts
 
-        steps:
-            -   name: Delete workflow runs
-                uses: viascom/github-maintenance-action@v0.1.0
-                with:
-                    github_token: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Delete workflow runs
+        uses: viascom/github-maintenance-action@v0.1.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}

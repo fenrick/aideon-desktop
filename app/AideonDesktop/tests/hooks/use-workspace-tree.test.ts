@@ -1,13 +1,13 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import * as canvasModule from '../../src/canvas';
+import * as praxisModule from 'praxis';
 import { useWorkspaceTree } from '../../src/hooks/use-workspace-tree';
 
-vi.mock('../../src/canvas');
+vi.mock('praxis');
 
 describe('useWorkspaceTree', () => {
-  const listScenariosMock = vi.mocked(canvasModule.listScenarios);
+  const listScenariosMock = vi.mocked(praxisModule.listScenarios);
 
   beforeEach(() => {
     listScenariosMock.mockResolvedValue([
@@ -42,7 +42,10 @@ describe('useWorkspaceTree', () => {
     expect(result.current.error).toBeUndefined();
     expect(result.current.items).toHaveLength(1);
 
-    const [project] = result.current.items;
+    const project = result.current.items[0];
+    if (!project) {
+      throw new Error('Expected a project item.');
+    }
     expect(project.label).toBe('Scenarios');
     expect(project.children).toHaveLength(2);
 

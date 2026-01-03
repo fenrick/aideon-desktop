@@ -78,3 +78,11 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
     value: (query: string) => ({ ...mediaQueryMock, media: query }),
   });
 }
+
+if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !== 'function') {
+  Object.defineProperty(Element.prototype, 'scrollIntoView', {
+    configurable: true,
+    writable: true,
+    value() {},
+  });
+}

@@ -11,7 +11,7 @@ jobs defined in the worker contracts.
 - `tokio` for async where needed, `serde`/`serde_json` for payloads, `thiserror` for error types,
   `tracing` + `log` facade for metrics/observability.
 - Graph/metrics helpers (e.g., `petgraph`) are acceptable; keep them behind crate-local abstractions.
-- Depends on `aideon_engine` for snapshots and `aideon_mneme` for persistence traits.
+- Depends on `praxis` for time-context reads and `mneme` for persistence traits.
 
 ## Anti-goals
 

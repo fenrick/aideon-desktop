@@ -2,7 +2,7 @@
 name = "aideon_continuum"
 version = "0.0.0"
 edition = "2024"
-authors = ["Aideon Praxis Contributors"]
+authors = ["Aideon Continuum Contributors"]
 license = "MIT"
 
 [dependencies]

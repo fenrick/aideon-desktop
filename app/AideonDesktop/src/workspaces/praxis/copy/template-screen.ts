@@ -1,0 +1,40 @@
+export const templateScreenCopy = {
+  templateLabel: 'Template',
+  scenarioLabel: 'Scenario',
+  templateDescriptionFallback:
+    'Pair a scenario with a template to explore timelines, moments, and widgets.',
+  templateSelectorLabel: 'Choose template',
+  saveTemplate: 'Save template',
+  createWidget: 'Create widget',
+  searchLabel: 'Search timelines, nodes, catalogues',
+  tabs: {
+    overview: 'Overview',
+    timeline: 'Timeline',
+    activity: 'Activity',
+  },
+  overview: {
+    snapshotTitle: 'Snapshot overview',
+    snapshotDescription: 'Read-only metrics for the current scenario point-in-time.',
+  },
+  timeCursor: {
+    title: 'Time cursor',
+    description: 'Timeline, moment, and slider controls for state_at snapshots.',
+    branchLabel: 'Timeline',
+    commitLabel: 'Moment',
+    sliderLabel: 'Timeline slider',
+    snapshotLabel: 'Snapshot timestamp',
+    refresh: 'Refresh timelines',
+    reload: 'Reload snapshot',
+    merge: 'Apply to primary',
+  },
+  properties: {
+    title: 'Properties',
+    empty: 'Select a widget, node or edge to edit its properties.',
+    widgetHeading: 'Widget properties',
+    nodeHeading: 'Node properties',
+    edgeHeading: 'Edge properties',
+    nameLabel: 'Name',
+    dataSourceLabel: 'Data source',
+    layoutLabel: 'Layout',
+  },
+};

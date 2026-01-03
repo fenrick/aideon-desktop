@@ -1,10 +1,11 @@
 use std::sync::Mutex;
-use std::time::Duration as StdDuration;
 
 use log::{error, info, warn};
+use serde::Deserialize;
 use serde::Serialize;
 use tauri::{AppHandle, Manager, State, Wry};
 
+use crate::ipc::{EmptyPayload, HostError, IpcRequest, IpcResponse};
 use crate::worker::init_temporal;
 
 #[derive(Default)]
@@ -55,14 +56,17 @@ pub async fn set_complete(
     app: AppHandle<Wry>,
     state: State<'_, Mutex<SetupState>>,
     task: String,
-) -> Result<(), String> {
+) -> Result<(), HostError> {
     let mut state_lock = state.lock().unwrap();
 
     let parsed = parse_task(task.as_str()).ok_or_else(|| {
         warn!("host: set_complete called with invalid task '{task}'");
-        "invalid task".to_string()
+        HostError::invalid_input("invalid task")
     })?;
-    info!("host: set_complete({task})");
+    info!(
+        "host: set_complete({task}) frontend={} backend={}",
+        state_lock.frontend_task, state_lock.backend_task
+    );
     mark_complete(&mut state_lock, parsed);
 
     if all_complete(&state_lock) {
@@ -84,7 +88,7 @@ pub async fn set_complete(
 }
 
 #[tauri::command]
-pub fn get_setup_state(state: State<'_, Mutex<SetupState>>) -> Result<SetupFlags, String> {
+pub fn get_setup_state(state: State<'_, Mutex<SetupState>>) -> Result<SetupFlags, HostError> {
     let state = state.lock().unwrap();
     Ok(SetupFlags {
         frontend: state.frontend_task,
@@ -92,12 +96,9 @@ pub fn get_setup_state(state: State<'_, Mutex<SetupState>>) -> Result<SetupFlags
     })
 }
 
-pub async fn run_backend_setup(app: AppHandle<Wry>) -> Result<(), String> {
-    init_temporal(&app).await?;
-
-    info!("Performing really heavy backend setup task...");
-    tokio::time::sleep(StdDuration::from_secs(3)).await;
-    info!("Backend setup task completed!");
+pub async fn run_backend_setup(app: AppHandle<Wry>) -> Result<(), HostError> {
+    info!("host: backend setup started");
+    init_temporal(&app).await.map_err(HostError::internal)?;
 
     if let Err(error_message) = set_complete(
         app.clone(),
@@ -110,7 +111,43 @@ pub async fn run_backend_setup(app: AppHandle<Wry>) -> Result<(), String> {
         return Err(error_message);
     }
 
+    info!("host: backend setup marked complete");
     Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetupCompletePayload {
+    pub task: String,
+}
+
+/// Namespaced + requestId-wrapped setup completion signal.
+#[tauri::command(rename = "system.setup.complete")]
+pub async fn system_setup_complete(
+    app: AppHandle<Wry>,
+    state: State<'_, Mutex<SetupState>>,
+    request: IpcRequest<SetupCompletePayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match set_complete(app, state, request.payload.task).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
+}
+
+/// Namespaced + requestId-wrapped setup state query.
+#[tauri::command(rename = "system.setup.state")]
+pub fn system_setup_state(
+    state: State<'_, Mutex<SetupState>>,
+    request: IpcRequest<EmptyPayload>,
+) -> Result<IpcResponse<SetupFlags>, HostError> {
+    let request_id = request.request_id;
+    let response = match get_setup_state(state) {
+        Ok(flags) => IpcResponse::ok(request_id, flags),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
+    Ok(response)
 }
 
 #[cfg(test)]

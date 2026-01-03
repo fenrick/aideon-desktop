@@ -42,6 +42,11 @@ bower_components
 node_modules/
 jspm_packages/
 
+# Package-manager lockfiles (pnpm is canonical in this repo)
+package-lock.json
+**/package-lock.json
+npm-shrinkwrap.json
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 

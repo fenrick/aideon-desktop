@@ -4,7 +4,7 @@ use aideon_desktop_lib::StateAtResult;
 fn state_at_result_camelcase_roundtrip() {
     // Incoming JSON uses camelCase keys
     let json_in = r#"{
-        "asOf": "2025-01-01",
+        "asOf": "commit-001",
         "scenario": null,
         "confidence": null,
         "nodes": 7,

@@ -1,17 +1,20 @@
 #[cfg(target_os = "windows")]
 use log::warn;
+use serde::Deserialize;
 use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
 
-const ROUTE_SPLASH: &str = "index.html#/splash";
-const ROUTE_MAIN: &str = "index.html#/main";
-const ROUTE_STATUS: &str = "index.html#/status";
-const ROUTE_SETTINGS: &str = "index.html#/settings";
-const ROUTE_ABOUT: &str = "index.html#/about";
-const ROUTE_STYLEGUIDE: &str = "index.html#/styleguide";
+use crate::ipc::{HostError, IpcRequest, IpcResponse};
+
+const ROUTE_SPLASH: &str = "splash/";
+const ROUTE_MAIN: &str = "index.html";
+const ROUTE_STATUS: &str = "status/";
+const ROUTE_SETTINGS: &str = "settings/";
+const ROUTE_ABOUT: &str = "about/";
+const ROUTE_STYLEGUIDE: &str = "styleguide/";
 
 pub fn create_windows(app: &App<Wry>) -> Result<(), String> {
     WebviewWindowBuilder::new(app, "splash", WebviewUrl::App(ROUTE_SPLASH.into()))
-        .title("Aideon Praxis — Loading")
+        .title("Aideon — Loading")
         .resizable(false)
         .decorations(false)
         .inner_size(520.0, 320.0)
@@ -20,7 +23,7 @@ pub fn create_windows(app: &App<Wry>) -> Result<(), String> {
         .map_err(to_string)?;
 
     let main = WebviewWindowBuilder::new(app, "main", WebviewUrl::App(ROUTE_MAIN.into()))
-        .title("Aideon Praxis")
+        .title("Aideon")
         .visible(false)
         .inner_size(1060.0, 720.0)
         .center();
@@ -43,7 +46,7 @@ pub fn create_windows(app: &App<Wry>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn open_settings(app: AppHandle<Wry>) -> Result<(), String> {
+pub fn open_settings(app: AppHandle<Wry>) -> Result<(), HostError> {
     if let Some(window) = app.get_webview_window("settings") {
         let _ = window.set_focus();
         return Ok(());
@@ -56,28 +59,28 @@ pub fn open_settings(app: AppHandle<Wry>) -> Result<(), String> {
         .center()
         .build()
         .map(|_| ())
-        .map_err(to_string)
+        .map_err(|err| HostError::internal(err.to_string()))
 }
 
 #[tauri::command]
-pub fn open_about(app: AppHandle<Wry>) -> Result<(), String> {
+pub fn open_about(app: AppHandle<Wry>) -> Result<(), HostError> {
     if let Some(window) = app.get_webview_window("about") {
         let _ = window.set_focus();
         return Ok(());
     }
 
     WebviewWindowBuilder::new(&app, "about", WebviewUrl::App(ROUTE_ABOUT.into()))
-        .title("About Aideon Praxis")
+        .title("About Aideon")
         .resizable(false)
         .inner_size(420.0, 300.0)
         .center()
         .build()
         .map(|_| ())
-        .map_err(to_string)
+        .map_err(|err| HostError::internal(err.to_string()))
 }
 
 #[tauri::command]
-pub fn open_status(app: AppHandle<Wry>) -> Result<(), String> {
+pub fn open_status(app: AppHandle<Wry>) -> Result<(), HostError> {
     if let Some(window) = app.get_webview_window("status") {
         let _ = window.set_focus();
         return Ok(());
@@ -91,11 +94,11 @@ pub fn open_status(app: AppHandle<Wry>) -> Result<(), String> {
         .center()
         .build()
         .map(|_| ())
-        .map_err(to_string)
+        .map_err(|err| HostError::internal(err.to_string()))
 }
 
 #[tauri::command]
-pub fn open_styleguide(app: AppHandle<Wry>) -> Result<(), String> {
+pub fn open_styleguide(app: AppHandle<Wry>) -> Result<(), HostError> {
     log::info!("host: open_styleguide requested");
     if let Some(window) = app.get_webview_window("styleguide") {
         let _ = window.set_focus();
@@ -109,9 +112,58 @@ pub fn open_styleguide(app: AppHandle<Wry>) -> Result<(), String> {
         .center()
         .build()
         .map(|_| ())
-        .map_err(to_string)
+        .map_err(|err| HostError::internal(err.to_string()))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenWindowPayload {
+    pub window: String,
+}
+
+/// Namespaced + requestId-wrapped window open command.
+#[tauri::command(rename = "system.window.open")]
+pub fn system_window_open(
+    app: AppHandle<Wry>,
+    request: IpcRequest<OpenWindowPayload>,
+) -> Result<IpcResponse<()>, HostError> {
+    let request_id = request.request_id;
+    let response = match request.payload.window.as_str() {
+        "settings" => match open_settings(app) {
+            Ok(()) => IpcResponse::ok(request_id, ()),
+            Err(err) => IpcResponse::err(request_id, err),
+        },
+        "about" => match open_about(app) {
+            Ok(()) => IpcResponse::ok(request_id, ()),
+            Err(err) => IpcResponse::err(request_id, err),
+        },
+        "status" => match open_status(app) {
+            Ok(()) => IpcResponse::ok(request_id, ()),
+            Err(err) => IpcResponse::err(request_id, err),
+        },
+        "styleguide" => match open_styleguide(app) {
+            Ok(()) => IpcResponse::ok(request_id, ()),
+            Err(err) => IpcResponse::err(request_id, err),
+        },
+        unknown => IpcResponse::err(
+            request_id,
+            HostError::invalid_input(format!("unknown window '{unknown}'")),
+        ),
+    };
+    Ok(response)
 }
 
 fn to_string<E: std::fmt::Display>(error: E) -> String {
     error.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::to_string;
+
+    #[test]
+    fn to_string_formats_errors() {
+        let value = to_string("boom");
+        assert_eq!(value, "boom");
+    }
 }

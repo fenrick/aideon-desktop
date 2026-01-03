@@ -1,20 +1,9 @@
-pub mod datastore;
-mod error;
-pub mod health;
-mod memory;
-pub mod meta;
-mod sqlite;
-mod store;
-pub mod temporal;
-mod types;
+pub mod core {
+    pub use aideon_mneme_core::*;
+}
 
-pub use error::{MnemeError, MnemeResult};
-pub use health::WorkerHealth;
-pub use meta::*;
-pub use store::Store;
-pub use temporal::*;
-pub use types::PersistedCommit;
+pub mod store {
+    pub use aideon_mneme_store::*;
+}
 
-pub use datastore::{create_datastore, datastore_path};
-pub use memory::{MemorySnapshotStore, MemoryStore};
-pub use sqlite::SqliteDb;
+pub use aideon_mneme_store::*;

@@ -1,4 +1,4 @@
-# Contributing to Aideon Praxis
+# Contributing to Aideon Desktop
 
 Thanks for your interest in contributing! This guide explains how we work, how to set up your
 environment, and what we expect in issues and pull requests.
@@ -6,7 +6,7 @@ environment, and what we expect in issues and pull requests.
 ## Values
 
 - **Time-first, graph-native:** keep the meta-model and `state_at()` semantics authoritative.
-- **Commits define time:** follow the standards in `Architecture-Boundary.md#time-&-commit-model-—-authoring-standards` when modelling change history.
+- **Commits define time:** follow the standards in `ARCHITECTURE-BOUNDARY.md#time-&-commit-model-—-authoring-standards` when modelling change history.
 - **Local-first, cloud-ready:** do not break desktop mode; design for a clean switch to server.
 - **Security by default:** safe IPC, PII redaction, least privilege.
 - **Evidence & tests:** measurable SLOs; PRs come with tests/docs.
@@ -68,15 +68,15 @@ Quality gates
 - Verify locally:
   - App: `pnpm run node:test:coverage`
   - Rust crates: `cargo test --all --all-targets` (use coverage tooling when available)
-- See `docs/CODING_STANDARDS.md` for full coding standards and CI rules.
+- See `docs/CODING-STANDARDS.md` for full coding standards and CI rules.
 
 ## Repository structure
 
 - Legacy Svelte renderer has been removed; React + Tauri desktop is now the only renderer.
 - `crates/desktop` — Rust desktop host (Tauri) and IPC surface.
-- `crates/{engine, chrona, metis, continuum, mneme, aideon_praxis_facade}` — domain crates for graph/time/analytics, orchestration, persistence, and the facade.
+- `crates/{engine, chrona, metis, continuum, mneme, aideon_praxis}` — domain crates for graph/time/analytics, orchestration, persistence, and the facade.
 - `app/AideonDesktop` — React/Tauri renderer (canvas, design system, adapters, DTOs).
-- `docs/` — Architecture content, ADRs, C4 diagrams.
+- `docs/` — Architecture content, design docs, C4 diagrams.
 - `scripts/` — Minimal tooling entrypoints (issues.py). Legacy node scripts removed.
 
 - **Adapters are contracts.** Do not leak backend specifics into the renderer.
@@ -102,7 +102,7 @@ Quality gates
 - Link an issue and milestone.
 - Describe problem, approach, trade-offs, and testing.
 - Update docs/ROADMAP if APIs or modules change.
-- Keep `Architecture-Boundary.md` accurate when touching host/renderer/worker boundaries.
+- Keep `ARCHITECTURE-BOUNDARY.md` accurate when touching host/renderer/worker boundaries.
 - Add/adjust tests and SLO baselines where relevant.
 
 ### PR checklist
@@ -110,15 +110,15 @@ Quality gates
 - [ ] Lint & tests pass (TS + Rust)
 - [ ] No heading-level jumps in docs (markdownlint clean)
 - [ ] Security considerations noted (IPC/PII if relevant)
-- [ ] ADR added/updated for boundary or protocol decisions
 
-## Architecture decisions (ADR)
+## Architecture changes
 
-When a change affects the **RPC boundary**, **adapters**, **time semantics** (`state_at`, plateaus,
-gaps), or **security posture**, add/update an ADR:
+When a change affects the **RPC boundary**, **adapters**, **time semantics**, or **security posture**,
+update:
 
-- Folder: `docs/adrs/NNN-short-title.md`
-- Template: Context → Decision → Consequences → Alternatives
+- `ARCHITECTURE-BOUNDARY.md`
+- The relevant module `DESIGN.md`
+- Any affected suite docs (`docs/DESIGN.md`, `docs/UX-DESIGN.md`)
 
 ## Issue hygiene
 
@@ -140,7 +140,7 @@ Use labels (`type/*`, `area/*`, `module/*`, `priority/*`) and assign the **miles
 ## Security
 
 - Never open worker TCP ports in desktop mode.
-- IPC over pipes/UDS with per-launch token.
+- Renderer calls Host via Tauri invoke (typed adapters). Desktop mode runs engines in-process. No sockets.
 - Redact PII on exports by default.
 - “No renderer HTTP” means no renderer-initiated backend/network calls in desktop mode; the dev
   toolchain may use a loopback dev server for HMR.
@@ -157,4 +157,4 @@ Use labels (`type/*`, `area/*`, `module/*`, `priority/*`) and assign the **miles
 - License: MIT — see `LICENSE`.
 - CLA: not required at this time.
 
-Thanks for helping build Aideon Praxis!
+Thanks for helping build Aideon Desktop!

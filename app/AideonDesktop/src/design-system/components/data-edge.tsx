@@ -61,17 +61,14 @@ export function DataEdge({
 
       switch (typeof value) {
         case "string":
-        case "number": {
+        case "number":
           return value;
-        }
 
-        case "object": {
+        case "object":
           return JSON.stringify(value);
-        }
 
-        default: {
+        default:
           return "";
-        }
       }
     }
   }, [data, nodeData]);
@@ -117,7 +114,7 @@ function getPath({
   targetPosition: Position;
 }) {
   switch (type) {
-    case "bezier": {
+    case "bezier":
       return getBezierPath({
         sourceX,
         sourceY,
@@ -126,9 +123,8 @@ function getPath({
         sourcePosition,
         targetPosition,
       });
-    }
 
-    case "smoothstep": {
+    case "smoothstep":
       return getSmoothStepPath({
         sourceX,
         sourceY,
@@ -137,9 +133,8 @@ function getPath({
         sourcePosition,
         targetPosition,
       });
-    }
 
-    case "step": {
+    case "step":
       return getSmoothStepPath({
         sourceX,
         sourceY,
@@ -149,15 +144,13 @@ function getPath({
         targetPosition,
         borderRadius: 0,
       });
-    }
 
-    case "straight": {
+    case "straight":
       return getStraightPath({
         sourceX,
         sourceY,
         targetX,
         targetY,
       });
-    }
   }
 }

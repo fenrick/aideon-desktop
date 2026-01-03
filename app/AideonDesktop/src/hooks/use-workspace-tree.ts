@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { listScenarios, type ScenarioSummary } from '../canvas';
+import { listScenarios, type ScenarioSummary } from 'praxis';
 
 export interface WorkspaceTreeItem {
   id: string;
@@ -27,12 +27,23 @@ const FALLBACK_PROJECT_ID = 'project-scenarios';
  * @returns single project node containing scenario-backed workspaces.
  */
 function buildTreeFromScenarios(scenarios: ScenarioSummary[]): WorkspaceTreeItem[] {
+  const sorted = scenarios.toSorted((a, b) => {
+    const aDefault = a.isDefault ? 1 : 0;
+    const bDefault = b.isDefault ? 1 : 0;
+    if (aDefault !== bDefault) {
+      return bDefault - aDefault;
+    }
+    const aLabel = (a.name || a.branch).toLowerCase();
+    const bLabel = (b.name || b.branch).toLowerCase();
+    return aLabel.localeCompare(bLabel);
+  });
+
   return [
     {
       id: FALLBACK_PROJECT_ID,
       label: 'Scenarios',
       kind: 'project',
-      children: scenarios.map((scenario) => ({
+      children: sorted.map((scenario) => ({
         id: `workspace-${scenario.id}`,
         label: scenario.name || scenario.branch,
         kind: 'workspace',

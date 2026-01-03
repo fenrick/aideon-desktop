@@ -1,6 +1,6 @@
 ## C4 Diagrams (DSL Source)
 
-This folder contains the Structurizr DSL source for the Aideon Praxis System Context and Container
+This folder contains the Structurizr DSL source for the Aideon Desktop System Context and Container
 views used during M0. CI no longer renders diagrams; these are design-time artifacts.
 
 ### Local rendering (optional)

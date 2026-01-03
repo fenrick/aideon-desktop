@@ -9,15 +9,15 @@ import React, {
 } from "react";
 import { NodeToolbar, type NodeToolbarProps } from "@xyflow/react";
 
-import { cn } from "design-system/lib/utilities";
+import { cn } from "design-system/lib/utils";
 
 /* TOOLTIP CONTEXT ---------------------------------------------------------- */
 
-interface TooltipContextType {
+type TooltipContextType = {
   isVisible: boolean;
   showTooltip: () => void;
   hideTooltip: () => void;
-}
+};
 
 const TooltipContext = createContext<TooltipContextType | null>(null);
 
@@ -26,15 +26,11 @@ const TooltipContext = createContext<TooltipContextType | null>(null);
 export function NodeTooltip({ children }: ComponentProps<"div">) {
   const [isVisible, setIsVisible] = useState(false);
 
-  const showTooltip = useCallback(() => { setIsVisible(true); }, []);
-  const hideTooltip = useCallback(() => { setIsVisible(false); }, []);
-  const contextValue = React.useMemo(
-    () => ({ isVisible, showTooltip, hideTooltip }),
-    [isVisible, showTooltip, hideTooltip],
-  );
+  const showTooltip = useCallback(() => setIsVisible(true), []);
+  const hideTooltip = useCallback(() => setIsVisible(false), []);
 
   return (
-    <TooltipContext.Provider value={contextValue}>
+    <TooltipContext.Provider value={{ isVisible, showTooltip, hideTooltip }}>
       <div>{children}</div>
     </TooltipContext.Provider>
   );
@@ -66,19 +62,7 @@ export function NodeTooltipTrigger(props: ComponentProps<"div">) {
   );
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          showTooltip();
-        }
-      }}
-      {...props}
-    />
+    <div onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} {...props} />
   );
 }
 
@@ -108,7 +92,7 @@ export function NodeTooltipContent({
           "bg-primary text-primary-foreground rounded-sm p-2",
           className,
         )}
-        tabIndex={0}
+        tabIndex={1}
         position={position}
         {...props}
       >

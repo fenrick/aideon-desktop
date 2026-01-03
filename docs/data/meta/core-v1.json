@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "description": "Canonical Aideon Praxis meta-model aligned to ArchiMate-style concepts.",
+  "description": "Canonical Aideon meta-model aligned to ArchiMate-style concepts.",
   "types": [
     {
       "id": "ValueStreamStage",

@@ -1,5 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
-
 import type {
   MetaModelDocument,
   MetaModelProvider,
@@ -11,6 +9,22 @@ import type {
   TemporalTopologyDeltaParameters,
   TemporalTopologyDeltaSnapshot,
 } from './index';
+
+import { invokeIpc } from './ipc';
+
+const COMMANDS = {
+  stateAt: 'chrona.temporal.state_at',
+  diff: 'chrona.temporal.diff',
+  topologyDelta: 'chrona.temporal.topology_delta',
+  commitChanges: 'chrona.temporal.commit_changes',
+  listCommits: 'chrona.temporal.list_commits',
+  createBranch: 'chrona.temporal.create_branch',
+  listBranches: 'chrona.temporal.list_branches',
+  mergeBranches: 'chrona.temporal.merge_branches',
+  metamodelGet: 'praxis.metamodel.get',
+} as const;
+
+export const TIMEGRAPH_IPC_COMMANDS = COMMANDS;
 
 interface StateAtResp {
   asOf: string;
@@ -31,7 +45,8 @@ interface CommitListItem {
   time?: string;
   message: string;
   tags: string[];
-  change_count: number;
+  changeCount?: number;
+  change_count?: number;
 }
 interface ListCommitsResp {
   commits: CommitListItem[];
@@ -49,12 +64,18 @@ interface BranchResponse {
 interface DiffSummaryResp {
   from: string;
   to: string;
-  node_adds: number;
-  node_mods: number;
-  node_dels: number;
-  edge_adds: number;
-  edge_mods: number;
-  edge_dels: number;
+  nodeAdds?: number;
+  nodeMods?: number;
+  nodeDels?: number;
+  edgeAdds?: number;
+  edgeMods?: number;
+  edgeDels?: number;
+  node_adds?: number;
+  node_mods?: number;
+  node_dels?: number;
+  edge_adds?: number;
+  edge_mods?: number;
+  edge_dels?: number;
 }
 
 interface MergeResponsePayload {
@@ -71,16 +92,30 @@ interface ConflictPayload {
 interface TopologyDeltaResp {
   from?: unknown;
   to?: unknown;
+  nodeAdds?: unknown;
+  nodeDels?: unknown;
+  edgeAdds?: unknown;
+  edgeDels?: unknown;
   node_adds?: unknown;
   node_dels?: unknown;
   edge_adds?: unknown;
   edge_dels?: unknown;
 }
 
-type InvokeFunction = <T>(command: string, arguments_?: Record<string, unknown>) => Promise<T>;
-
-const call: InvokeFunction = (command, arguments_) => invoke(command, arguments_);
-// To-do: introduce streaming support when temporal_diff grows beyond summary metrics.
+/**
+ * Prefer a numeric value from `primary`, otherwise fall back to `secondary`.
+ * @param primary - Preferred candidate.
+ * @param secondary - Fallback candidate.
+ */
+function pickNumber(primary: unknown, secondary: unknown): number {
+  if (typeof primary === 'number') {
+    return primary;
+  }
+  if (typeof secondary === 'number') {
+    return secondary;
+  }
+  return 0;
+}
 
 /**
  * Tauri IPC-backed implementation of the temporal adapter. Bridges renderer calls
@@ -93,14 +128,14 @@ export class IpcTemporalAdapter implements MutableGraphAdapter, MetaModelProvide
    * @returns {Promise<TemporalStateSnapshot>} snapshot metrics for the timestamp
    */
   async stateAt(parameters: TemporalStateParameters): Promise<TemporalStateSnapshot> {
-    const payload: Record<string, unknown> = { asOf: parameters.asOf };
+    const payload: Record<string, unknown> = { asOf: { id: parameters.asOf } };
     if (parameters.scenario !== undefined) {
       payload.scenario = parameters.scenario;
     }
     if (parameters.confidence !== undefined) {
       payload.confidence = parameters.confidence;
     }
-    const result = await call<StateAtResp>('temporal_state_at', { payload });
+    const result = await invokeIpc<StateAtResp>(COMMANDS.stateAt, payload);
     return {
       asOf: result.asOf,
       scenario: result.scenario ?? undefined,
@@ -117,23 +152,23 @@ export class IpcTemporalAdapter implements MutableGraphAdapter, MetaModelProvide
    */
   async diff(parameters: TemporalDiffParameters): Promise<TemporalDiffSnapshot> {
     const payload: Record<string, unknown> = {
-      from: parameters.from,
-      to: parameters.to,
+      from: { id: parameters.from },
+      to: { id: parameters.to },
     };
     if (parameters.scope !== undefined) {
       payload.scope = parameters.scope;
     }
-    const summary = await call<DiffSummaryResp>('temporal_diff', { payload });
+    const summary = await invokeIpc<DiffSummaryResp>(COMMANDS.diff, payload);
     return {
       from: summary.from,
       to: summary.to,
       metrics: {
-        nodeAdds: summary.node_adds,
-        nodeMods: summary.node_mods,
-        nodeDels: summary.node_dels,
-        edgeAdds: summary.edge_adds,
-        edgeMods: summary.edge_mods,
-        edgeDels: summary.edge_dels,
+        nodeAdds: summary.nodeAdds ?? summary.node_adds ?? 0,
+        nodeMods: summary.nodeMods ?? summary.node_mods ?? 0,
+        nodeDels: summary.nodeDels ?? summary.node_dels ?? 0,
+        edgeAdds: summary.edgeAdds ?? summary.edge_adds ?? 0,
+        edgeMods: summary.edgeMods ?? summary.edge_mods ?? 0,
+        edgeDels: summary.edgeDels ?? summary.edge_dels ?? 0,
       },
     };
   }
@@ -188,18 +223,15 @@ export class IpcTemporalAdapter implements MutableGraphAdapter, MetaModelProvide
       }));
     }
     const payload = {
-      payload: {
-        branch: parameters.branch,
-        ...(parameters.parent === undefined ? {} : { parent: parameters.parent }),
-        ...(parameters.author === undefined ? {} : { author: parameters.author }),
-        message: parameters.message,
-        tags: parameters.tags ?? [],
-        ...(parameters.time === undefined ? {} : { time: parameters.time }),
-        changes: changeSet,
-      },
+      branch: parameters.branch,
+      ...(parameters.parent === undefined ? {} : { parent: parameters.parent }),
+      ...(parameters.author === undefined ? {} : { author: parameters.author }),
+      message: parameters.message,
+      tags: parameters.tags ?? [],
+      ...(parameters.time === undefined ? {} : { time: parameters.time }),
+      changes: changeSet,
     };
-    const result = await call<CommitResp>('commit_changes', payload);
-    return result;
+    return invokeIpc<CommitResp>(COMMANDS.commitChanges, payload);
   }
 
   /**
@@ -220,7 +252,8 @@ export class IpcTemporalAdapter implements MutableGraphAdapter, MetaModelProvide
       changeCount: number;
     }[]
   > {
-    const result = await call<ListCommitsResp>('list_commits', { branch: parameters.branch });
+    const payload = { branch: parameters.branch };
+    const result = await invokeIpc<ListCommitsResp>(COMMANDS.listCommits, payload);
     return result.commits.map((commit) => ({
       id: commit.id,
       branch: commit.branch,
@@ -229,7 +262,7 @@ export class IpcTemporalAdapter implements MutableGraphAdapter, MetaModelProvide
       time: commit.time,
       message: commit.message,
       tags: commit.tags,
-      changeCount: commit.change_count,
+      changeCount: commit.changeCount ?? commit.change_count ?? 0,
     }));
   }
 
@@ -244,12 +277,11 @@ export class IpcTemporalAdapter implements MutableGraphAdapter, MetaModelProvide
     name: string;
     from?: string;
   }): Promise<{ name: string; head?: string }> {
-    return call<{ name: string; head?: string }>('create_branch', {
-      payload: {
-        name: parameters.name,
-        ...(parameters.from === undefined ? {} : { from: parameters.from }),
-      },
-    });
+    const payload = {
+      name: parameters.name,
+      ...(parameters.from === undefined ? {} : { from: { id: parameters.from } }),
+    };
+    return invokeIpc<{ name: string; head?: string }>(COMMANDS.createBranch, payload);
   }
 
   /**
@@ -257,7 +289,7 @@ export class IpcTemporalAdapter implements MutableGraphAdapter, MetaModelProvide
    * @returns {Promise<Array<{name: string, head?: string}>>} list of branches
    */
   async listBranches(): Promise<{ name: string; head?: string }[]> {
-    const response = await call<ListBranchesResp>('list_branches');
+    const response = await invokeIpc<ListBranchesResp>(COMMANDS.listBranches, {});
     const entries = Array.isArray(response.branches) ? response.branches : [];
     return entries.map((branch) => ({
       name: typeof branch.name === 'string' ? branch.name : '',
@@ -277,9 +309,7 @@ export class IpcTemporalAdapter implements MutableGraphAdapter, MetaModelProvide
     result?: string;
     conflicts?: { reference: string; kind: string; message: string }[];
   }> {
-    const response = await call<MergeResponsePayload>('merge_branches', {
-      payload: parameters,
-    });
+    const response = await invokeIpc<MergeResponsePayload>(COMMANDS.mergeBranches, parameters);
     const conflicts = Array.isArray(response.conflicts)
       ? (response.conflicts as ConflictPayload[])
           .map((conflict) => {
@@ -315,16 +345,15 @@ export class IpcTemporalAdapter implements MutableGraphAdapter, MetaModelProvide
   async topologyDelta(
     parameters: TemporalTopologyDeltaParameters,
   ): Promise<TemporalTopologyDeltaSnapshot> {
-    const response = await call<TopologyDeltaResp>('topology_delta', {
-      payload: parameters,
-    });
+    const payload = { from: { id: parameters.from }, to: { id: parameters.to } };
+    const response = await invokeIpc<TopologyDeltaResp>(COMMANDS.topologyDelta, payload);
     const from = typeof response.from === 'string' ? response.from : '';
     const to = typeof response.to === 'string' ? response.to : '';
     const metrics = {
-      nodeAdds: typeof response.node_adds === 'number' ? response.node_adds : 0,
-      nodeDels: typeof response.node_dels === 'number' ? response.node_dels : 0,
-      edgeAdds: typeof response.edge_adds === 'number' ? response.edge_adds : 0,
-      edgeDels: typeof response.edge_dels === 'number' ? response.edge_dels : 0,
+      nodeAdds: pickNumber(response.nodeAdds, response.node_adds),
+      nodeDels: pickNumber(response.nodeDels, response.node_dels),
+      edgeAdds: pickNumber(response.edgeAdds, response.edge_adds),
+      edgeDels: pickNumber(response.edgeDels, response.edge_dels),
     };
     return {
       from,
@@ -338,6 +367,6 @@ export class IpcTemporalAdapter implements MutableGraphAdapter, MetaModelProvide
    * @returns {Promise<MetaModelDocument>} meta-model document
    */
   async getMetaModel(): Promise<MetaModelDocument> {
-    return call<MetaModelDocument>('temporal_metamodel_get');
+    return invokeIpc<MetaModelDocument>(COMMANDS.metamodelGet, {});
   }
 }

@@ -1,13 +1,13 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/v2/schema.json",
-  "productName": "Aideon Praxis",
+  "productName": "Aideon",
   "version": "0.2.0",
   "identifier": "com.aideon.praxis",
   "build": {
     "beforeDevCommand": "pnpm --filter @aideon/desktop run dev",
     "beforeBuildCommand": "pnpm --filter @aideon/desktop run build",
     "devUrl": "http://127.0.0.1:1420",
-    "frontendDist": "../../app/AideonDesktop/dist"
+    "frontendDist": "../../app/AideonDesktop/out"
   },
   "app": {
     "windows": [],
@@ -15,7 +15,7 @@
     "security": {
       "csp": {
         "policy": "default-src 'none'; img-src 'self' data: asset:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: tauri:; frame-src 'self';",
-        "devPolicy": "default-src 'none'; img-src 'self' data: asset:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval'; connect-src 'self' ipc: tauri: http://localhost:1420 ws: wss:; frame-src 'self'"
+        "devPolicy": "default-src 'none'; img-src 'self' data: asset:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-eval'; connect-src 'self' ipc: tauri: http://localhost:1420 http://127.0.0.1:1420 ws://localhost:1420 ws://127.0.0.1:1420 http://localhost:5000 http://127.0.0.1:5000 ws://localhost:5000 ws://127.0.0.1:5000; frame-src 'self'"
       }
     }
   },

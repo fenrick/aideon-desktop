@@ -23,6 +23,6 @@ financial analytics (e.g. shortest path, centrality, impact, TCO) over the time-
 
 ## Design and architecture
 
-Metis honours the RPC and job contracts described in `Architecture-Boundary.md` and `docs/DESIGN.md`.
+Metis honours the RPC and job contracts described in `ARCHITECTURE-BOUNDARY.md` and `docs/DESIGN.md`.
 As algorithms land, extend `crates/metis/DESIGN.md` to capture structures, SLOs,
 and test datasets.

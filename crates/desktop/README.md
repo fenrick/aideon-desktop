@@ -15,7 +15,7 @@ Rust engines.
 ## Relationships
 
 - **Depends on:** Engine crates (Praxis Engine, Chrona Visualisation, Metis Analytics, Continuum Orchestrator, Mneme Core).
-- **Used by:** Praxis Canvas and Praxis Desktop via IPC (`@tauri-apps/api` from the renderer side).
+- **Used by:** Aideon Desktop UI and Aideon Desktop renderer via IPC (`@tauri-apps/api` from the renderer side).
 
 ## Running and testing
 
@@ -23,17 +23,15 @@ Rust engines.
 - Rust checks (workspace): `pnpm run host:lint && pnpm run host:check`
 - Rust tests (host only): `cargo test -p aideon_desktop`
 
-See `docs/getting-started.md` for host + renderer dev workflow.
+See `docs/GETTING-STARTED.md` for host + renderer dev workflow.
 
 ## Design and architecture
 
 Host/renderer boundaries, capabilities, and time-first engine contracts are described in
-`Architecture-Boundary.md`. Host security and capabilities are further detailed in
-`docs/tauri-capabilities.md` and `docs/tauri-client-server-pivot.md`.
+`ARCHITECTURE-BOUNDARY.md` and `docs/DESIGN.md`.
 
 ## Related global docs
 
-- Architecture and layering: `Architecture-Boundary.md`
-- Tauri capabilities and pivot: `docs/tauri-capabilities.md`, `docs/tauri-client-server-pivot.md`
-- Coding standards: `docs/CODING_STANDARDS.md`
-- Testing strategy: `docs/testing-strategy.md`
+- Architecture and layering: `ARCHITECTURE-BOUNDARY.md`
+- Coding standards: `docs/CODING-STANDARDS.md`
+- Testing strategy: `docs/TESTING-STRATEGY.md`

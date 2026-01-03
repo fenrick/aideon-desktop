@@ -1,13 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
-  "crates/aideon_praxis_facade",
   "crates/desktop",
-  "crates/engine",
+  "crates/praxis",
   "crates/chrona",
   "crates/metis",
   "crates/continuum",
   "crates/mneme",
+  "crates/mneme_core",
+  "crates/mneme_store",
   "aideon_xtask"
 ]
 

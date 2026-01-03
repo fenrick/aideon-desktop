@@ -1,9 +1,9 @@
-workspace "Aideon Praxis" "Local‑first, time‑first EA platform" {
+workspace "Aideon Desktop" "Local‑first, time‑first EA platform" {
   !identifiers hierarchical
 
   model {
     user = person "EA Practitioner" "Explores portfolios and time‑sliced views"
-    aideon = softwareSystem "Aideon Praxis" "Desktop app with Tauri host, React renderer, Rust worker crates" {
+    aideon = softwareSystem "Aideon Desktop" "Desktop app with Tauri host, React renderer, Rust worker crates" {
       renderer = container "Renderer (React in Tauri Webview)" "UI, no backend logic" "React"
       host = container "Host (Tauri/Rust)" "Typed IPC, window mgmt, security, worker orchestration" "Rust"
       worker = container "Worker (Chrona/Metis/Praxis)" "Time API + analytics behind traits" "Rust"
@@ -18,13 +18,13 @@ workspace "Aideon Praxis" "Local‑first, time‑first EA platform" {
     systemContext aideon "system-context" {
       include *
       autolayout lr
-      title "Aideon Praxis — System Context"
+      title "Aideon Desktop — System Context"
     }
 
     container aideon "container" {
       include *
       autolayout lr
-      title "Aideon Praxis — Container View"
+      title "Aideon Desktop — Container View"
     }
 
     styles {

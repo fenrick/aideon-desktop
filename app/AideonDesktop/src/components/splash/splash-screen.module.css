@@ -1,0 +1,98 @@
+.splash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #061428;
+  overflow: hidden;
+  z-index: 9999;
+}
+
+.bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.9) saturate(1.05);
+  pointer-events: none;
+}
+
+.right {
+  position: absolute;
+  right: 5vw;
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: 42vw;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  z-index: 10;
+}
+
+.title {
+  font-family:
+    'Atomic Age Local',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI Variable',
+    'Segoe UI',
+    Roboto,
+    Ubuntu,
+    Cantarell,
+    'Noto Sans',
+    Arial,
+    sans-serif;
+  font-size: clamp(64px, 8vw, 140px);
+  letter-spacing: 0.012em;
+  margin: 0 0 24px;
+  background: linear-gradient(90deg, var(--teal), var(--vio), var(--sun));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 14px rgba(11, 18, 32, 0.35);
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.loading {
+  font-family: 'Geist Mono Local', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 1.4;
+  color: #cfe6ff;
+  width: 100%;
+}
+
+.bar {
+  margin-top: 8px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  overflow: hidden;
+  width: 100%;
+  position: relative;
+}
+
+.barInner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--teal), var(--sun));
+  border-radius: 9999px;
+  animation: scan 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}

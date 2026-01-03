@@ -66,7 +66,16 @@ export function AnimatedSvgEdge({
     repeat: "indefinite",
     shape: "circle",
   },
-  ...delegated
+  markerStart,
+  markerEnd,
+  style,
+  label,
+  labelStyle,
+  labelShowBg,
+  labelBgStyle,
+  labelBgPadding,
+  labelBgBorderRadius,
+  interactionWidth,
 }: EdgeProps<AnimatedSvgEdge>) {
   const Shape = shapes[data.shape];
 
@@ -89,19 +98,32 @@ export function AnimatedSvgEdge({
 
   return (
     <>
-      <BaseEdge id={id} path={path} {...delegated} />
+      <BaseEdge
+        id={id}
+        path={path}
+        markerStart={markerStart}
+        markerEnd={markerEnd}
+        style={style}
+        label={label}
+        labelStyle={labelStyle}
+        labelShowBg={labelShowBg}
+        labelBgStyle={labelBgStyle}
+        labelBgPadding={labelBgPadding}
+        labelBgBorderRadius={labelBgBorderRadius}
+        interactionWidth={interactionWidth}
+      />
       <Shape animateMotionProps={animateMotionProps} />
     </>
   );
 }
 
-interface AnimateMotionProps {
+type AnimateMotionProps = {
   dur: string;
   keyTimes: string;
   keyPoints: string;
   repeatCount: number | "indefinite";
   path: string;
-}
+};
 
 type AnimatedSvg = ({
   animateMotionProps,
@@ -149,7 +171,7 @@ function getPath({
   targetPosition: Position;
 }) {
   switch (type) {
-    case "bezier": {
+    case "bezier":
       return getBezierPath({
         sourceX,
         sourceY,
@@ -158,9 +180,8 @@ function getPath({
         sourcePosition,
         targetPosition,
       });
-    }
 
-    case "smoothstep": {
+    case "smoothstep":
       return getSmoothStepPath({
         sourceX,
         sourceY,
@@ -169,9 +190,8 @@ function getPath({
         sourcePosition,
         targetPosition,
       });
-    }
 
-    case "step": {
+    case "step":
       return getSmoothStepPath({
         sourceX,
         sourceY,
@@ -181,16 +201,14 @@ function getPath({
         targetPosition,
         borderRadius: 0,
       });
-    }
 
-    case "straight": {
+    case "straight":
       return getStraightPath({
         sourceX,
         sourceY,
         targetX,
         targetY,
       });
-    }
   }
 }
 
@@ -219,25 +237,23 @@ function getAnimateMotionProps({
   };
 
   switch (direction) {
-    case "forward": {
+    case "forward":
       return {
         ...base,
         dur: `${duration}s`,
         keyTimes: "0;1",
         keyPoints: "0;1",
       };
-    }
 
-    case "reverse": {
+    case "reverse":
       return {
         ...base,
         dur: `${duration}s`,
         keyTimes: "0;1",
         keyPoints: "1;0",
       };
-    }
 
-    case "alternate": {
+    case "alternate":
       return {
         ...base,
         // By doubling the animation duration, the time spent moving from one end
@@ -246,15 +262,13 @@ function getAnimateMotionProps({
         keyTimes: "0;0.5;1",
         keyPoints: "0;1;0",
       };
-    }
 
-    case "alternate-reverse": {
+    case "alternate-reverse":
       return {
         ...base,
         dur: `${duration * 2}s`,
         keyTimes: "0;0.5;1",
         keyPoints: "1;0;1",
       };
-    }
   }
 }

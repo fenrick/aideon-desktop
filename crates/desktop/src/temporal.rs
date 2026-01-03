@@ -146,9 +146,7 @@ pub async fn list_branches(
     Ok(list_branches_inner(state.engine()).await)
 }
 
-async fn list_branches_inner(
-    engine: &aideon_chrona::TemporalEngine,
-) -> ListBranchesResponse {
+async fn list_branches_inner(engine: &aideon_chrona::TemporalEngine) -> ListBranchesResponse {
     engine.list_branches().await
 }
 
@@ -189,9 +187,7 @@ pub async fn temporal_metamodel_get(
     Ok(temporal_metamodel_get_inner(state.engine()).await)
 }
 
-async fn temporal_metamodel_get_inner(
-    engine: &aideon_chrona::TemporalEngine,
-) -> MetaModelDocument {
+async fn temporal_metamodel_get_inner(engine: &aideon_chrona::TemporalEngine) -> MetaModelDocument {
     engine.meta_model().await
 }
 

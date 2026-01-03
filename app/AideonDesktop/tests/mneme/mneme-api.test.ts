@@ -271,20 +271,20 @@ describe('mneme-api metamodel bindings', () => {
   it('maps effective schema results from rust to ts', async () => {
     invokeMock.mockImplementationOnce(
       mockIpcOk({
-      type_id: 't-1',
-      applies_to: 'Node',
-      fields: [
-        {
-          field_id: 'f-1',
-          value_type: 'Str',
-          cardinality_multi: true,
-          merge_policy: 'Lww',
-          is_required: true,
-          default_value: 'Cap',
-          is_indexed: false,
-          disallow_overlap: false,
-        },
-      ],
+        type_id: 't-1',
+        applies_to: 'Node',
+        fields: [
+          {
+            field_id: 'f-1',
+            value_type: 'Str',
+            cardinality_multi: true,
+            merge_policy: 'Lww',
+            is_required: true,
+            default_value: 'Cap',
+            is_indexed: false,
+            disallow_overlap: false,
+          },
+        ],
       }),
     );
 
@@ -543,17 +543,17 @@ describe('mneme-api metamodel bindings', () => {
   it('maps read entity results from rust to ts', async () => {
     invokeMock.mockImplementationOnce(
       mockIpcOk({
-      entity_id: 'n-1',
-      kind: 'Node',
-      type_id: 't-1',
-      is_deleted: false,
-      properties: {
-        'f-1': { Single: { Str: 'alpha' } },
-        'f-2': { Multi: [{ I64: 7 }, { I64: 8 }] },
-        'f-3': {
-          MultiLimited: { values: [{ Bool: true }], more_available: true },
+        entity_id: 'n-1',
+        kind: 'Node',
+        type_id: 't-1',
+        is_deleted: false,
+        properties: {
+          'f-1': { Single: { Str: 'alpha' } },
+          'f-2': { Multi: [{ I64: 7 }, { I64: 8 }] },
+          'f-3': {
+            MultiLimited: { values: [{ Bool: true }], more_available: true },
+          },
         },
-      },
       }),
     );
 
@@ -835,9 +835,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('imports op streams and maps reports', async () => {
-    invokeMock.mockImplementationOnce(
-      mockIpcOk({ ops_imported: 2, ops_skipped: 1, errors: 0 }),
-    );
+    invokeMock.mockImplementationOnce(mockIpcOk({ ops_imported: 2, ops_skipped: 1, errors: 0 }));
 
     const report = await importOpsStream(
       {
@@ -858,9 +856,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('exports snapshot streams', async () => {
-    invokeMock.mockImplementationOnce(
-      mockIpcOk([{ record_type: 'header', data: { snap: true } }]),
-    );
+    invokeMock.mockImplementationOnce(mockIpcOk([{ record_type: 'header', data: { snap: true } }]));
 
     const iterable = await exportSnapshotStream({
       partitionId: 'p-1',
@@ -897,20 +893,18 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('upserts and lists validation rules', async () => {
-    invokeMock
-      .mockImplementationOnce(mockIpcOk({}))
-      .mockImplementationOnce(
-        mockIpcOk([
-          {
-            rule_id: 'r-1',
-            scope_kind: 2,
-            scope_id: 't-1',
-            severity: 1,
-            template_kind: 'required',
-            params: { field: 'name' },
-          },
-        ]),
-      );
+    invokeMock.mockImplementationOnce(mockIpcOk({})).mockImplementationOnce(
+      mockIpcOk([
+        {
+          rule_id: 'r-1',
+          scope_kind: 2,
+          scope_id: 't-1',
+          severity: 1,
+          template_kind: 'required',
+          params: { field: 'name' },
+        },
+      ]),
+    );
 
     await upsertValidationRules({
       partitionId: 'p-1',
@@ -961,19 +955,17 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('upserts and lists computed rules', async () => {
-    invokeMock
-      .mockImplementationOnce(mockIpcOk({}))
-      .mockImplementationOnce(
-        mockIpcOk([
-          {
-            rule_id: 'c-1',
-            target_type_id: 't-1',
-            output_field_id: 'f-1',
-            template_kind: 'sum',
-            params: { fields: ['f-2'] },
-          },
-        ]),
-      );
+    invokeMock.mockImplementationOnce(mockIpcOk({})).mockImplementationOnce(
+      mockIpcOk([
+        {
+          rule_id: 'c-1',
+          target_type_id: 't-1',
+          output_field_id: 'f-1',
+          template_kind: 'sum',
+          params: { fields: ['f-2'] },
+        },
+      ]),
+    );
 
     await upsertComputedRules({
       partitionId: 'p-1',
@@ -1021,21 +1013,19 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('upserts and lists computed cache entries', async () => {
-    invokeMock
-      .mockImplementationOnce(mockIpcOk({}))
-      .mockImplementationOnce(
-        mockIpcOk([
-          {
-            entity_id: 'n-1',
-            field_id: 'f-1',
-            valid_from: 1_000_000,
-            valid_to: undefined,
-            value: { Str: 'value' },
-            rule_version_hash: 'hash-1',
-            computed_asserted_at: 321,
-          },
-        ]),
-      );
+    invokeMock.mockImplementationOnce(mockIpcOk({})).mockImplementationOnce(
+      mockIpcOk([
+        {
+          entity_id: 'n-1',
+          field_id: 'f-1',
+          valid_from: 1_000_000,
+          valid_to: undefined,
+          value: { Str: 'value' },
+          rule_version_hash: 'hash-1',
+          computed_asserted_at: 321,
+        },
+      ]),
+    );
 
     await upsertComputedCache({
       partitionId: 'p-1',
@@ -1102,9 +1092,7 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('creates and deletes scenarios', async () => {
-    invokeMock
-      .mockImplementationOnce(mockIpcOk('s-1'))
-      .mockImplementationOnce(mockIpcOk({}));
+    invokeMock.mockImplementationOnce(mockIpcOk('s-1')).mockImplementationOnce(mockIpcOk({}));
 
     const scenarioId = await createScenario({
       partitionId: 'p-1',
@@ -1171,27 +1159,25 @@ describe('mneme-api metamodel bindings', () => {
   });
 
   it('runs processing workers and maps job summaries', async () => {
-    invokeMock
-      .mockImplementationOnce(mockIpcOk({ jobsProcessed: 2 }))
-      .mockImplementationOnce(
-        mockIpcOk([
-          {
-            partition: 'p-1',
-            job_id: 'j-1',
-            job_type: 'schema',
-            status: 1,
-            priority: 5,
-            attempts: 0,
-            max_attempts: 3,
-            lease_expires_at: undefined,
-            next_run_after: undefined,
-            created_asserted_at: 11,
-            updated_asserted_at: 22,
-            dedupe_key: undefined,
-            last_error: undefined,
-          },
-        ]),
-      );
+    invokeMock.mockImplementationOnce(mockIpcOk({ jobsProcessed: 2 })).mockImplementationOnce(
+      mockIpcOk([
+        {
+          partition: 'p-1',
+          job_id: 'j-1',
+          job_type: 'schema',
+          status: 1,
+          priority: 5,
+          attempts: 0,
+          max_attempts: 3,
+          lease_expires_at: undefined,
+          next_run_after: undefined,
+          created_asserted_at: 11,
+          updated_asserted_at: 22,
+          dedupe_key: undefined,
+          last_error: undefined,
+        },
+      ]),
+    );
 
     const workerResult = await runProcessingWorker({ maxJobs: 5, leaseMillis: 1000 });
     const jobs = await listJobs({ partitionId: 'p-1', limit: 10 });

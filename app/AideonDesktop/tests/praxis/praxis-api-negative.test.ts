@@ -41,9 +41,7 @@ describe('praxis-api negative paths', () => {
     const invokeMock = vi
       .fn()
       // listBranches
-      .mockImplementationOnce(
-        mockIpcOk({ branches: [{ name: 'main' }, { head: 'abc' }] }),
-      )
+      .mockImplementationOnce(mockIpcOk({ branches: [{ name: 'main' }, { head: 'abc' }] }))
       // listCommits
       .mockImplementationOnce(
         mockIpcOk({

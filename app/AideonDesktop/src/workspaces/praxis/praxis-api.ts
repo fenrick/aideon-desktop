@@ -9,8 +9,8 @@ import type {
 
 import { invokeIpc } from '../../adapters/ipc';
 
-import { isTauri } from './platform';
 import { toErrorMessage } from './lib/errors';
+import { isTauri } from './platform';
 
 const COMMANDS = {
   workerHealth: 'system.worker.health',
@@ -444,10 +444,8 @@ export async function mergeTemporalBranches(request: {
   target: string;
   strategy?: string;
 }): Promise<TemporalMergeResult> {
-  const response = await callOrMock<MergeResponsePayload>(
-    COMMANDS.mergeBranches,
-    request,
-    () => mockMerge(request),
+  const response = await callOrMock<MergeResponsePayload>(COMMANDS.mergeBranches, request, () =>
+    mockMerge(request),
   );
   const conflicts = Array.isArray(response.conflicts)
     ? response.conflicts

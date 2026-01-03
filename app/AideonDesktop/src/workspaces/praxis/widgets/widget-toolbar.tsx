@@ -26,9 +26,7 @@ export function WidgetToolbar({
   onRefresh,
 }: WidgetToolbarProperties) {
   const title = metadata?.name ?? fallbackTitle;
-  const subtitle = metadata
-    ? `As of ${formatAsOf(metadata.asOf)}`
-    : 'Awaiting twin data';
+  const subtitle = metadata ? `As of ${formatAsOf(metadata.asOf)}` : 'Awaiting twin data';
 
   return (
     <div className="mb-3 flex items-center justify-between">

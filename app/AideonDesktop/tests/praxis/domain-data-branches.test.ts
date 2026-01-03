@@ -56,9 +56,7 @@ describe('domain-data branches', () => {
 
   it('normalises host results and falls back on errors or empty payloads', async () => {
     isTauriMock.mockReturnValue(true);
-    invokeMock.mockImplementationOnce(
-      mockIpcOk([{ id: 'p1', name: 'Proj', scenarios: [] }]),
-    );
+    invokeMock.mockImplementationOnce(mockIpcOk([{ id: 'p1', name: 'Proj', scenarios: [] }]));
     const projects = await listProjectsWithScenarios();
     expect(projects[0]).toMatchObject({ id: 'p1', name: 'Proj' });
 

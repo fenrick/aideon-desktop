@@ -1,7 +1,7 @@
 import type { MetaModelDocument } from '../../../dtos';
 
-import { getMetaModelDocument } from 'praxis/praxis-api';
 import { isTauri } from 'praxis/platform';
+import { getMetaModelDocument } from 'praxis/praxis-api';
 
 /**
  * Fetch the current meta-model document.

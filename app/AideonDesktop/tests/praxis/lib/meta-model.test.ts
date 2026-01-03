@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { fetchMetaModel } from 'praxis/lib/meta-model';
-import { getMetaModelDocument } from 'praxis/praxis-api';
 import { isTauri } from 'praxis/platform';
+import { getMetaModelDocument } from 'praxis/praxis-api';
 
 vi.mock('praxis/platform', () => ({ isTauri: vi.fn(() => false) }));
 vi.mock('praxis/praxis-api', () => ({ getMetaModelDocument: vi.fn() }));

@@ -3,7 +3,7 @@
 //! The host keeps the engine behind a managed state container so renderer IPC
 //! handlers can access it without leaking internal mutability.
 
-use aideon_praxis::chrona::TemporalEngine;
+use aideon_chrona::TemporalEngine;
 use aideon_praxis::mneme::{MnemeStore, WorkerHealth, open_store};
 use aideon_praxis::praxis::PraxisEngine;
 use log::{debug, info};
@@ -92,7 +92,7 @@ pub async fn init_temporal(app: &AppHandle<Wry>) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::WorkerState;
-    use aideon_praxis::chrona::TemporalEngine;
+    use aideon_chrona::TemporalEngine;
     use aideon_praxis::mneme::open_store;
     use tempfile::tempdir;
     use tokio::sync::oneshot;

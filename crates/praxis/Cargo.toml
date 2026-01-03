@@ -7,7 +7,6 @@ license = "MIT"
 
 [dependencies]
 aideon_continuum = { path = "../continuum" }
-aideon_chrona = { path = "../chrona" }
 aideon_metis = { path = "../metis" }
 aideon_mneme = { path = "../mneme" }
 async-recursion = "1.1"

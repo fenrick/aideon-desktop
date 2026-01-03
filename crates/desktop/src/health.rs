@@ -25,7 +25,7 @@ fn health_snapshot(state: &WorkerState) -> WorkerHealth {
 mod tests {
     use super::health_snapshot;
     use crate::worker::WorkerState;
-    use aideon_praxis::chrona::TemporalEngine;
+    use aideon_chrona::TemporalEngine;
     use aideon_praxis::mneme::open_store;
     use tempfile::tempdir;
 

@@ -30,7 +30,7 @@ pub async fn temporal_state_at(
 }
 
 async fn temporal_state_at_inner(
-    engine: &aideon_praxis::chrona::TemporalEngine,
+    engine: &aideon_chrona::TemporalEngine,
     payload: StateAtArgs,
 ) -> Result<StateAtResult, HostError> {
     info!("host: temporal_state_at received");
@@ -59,7 +59,7 @@ pub async fn temporal_diff(
 }
 
 async fn temporal_diff_inner(
-    engine: &aideon_praxis::chrona::TemporalEngine,
+    engine: &aideon_chrona::TemporalEngine,
     payload: DiffArgs,
 ) -> Result<DiffSummary, HostError> {
     info!("host: temporal_diff received");
@@ -94,7 +94,7 @@ pub async fn commit_changes(
 }
 
 async fn commit_changes_inner(
-    engine: &aideon_praxis::chrona::TemporalEngine,
+    engine: &aideon_chrona::TemporalEngine,
     payload: CommitChangesRequest,
 ) -> Result<String, HostError> {
     engine.commit(payload).await.map_err(host_error)
@@ -115,7 +115,7 @@ pub async fn list_commits(
 }
 
 async fn list_commits_inner(
-    engine: &aideon_praxis::chrona::TemporalEngine,
+    engine: &aideon_chrona::TemporalEngine,
     branch: String,
 ) -> Result<Vec<CommitSummary>, HostError> {
     engine.list_commits(branch).await.map_err(host_error)
@@ -130,7 +130,7 @@ pub async fn create_branch(
 }
 
 async fn create_branch_inner(
-    engine: &aideon_praxis::chrona::TemporalEngine,
+    engine: &aideon_chrona::TemporalEngine,
     payload: CreateBranchRequest,
 ) -> Result<BranchInfo, HostError> {
     engine
@@ -147,7 +147,7 @@ pub async fn list_branches(
 }
 
 async fn list_branches_inner(
-    engine: &aideon_praxis::chrona::TemporalEngine,
+    engine: &aideon_chrona::TemporalEngine,
 ) -> ListBranchesResponse {
     engine.list_branches().await
 }
@@ -161,7 +161,7 @@ pub async fn merge_branches(
 }
 
 async fn merge_branches_inner(
-    engine: &aideon_praxis::chrona::TemporalEngine,
+    engine: &aideon_chrona::TemporalEngine,
     payload: MergeRequest,
 ) -> Result<MergeResponse, HostError> {
     engine.merge(payload).await.map_err(host_error)
@@ -176,7 +176,7 @@ pub async fn topology_delta(
 }
 
 async fn topology_delta_inner(
-    engine: &aideon_praxis::chrona::TemporalEngine,
+    engine: &aideon_chrona::TemporalEngine,
     payload: TopologyDeltaArgs,
 ) -> Result<TopologyDeltaResult, HostError> {
     engine.topology_delta(payload).await.map_err(host_error)
@@ -190,7 +190,7 @@ pub async fn temporal_metamodel_get(
 }
 
 async fn temporal_metamodel_get_inner(
-    engine: &aideon_praxis::chrona::TemporalEngine,
+    engine: &aideon_chrona::TemporalEngine,
 ) -> MetaModelDocument {
     engine.meta_model().await
 }
@@ -220,7 +220,7 @@ pub(crate) fn host_error(error: PraxisError) -> HostError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aideon_praxis::chrona::TemporalEngine;
+    use aideon_chrona::TemporalEngine;
     use aideon_praxis::praxis::temporal::{
         ChangeSet, CommitRef, EdgeVersion, NodeVersion, StateAtArgs, TopologyDeltaArgs,
     };

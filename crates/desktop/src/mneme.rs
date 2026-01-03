@@ -1852,7 +1852,7 @@ pub struct ExplainTraversalPayload {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aideon_praxis::chrona::TemporalEngine;
+    use aideon_chrona::TemporalEngine;
     use aideon_praxis::mneme::open_store;
     use tempfile::tempdir;
 

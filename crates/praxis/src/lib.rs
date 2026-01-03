@@ -27,11 +27,6 @@ pub mod praxis {
     pub use crate::*;
 }
 
-/// Re-export the Chrona temporal engine crate.
-pub mod chrona {
-    pub use aideon_chrona::*;
-}
-
 /// Re-export the Metis analytics crate.
 pub mod metis {
     pub use aideon_metis::*;

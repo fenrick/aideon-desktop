@@ -26,6 +26,7 @@ log = "0.4"
 serde_json = "1"
 dirs = "6"
 aideon_praxis = { path = "../praxis" }
+aideon_chrona = { path = "../chrona" }
 time = { version = "0.3", features = ["formatting"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]

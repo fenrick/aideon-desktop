@@ -2,7 +2,7 @@
 name = "aideon_chrona"
 version = "0.0.0"
 edition = "2024"
-authors = ["Aideon Praxis Contributors"]
+authors = ["Aideon Chrona Contributors"]
 license = "MIT"
 
 [dependencies]

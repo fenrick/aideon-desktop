@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
 #[command(
     author,
     version,
-    about = "Developer utilities for the Aideon Praxis repo"
+    about = "Developer utilities for the Aideon Desktop repo"
 )]
 struct Cli {
     #[command(subcommand)]

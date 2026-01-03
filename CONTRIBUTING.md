@@ -1,4 +1,4 @@
-# Contributing to Aideon Praxis
+# Contributing to Aideon Desktop
 
 Thanks for your interest in contributing! This guide explains how we work, how to set up your
 environment, and what we expect in issues and pull requests.
@@ -157,4 +157,4 @@ Use labels (`type/*`, `area/*`, `module/*`, `priority/*`) and assign the **miles
 - License: MIT — see `LICENSE`.
 - CLA: not required at this time.
 
-Thanks for helping build Aideon Praxis!
+Thanks for helping build Aideon Desktop!

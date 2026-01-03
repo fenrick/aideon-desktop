@@ -13,7 +13,7 @@ export interface SplashScreenProperties {
 }
 
 /**
- * Full-screen splash overlay for Aideon Praxis.
+ * Full-screen splash overlay for Aideon Desktop.
  * @param root0
  * @param root0.visible
  * @param root0.seconds

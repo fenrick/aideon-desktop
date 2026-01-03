@@ -334,6 +334,44 @@ function PraxisWorkspaceStateProvider({
     return preferred ?? scenarioState.data[0];
   }, [activeScenarioId, scenarioState.data]);
 
+  useEffect(() => {
+    const scenarioBranch = activeScenario?.branch;
+    if (!scenarioBranch) {
+      return;
+    }
+    if (scenarioState.loading || temporalState.loading) {
+      return;
+    }
+    if (temporalState.branch === scenarioBranch) {
+      return;
+    }
+    temporalActions.selectBranch(scenarioBranch).catch(() => false);
+  }, [
+    activeScenario?.branch,
+    scenarioState.loading,
+    temporalActions,
+    temporalState.branch,
+    temporalState.loading,
+  ]);
+
+  useEffect(() => {
+    const branch = temporalState.branch;
+    if (!branch) {
+      return;
+    }
+    if (scenarioState.loading) {
+      return;
+    }
+    const match = scenarioState.data.find((scenario) => scenario.branch === branch);
+    if (!match) {
+      return;
+    }
+    if (match.id === activeScenarioId) {
+      return;
+    }
+    setActiveScenarioId(match.id);
+  }, [activeScenarioId, scenarioState.data, scenarioState.loading, temporalState.branch]);
+
   const activeTemplate = useMemo(() => {
     return (
       templatesState.data.find((entry) => entry.id === activeTemplateId) ?? templatesState.data[0]

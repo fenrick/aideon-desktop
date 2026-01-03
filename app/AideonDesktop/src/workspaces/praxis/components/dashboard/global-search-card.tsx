@@ -68,7 +68,7 @@ export function GlobalSearchCard({
             id: 'command-catalogue',
             name: 'Command palette quick search',
             kind: 'catalogue',
-            asOf: new Date().toISOString(),
+            asOf: state.commitId ?? new Date().toISOString(),
             scenario: state.branch ?? 'main',
             columns: [
               { id: 'name', label: 'Name', type: 'string' },
@@ -107,7 +107,7 @@ export function GlobalSearchCard({
     return () => {
       cancelled = true;
     };
-  }, [state.branch, onSelectNodes]);
+  }, [state.branch, state.commitId, onSelectNodes]);
 
   useEffect(() => {
     searchStore.setRecentCommits(state.commits, (commitId) => {

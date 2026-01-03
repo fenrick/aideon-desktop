@@ -11,10 +11,10 @@ use aideon_praxis::praxis::temporal::{
 };
 use aideon_praxis::praxis::{PraxisError, PraxisErrorCode};
 use log::{debug, error, info};
-use serde::Serialize;
 use std::time::Instant;
 use tauri::State;
 
+use crate::ipc::HostError;
 use crate::worker::WorkerState;
 
 #[tauri::command]
@@ -191,12 +191,6 @@ async fn temporal_metamodel_get_inner(engine: &aideon_chrona::TemporalEngine) ->
     engine.meta_model().await
 }
 
-#[derive(Debug, Serialize)]
-pub struct HostError {
-    code: &'static str,
-    message: String,
-}
-
 pub(crate) fn host_error(error: PraxisError) -> HostError {
     let code = match error.code() {
         PraxisErrorCode::UnknownBranch => "unknown_branch",
@@ -207,10 +201,7 @@ pub(crate) fn host_error(error: PraxisError) -> HostError {
         PraxisErrorCode::MergeConflict => "merge_conflict",
     };
     error!("host: praxis error code={} detail={error}", code);
-    HostError {
-        code,
-        message: error.to_string(),
-    }
+    HostError::new(code, error.to_string())
 }
 
 #[cfg(test)]

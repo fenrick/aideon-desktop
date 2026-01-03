@@ -13,6 +13,8 @@ shapes in feature code.
   contract surface.
 - **Rust (host/engines):** DTOs live in the host and engine crates and are exposed via typed IPC and
   trait interfaces.
+- **Host errors (IPC):** `crates/desktop/src/ipc.rs` defines the stable `HostError { code, message }`
+  envelope returned by Tauri commands.
 
 ---
 
@@ -21,6 +23,7 @@ shapes in feature code.
 - DTOs are mirrored manually with **contract tests** in both stacks.
 - Rust structs define field names and casing; TS mirrors must match exactly.
 - Error envelopes are structured and stable; changes require tests + doc updates.
+  - Desktop host errors must preserve `code` (stable identifier) and `message` (user-facing text).
 
 ---
 

@@ -33,6 +33,7 @@ import { useTheme } from 'next-themes';
 import { useAideonShellControls } from './shell-controls';
 
 import { SidebarTrigger, useSidebar } from 'design-system/desktop-shell';
+import { openStyleguideWindow } from '../../adapters/system-ipc';
 import { AideonCommandPalette, type AideonCommandItem } from './command-palette';
 import { KeyboardShortcutsDialog } from './keyboard-shortcuts-dialog';
 
@@ -645,11 +646,9 @@ export function AideonToolbar({
 
   const openStyleguide = useCallback(() => {
     if (isTauri) {
-      import('@tauri-apps/api/core')
-        .then(({ invoke }) => invoke('open_styleguide'))
-        .catch(() => {
-          globalThis.location.assign('/styleguide');
-        });
+      openStyleguideWindow().catch(() => {
+        globalThis.location.assign('/styleguide');
+      });
       return;
     }
     globalThis.location.assign('/styleguide');

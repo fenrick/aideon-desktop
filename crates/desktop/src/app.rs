@@ -34,7 +34,11 @@ pub fn run() {
             let app_handle = app.handle().clone();
             spawn(async move {
                 if let Err(error) = run_backend_setup(app_handle).await {
-                    log::error!("host: backend setup failed: {error}");
+                    log::error!(
+                        "host: backend setup failed: {} ({})",
+                        error.message,
+                        error.code
+                    );
                 }
             });
 
@@ -117,6 +121,8 @@ pub fn run() {
             crate::windows::open_settings,
             crate::windows::open_status,
             crate::windows::open_styleguide,
+            crate::workspace::list_projects,
+            crate::workspace::list_templates,
             crate::setup::get_setup_state
         ])
         .run(tauri::generate_context!())

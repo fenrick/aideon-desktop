@@ -30,6 +30,7 @@ use time::OffsetDateTime;
 use time::format_description::well_known::Rfc3339;
 use tokio::sync::oneshot;
 
+use crate::ipc::HostError;
 use crate::worker::WorkerState;
 
 static SUBSCRIPTION_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -1259,12 +1260,6 @@ pub async fn mneme_list_edge_type_rules(
         .map_err(host_error)
 }
 
-#[derive(Debug, Serialize)]
-pub struct HostError {
-    code: &'static str,
-    message: String,
-}
-
 fn host_error(err: MnemeError) -> HostError {
     let code = match err {
         MnemeError::Storage { .. } => "storage_error",
@@ -1275,10 +1270,7 @@ fn host_error(err: MnemeError) -> HostError {
         MnemeError::Sync { .. } => "sync_error",
     };
     error!("host: mneme error code={} detail={err}", code);
-    HostError {
-        code,
-        message: err.to_string(),
-    }
+    HostError::new(code, err.to_string())
 }
 
 fn parse_hlc(value: &str) -> Result<Hlc, HostError> {

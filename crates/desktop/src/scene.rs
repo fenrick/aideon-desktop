@@ -5,9 +5,11 @@ use aideon_praxis::continuum::{FileSnapshotStore, SnapshotStore};
 use aideon_praxis::praxis::canvas::{CanvasLayoutSaveRequest, CanvasShape};
 use log::info;
 
+use crate::ipc::HostError;
+
 /// Return a raw scene for the canvas. The renderer performs layout when needed.
 #[tauri::command]
-pub async fn canvas_scene(as_of: Option<String>) -> Result<Vec<CanvasShape>, String> {
+pub async fn canvas_scene(as_of: Option<String>) -> Result<Vec<CanvasShape>, HostError> {
     info!("host: canvas_scene requested as_of={:?}", as_of);
     // Return raw scene primitives; renderer performs layout via elkjs by default.
     let shapes = generate_demo_scene();
@@ -22,7 +24,7 @@ fn canvas_store_key(doc_id: &str, as_of: &str) -> String {
 
 /// Persist a canvas layout snapshot (geometry, z-order, grouping) for a document and asOf.
 #[tauri::command]
-pub async fn canvas_save_layout(payload: CanvasLayoutSaveRequest) -> Result<(), String> {
+pub async fn canvas_save_layout(payload: CanvasLayoutSaveRequest) -> Result<(), HostError> {
     info!(
         "host: canvas_save_layout doc_id={} as_of={} nodes={} edges={} groups={}",
         payload.doc_id,
@@ -32,12 +34,15 @@ pub async fn canvas_save_layout(payload: CanvasLayoutSaveRequest) -> Result<(), 
         payload.groups.len()
     );
     let base = dirs::data_dir()
-        .ok_or_else(|| "no data dir".to_string())?
+        .ok_or_else(|| HostError::internal("no data dir"))?
         .join("AideonPraxis");
     let store = FileSnapshotStore::new(base.clone());
     let key = canvas_store_key(&payload.doc_id, &payload.as_of);
-    let json = serde_json::to_vec_pretty(&payload).map_err(|e| format!("serialize failed: {e}"))?;
-    store.put(&key, &json)?;
+    let json = serde_json::to_vec_pretty(&payload)
+        .map_err(|e| HostError::internal(format!("serialize failed: {e}")))?;
+    store
+        .put(&key, &json)
+        .map_err(|e| HostError::internal(e.to_string()))?;
     info!("host: canvas_save_layout wrote {}/{}", base.display(), key);
     Ok(())
 }

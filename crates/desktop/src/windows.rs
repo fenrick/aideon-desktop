@@ -2,6 +2,8 @@
 use log::warn;
 use tauri::{App, AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
 
+use crate::ipc::HostError;
+
 const ROUTE_SPLASH: &str = "splash/";
 const ROUTE_MAIN: &str = "index.html";
 const ROUTE_STATUS: &str = "status/";
@@ -43,7 +45,7 @@ pub fn create_windows(app: &App<Wry>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn open_settings(app: AppHandle<Wry>) -> Result<(), String> {
+pub fn open_settings(app: AppHandle<Wry>) -> Result<(), HostError> {
     if let Some(window) = app.get_webview_window("settings") {
         let _ = window.set_focus();
         return Ok(());
@@ -56,11 +58,11 @@ pub fn open_settings(app: AppHandle<Wry>) -> Result<(), String> {
         .center()
         .build()
         .map(|_| ())
-        .map_err(to_string)
+        .map_err(|err| HostError::internal(err.to_string()))
 }
 
 #[tauri::command]
-pub fn open_about(app: AppHandle<Wry>) -> Result<(), String> {
+pub fn open_about(app: AppHandle<Wry>) -> Result<(), HostError> {
     if let Some(window) = app.get_webview_window("about") {
         let _ = window.set_focus();
         return Ok(());
@@ -73,11 +75,11 @@ pub fn open_about(app: AppHandle<Wry>) -> Result<(), String> {
         .center()
         .build()
         .map(|_| ())
-        .map_err(to_string)
+        .map_err(|err| HostError::internal(err.to_string()))
 }
 
 #[tauri::command]
-pub fn open_status(app: AppHandle<Wry>) -> Result<(), String> {
+pub fn open_status(app: AppHandle<Wry>) -> Result<(), HostError> {
     if let Some(window) = app.get_webview_window("status") {
         let _ = window.set_focus();
         return Ok(());
@@ -91,11 +93,11 @@ pub fn open_status(app: AppHandle<Wry>) -> Result<(), String> {
         .center()
         .build()
         .map(|_| ())
-        .map_err(to_string)
+        .map_err(|err| HostError::internal(err.to_string()))
 }
 
 #[tauri::command]
-pub fn open_styleguide(app: AppHandle<Wry>) -> Result<(), String> {
+pub fn open_styleguide(app: AppHandle<Wry>) -> Result<(), HostError> {
     log::info!("host: open_styleguide requested");
     if let Some(window) = app.get_webview_window("styleguide") {
         let _ = window.set_focus();
@@ -109,7 +111,7 @@ pub fn open_styleguide(app: AppHandle<Wry>) -> Result<(), String> {
         .center()
         .build()
         .map(|_| ())
-        .map_err(to_string)
+        .map_err(|err| HostError::internal(err.to_string()))
 }
 
 fn to_string<E: std::fmt::Display>(error: E) -> String {

@@ -6,6 +6,7 @@ describe('toErrorMessage', () => {
   it('formats strings and error messages', () => {
     expect(toErrorMessage('plain')).toBe('plain');
     expect(toErrorMessage(new Error('boom'))).toBe('boom');
+    expect(toErrorMessage({ code: 'validation_failed', message: 'Bad input' })).toBe('Bad input');
   });
 
   it('stringifies objects and falls back on circular structures', () => {

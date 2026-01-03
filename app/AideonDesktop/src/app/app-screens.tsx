@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 
 import { AideonDesktopRoot } from '@/root';
-import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindowLabel, setSetupComplete } from '../adapters/system-ipc';
 import { SplashScreen as PraxisSplashScreen } from '../components/splash/splash-screen';
 import { Badge } from '../design-system/components/ui/badge';
 import {
@@ -34,11 +33,7 @@ export function SplashScreenRoute() {
     if (!isTauri) {
       return;
     }
-    try {
-      return getCurrentWindow().label;
-    } catch {
-      return;
-    }
+    return getCurrentWindowLabel();
   }, [isTauri]);
   const shouldSignalFrontendReady = isTauri && windowLabel === 'splash';
   const loadLines = useMemo(
@@ -206,7 +201,7 @@ export function FrontendReady({
     }
     didSignal.current = true;
 
-    invoke('set_complete', { task: 'frontend' })
+    setSetupComplete('frontend')
       .then(() => true)
       .catch(() => false);
   }, [enabled]);

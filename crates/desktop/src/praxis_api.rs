@@ -4,35 +4,41 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
+use crate::ipc::HostError;
+
 #[tauri::command]
-pub async fn praxis_graph_view(definition: GraphViewDefinition) -> Result<GraphViewModel, String> {
+pub async fn praxis_graph_view(
+    definition: GraphViewDefinition,
+) -> Result<GraphViewModel, HostError> {
     Ok(GraphViewModel::demo(definition))
 }
 
 #[tauri::command]
 pub async fn praxis_catalogue_view(
     definition: CatalogueViewDefinition,
-) -> Result<CatalogueViewModel, String> {
+) -> Result<CatalogueViewModel, HostError> {
     Ok(CatalogueViewModel::demo(definition))
 }
 
 #[tauri::command]
 pub async fn praxis_matrix_view(
     definition: MatrixViewDefinition,
-) -> Result<MatrixViewModel, String> {
+) -> Result<MatrixViewModel, HostError> {
     Ok(MatrixViewModel::demo(definition))
 }
 
 #[allow(dead_code)]
 #[tauri::command]
-pub async fn praxis_chart_view(definition: ChartViewDefinition) -> Result<ChartViewModel, String> {
+pub async fn praxis_chart_view(
+    definition: ChartViewDefinition,
+) -> Result<ChartViewModel, HostError> {
     Ok(ChartViewModel::demo(definition))
 }
 
 #[tauri::command]
 pub async fn praxis_apply_operations(
     operations: Vec<PraxisOperation>,
-) -> Result<OperationBatchResult, String> {
+) -> Result<OperationBatchResult, HostError> {
     if operations.is_empty() {
         return Ok(OperationBatchResult::rejected("no operations supplied"));
     }
@@ -40,7 +46,7 @@ pub async fn praxis_apply_operations(
 }
 
 #[tauri::command]
-pub async fn praxis_list_scenarios() -> Result<Vec<ScenarioSummary>, String> {
+pub async fn praxis_list_scenarios() -> Result<Vec<ScenarioSummary>, HostError> {
     Ok(ScenarioSummary::demo_list())
 }
 
@@ -638,7 +644,7 @@ pub struct ScenarioSummary {
 }
 
 impl ScenarioSummary {
-    fn demo_list() -> Vec<Self> {
+    pub(crate) fn demo_list() -> Vec<Self> {
         vec![
             ScenarioSummary {
                 id: "scenario-main".into(),

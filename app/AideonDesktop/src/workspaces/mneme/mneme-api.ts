@@ -132,6 +132,8 @@ const COMMANDS = {
   explainTraversal: 'mneme.store.explain_traversal',
 } as const;
 
+export const MNEME_IPC_COMMANDS = COMMANDS;
+
 /**
  * Convert host/IPC errors into a readable message string.
  * @param error - Unknown thrown value.

@@ -24,6 +24,8 @@ const COMMANDS = {
   metamodelGet: 'praxis.metamodel.get',
 } as const;
 
+export const TIMEGRAPH_IPC_COMMANDS = COMMANDS;
+
 interface StateAtResp {
   asOf: string;
   scenario: string | null;

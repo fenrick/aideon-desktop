@@ -27,6 +27,8 @@ const COMMANDS = {
   listTemplates: 'workspace.templates.list',
 } as const;
 
+export const PRAXIS_DOMAIN_IPC_COMMANDS = COMMANDS;
+
 /**
  * Fetch projects (with scenarios) from the host, falling back to a derived default project.
  */

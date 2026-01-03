@@ -32,6 +32,8 @@ const COMMANDS = {
   listScenarios: 'praxis.scenario.list',
 } as const;
 
+export const PRAXIS_IPC_COMMANDS = COMMANDS;
+
 export interface TwinNode {
   id: string;
   type?: string;

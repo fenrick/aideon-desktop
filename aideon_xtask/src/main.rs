@@ -11,6 +11,7 @@ use aideon_praxis::{
 };
 use anyhow::{Context, Result, anyhow};
 use clap::{Parser, Subcommand};
+use serde::{Deserialize, Serialize};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -19,6 +20,7 @@ async fn main() -> Result<()> {
         Command::MigrateState(args) => migrate_state(args).await,
         Command::ImportDataset(args) => import_dataset(args).await,
         Command::Health(args) => check_health(args).await,
+        Command::IpcManifest(args) => export_ipc_manifest(args).await,
     }
 }
 
@@ -41,6 +43,8 @@ enum Command {
     ImportDataset(ImportDatasetArgs),
     /// Validate datastore integrity by scanning commits, heads, and snapshots.
     Health(HealthArgs),
+    /// Generate a manifest of host IPC command names (for contract tests).
+    IpcManifest(IpcManifestArgs),
 }
 
 #[derive(Parser)]
@@ -83,6 +87,125 @@ struct HealthArgs {
     /// Reduce output to errors only.
     #[arg(long, default_value_t = false)]
     quiet: bool,
+}
+
+#[derive(Parser)]
+struct IpcManifestArgs {
+    /// Path to write the manifest JSON to (relative to repo root by default).
+    #[arg(long, default_value = "docs/contracts/ipc-manifest.json")]
+    out: PathBuf,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+struct IpcManifest {
+    schema_version: u32,
+    commands: Vec<String>,
+}
+
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("repo root")
+        .to_path_buf()
+}
+
+fn collect_rs_files(dir: &PathBuf, out: &mut Vec<PathBuf>) -> Result<()> {
+    for entry in fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))? {
+        let entry = entry?;
+        let path = entry.path();
+        let metadata = entry.metadata()?;
+        if metadata.is_dir() {
+            collect_rs_files(&path, out)?;
+            continue;
+        }
+        if metadata.is_file() && path.extension().is_some_and(|ext| ext == "rs") {
+            out.push(path);
+        }
+    }
+    Ok(())
+}
+
+fn extract_tauri_renames(source: &str) -> Vec<String> {
+    fn parse_attr(attr: &str) -> Option<String> {
+        let rename_idx = attr.find("rename")?;
+        let after = &attr[rename_idx..];
+        let first_quote = after.find('"')?;
+        let rest = &after[first_quote + 1..];
+        let second_quote = rest.find('"')?;
+        Some(rest[..second_quote].to_string())
+    }
+
+    let mut found = Vec::new();
+    let mut buffer: Option<String> = None;
+    for line in source.lines() {
+        if let Some(current) = buffer.as_mut() {
+            current.push_str(line);
+            if line.contains(']') {
+                if current.contains("#[tauri::command") && current.contains("rename") {
+                    if let Some(rename) = parse_attr(current) {
+                        found.push(rename);
+                    }
+                }
+                buffer = None;
+            }
+            continue;
+        }
+
+        let trimmed = line.trim();
+        if !trimmed.contains("#[tauri::command") {
+            continue;
+        }
+        if trimmed.contains(']') {
+            if trimmed.contains("rename") {
+                if let Some(rename) = parse_attr(trimmed) {
+                    found.push(rename);
+                }
+            }
+            continue;
+        }
+        buffer = Some(trimmed.to_string());
+    }
+    found
+}
+
+fn build_ipc_manifest() -> Result<IpcManifest> {
+    let mut files = Vec::new();
+    let desktop_src = repo_root().join("crates/desktop/src");
+    collect_rs_files(&desktop_src, &mut files)?;
+
+    let mut commands = std::collections::BTreeSet::<String>::new();
+    for path in files {
+        let contents = fs::read_to_string(&path)
+            .with_context(|| format!("read {}", path.display()))?;
+        for rename in extract_tauri_renames(&contents) {
+            commands.insert(rename);
+        }
+    }
+
+    Ok(IpcManifest {
+        schema_version: 1,
+        commands: commands.into_iter().collect(),
+    })
+}
+
+async fn export_ipc_manifest(args: IpcManifestArgs) -> Result<()> {
+    let repo = repo_root();
+    let out = if args.out.is_absolute() {
+        args.out
+    } else {
+        repo.join(args.out)
+    };
+    if let Some(parent) = out.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("create_dir_all {}", parent.display()))?;
+    }
+    let manifest = build_ipc_manifest()?;
+    let json = serde_json::to_string_pretty(&manifest)?;
+    fs::write(&out, format!("{json}\n"))
+        .with_context(|| format!("write {}", out.display()))?;
+    println!("Wrote IPC manifest to {}", out.display());
+    Ok(())
 }
 
 async fn migrate_state(args: MigrateStateArgs) -> Result<()> {
@@ -207,6 +330,21 @@ mod tests {
             }
             _ => panic!("expected import-dataset command"),
         }
+    }
+
+    #[test]
+    fn ipc_manifest_is_deterministic_and_checked_in() {
+        let repo = repo_root();
+        let manifest = build_ipc_manifest().expect("build manifest");
+        let path = repo.join("docs/contracts/ipc-manifest.json");
+        let raw = fs::read_to_string(&path)
+            .unwrap_or_else(|_| panic!("missing {}; run `cargo run -p aideon_xtask -- ipc-manifest` to generate it", path.display()));
+        let on_disk: IpcManifest =
+            serde_json::from_str(&raw).expect("parse ipc-manifest.json");
+        assert_eq!(
+            on_disk, manifest,
+            "ipc-manifest.json drifted; rerun `cargo run -p aideon_xtask -- ipc-manifest`"
+        );
     }
 }
 

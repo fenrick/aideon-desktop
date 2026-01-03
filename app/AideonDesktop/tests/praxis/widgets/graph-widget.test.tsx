@@ -125,7 +125,12 @@ describe('GraphWidget', () => {
     await waitFor(() => {
       expect(onViewChange).toHaveBeenCalledWith(GRAPH_VIEW);
     });
-    expect(getGraphViewMock).toHaveBeenCalledWith(expect.objectContaining({ id: 'view-graph' }));
+    expect(getGraphViewMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'view-graph',
+        asOf: GRAPH_WIDGET.view.asOf,
+      }),
+    );
     expect(screen.getByText('Customer Experience')).toBeInTheDocument();
   });
 

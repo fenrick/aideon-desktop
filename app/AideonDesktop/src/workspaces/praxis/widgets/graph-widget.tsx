@@ -74,12 +74,7 @@ export function GraphWidget({
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [showControls, setShowControls] = useState(true);
 
-  const definition = useMemo(() => {
-    return {
-      ...widget.view,
-      asOf: new Date().toISOString(),
-    };
-  }, [widget.view]);
+  const definition = widget.view;
 
   const attachInspectHandlers = useCallback(
     (flowNodes: Node<GraphNodeData>[]) => {

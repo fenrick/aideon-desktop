@@ -50,6 +50,11 @@ describe('ChartWidget', () => {
 
     render(<ChartWidget widget={widget} reloadVersion={0} />);
     await waitFor(() => expect(screen.getByText(/4,200 %/)).toBeInTheDocument());
+    expect(mockedGetChartView).toHaveBeenCalledWith(
+      expect.objectContaining({
+        asOf: baseDefinition.asOf,
+      }),
+    );
     expect(screen.getByText(/vs last span/i)).toBeInTheDocument();
   });
 

@@ -24,9 +24,7 @@ export function ChartWidget({ widget, reloadVersion }: ChartWidgetProperties) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
 
-  const definition = useMemo(() => {
-    return { ...widget.view, asOf: new Date().toISOString() };
-  }, [widget.view]);
+  const definition = useMemo(() => widget.view, [widget.view]);
 
   const loadView = useCallback(async () => {
     setLoading(true);

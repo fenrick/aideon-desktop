@@ -67,6 +67,11 @@ describe('CatalogueWidget', () => {
     await waitFor(() => {
       expect(getCatalogueViewMock).toHaveBeenCalled();
     });
+    expect(getCatalogueViewMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        asOf: CATALOGUE_WIDGET.view.asOf,
+      }),
+    );
     expect(screen.getByText('Customer Onboarding')).toBeInTheDocument();
     const selectedRow = screen.getByText('Customer Onboarding').closest('tr');
     expect(selectedRow).not.toBeNull();

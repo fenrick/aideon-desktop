@@ -66,6 +66,11 @@ describe('MatrixWidget', () => {
     await waitFor(() => {
       expect(getMatrixViewMock).toHaveBeenCalled();
     });
+    expect(getMatrixViewMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        asOf: MATRIX_WIDGET.view.asOf,
+      }),
+    );
     expect(screen.getByText('Capability A')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Production' })).toBeInTheDocument();
     expect(screen.getByText('80%')).toBeInTheDocument();

@@ -2,7 +2,6 @@ import { useMemo, type Ref } from 'react';
 
 import { templateScreenCopy } from 'praxis/copy/template-screen';
 import type { TemporalPanelActions, TemporalPanelState } from 'praxis/time/use-temporal-panel';
-import { useTemporalPanel } from 'praxis/time/use-temporal-panel';
 
 import { Button } from 'design-system/components/ui/button';
 import {
@@ -23,8 +22,8 @@ import {
 import { Slider } from 'design-system/components/ui/slider';
 
 interface TimeCursorCardProperties {
-  readonly state?: TemporalPanelState;
-  readonly actions?: TemporalPanelActions;
+  readonly state: TemporalPanelState;
+  readonly actions: TemporalPanelActions;
   readonly triggerRef?: Ref<HTMLButtonElement>;
 }
 
@@ -36,9 +35,8 @@ interface TimeCursorCardProperties {
  * @param root0.triggerRef
  */
 export function TimeCursorCard({ state, actions, triggerRef }: TimeCursorCardProperties) {
-  const [hookState, hookActions] = useTemporalPanel();
-  const viewState = state ?? hookState;
-  const viewActions = actions ?? hookActions;
+  const viewState = state;
+  const viewActions = actions;
   const copy = templateScreenCopy.timeCursor;
 
   const branchOptions = useMemo(

@@ -6,13 +6,6 @@ import type { TemporalPanelActions, TemporalPanelState } from 'praxis/time/use-t
 
 import { TimeCursorCard } from 'praxis/components/template-screen/time-cursor-card';
 
-const useTemporalPanelMock = vi.hoisted(() =>
-  vi.fn<() => [TemporalPanelState, TemporalPanelActions]>(),
-);
-vi.mock('praxis/time/use-temporal-panel', () => ({
-  useTemporalPanel: () => useTemporalPanelMock(),
-}));
-
 vi.mock('design-system/components/ui/select', () => {
   interface SelectProperties {
     onValueChange?: (value: string) => void;
@@ -87,7 +80,7 @@ describe('TimeCursorCard', () => {
   });
 
   beforeEach(() => {
-    useTemporalPanelMock.mockReset();
+    return;
   });
 
   const state: TemporalPanelState = {
@@ -137,7 +130,6 @@ describe('TimeCursorCard', () => {
   };
 
   it('emits branch, commit, and slider changes', () => {
-    useTemporalPanelMock.mockReturnValue([state, actions]);
     render(<TimeCursorCard state={state} actions={actions} />);
 
     fireEvent.click(screen.getByTestId('branch-select'));
@@ -151,13 +143,13 @@ describe('TimeCursorCard', () => {
   });
 
   it('uses hook defaults and handles empty commits + invalid slider inputs', () => {
-    const hookActions: TemporalPanelActions = {
+    const emptyActions: TemporalPanelActions = {
       selectBranch: vi.fn(() => Promise.resolve()),
       selectCommit: vi.fn(),
       refreshBranches: vi.fn(() => Promise.resolve()),
       mergeIntoMain: vi.fn(() => Promise.resolve()),
     };
-    const hookState: TemporalPanelState = {
+    const emptyState: TemporalPanelState = {
       branches: [{ name: 'main', head: 'c1' }],
       branch: 'main',
       commits: [],
@@ -170,15 +162,13 @@ describe('TimeCursorCard', () => {
       merging: false,
       diff: undefined,
     };
-    useTemporalPanelMock.mockReturnValue([hookState, hookActions]);
-
-    render(<TimeCursorCard />);
+    render(<TimeCursorCard state={emptyState} actions={emptyActions} />);
 
     expect(screen.getByText(/No timeline loaded/i)).toBeInTheDocument();
     expect(screen.queryByText(/Apply to primary/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('timeline-slider-negative'));
     fireEvent.click(screen.getByTestId('timeline-slider-non-number'));
-    expect(hookActions.selectCommit).not.toHaveBeenCalled();
+    expect(emptyActions.selectCommit).not.toHaveBeenCalled();
   });
 });

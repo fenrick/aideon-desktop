@@ -101,7 +101,7 @@ export function WorkspaceTabs({
           />
         </TabContent>
         <TabContent value="activity" className="mt-4">
-          <ActivityTab />
+          <ActivityTab state={state} actions={actions} />
         </TabContent>
       </TabRoot>
     </div>
@@ -278,6 +278,18 @@ function TimelineTab({ state, actions }: TimelineTabProperties) {
 /**
  *
  */
-function ActivityTab() {
-  return <ActivityTimelinePanel />;
+/**
+ * Activity tab wrapper for the timeline panel.
+ * @param root0
+ * @param root0.state
+ * @param root0.actions
+ */
+function ActivityTab({
+  state,
+  actions,
+}: {
+  readonly state: TemporalPanelState;
+  readonly actions: TemporalPanelActions;
+}) {
+  return <ActivityTimelinePanel state={state} actions={actions} />;
 }

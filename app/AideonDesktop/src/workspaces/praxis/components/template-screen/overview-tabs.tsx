@@ -149,7 +149,7 @@ export function OverviewTabs({
       <TabsContent value="overview" className="min-h-0 flex-1">
         <div className="grid gap-4 lg:grid-cols-2">
           <SnapshotOverviewCard state={state} />
-          <TimeCursorCard triggerRef={branchTriggerRef} />
+          <TimeCursorCard state={state} actions={actions} triggerRef={branchTriggerRef} />
         </div>
       </TabsContent>
 
@@ -164,7 +164,7 @@ export function OverviewTabs({
       </TabsContent>
 
       <TabsContent value="activity" className="min-h-0 flex-1">
-        {activityContent ?? <ActivityTimelinePanel />}
+        {activityContent ?? <ActivityTimelinePanel state={state} actions={actions} />}
       </TabsContent>
     </Tabs>
   );

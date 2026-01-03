@@ -1,5 +1,5 @@
 import { CommitTimelineList } from 'praxis/components/blocks/commit-timeline-list';
-import { useTemporalPanel } from 'praxis/time/use-temporal-panel';
+import type { TemporalPanelActions, TemporalPanelState } from 'praxis/time/use-temporal-panel';
 
 import { Button } from 'design-system/components/ui/button';
 import {
@@ -13,6 +13,8 @@ import {
 interface ActivityTimelinePanelProperties {
   readonly title?: string;
   readonly description?: string;
+  readonly state: TemporalPanelState;
+  readonly actions: TemporalPanelActions;
 }
 
 /**
@@ -20,13 +22,16 @@ interface ActivityTimelinePanelProperties {
  * @param root0 - Panel properties.
  * @param root0.title - Heading text.
  * @param root0.description - Helper text.
+ * @param root0.state - Temporal panel state to render.
+ * @param root0.actions - Temporal panel actions.
  * @returns Activity timeline panel.
  */
 export function ActivityTimelinePanel({
   title = 'Activity & diagnostics',
   description = 'Jump between timeline, diff, and canvas views when chasing events.',
+  state,
+  actions,
 }: ActivityTimelinePanelProperties) {
-  const [state, actions] = useTemporalPanel();
   const commits = state.commits;
   const activeCommitId = state.commitId;
 

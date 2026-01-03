@@ -1298,11 +1298,11 @@ pub async fn mneme_store_compile_effective_schema(
     request: IpcRequest<CompileEffectiveSchemaInput>,
 ) -> Result<IpcResponse<SchemaVersion>, HostError> {
     let request_id = request.request_id;
-    let response =
-        match mneme_compile_effective_schema_inner(state.inner(), request.payload).await {
-            Ok(result) => IpcResponse::ok(request_id, result),
-            Err(err) => IpcResponse::err(request_id, err),
-        };
+    let response = match mneme_compile_effective_schema_inner(state.inner(), request.payload).await
+    {
+        Ok(result) => IpcResponse::ok(request_id, result),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
     Ok(response)
 }
 
@@ -1376,11 +1376,11 @@ pub async fn mneme_store_set_edge_existence_interval(
     request: IpcRequest<SetEdgeExistencePayload>,
 ) -> Result<IpcResponse<OpResult>, HostError> {
     let request_id = request.request_id;
-    let response = match mneme_set_edge_existence_interval_inner(state.inner(), request.payload).await
-    {
-        Ok(result) => IpcResponse::ok(request_id, result),
-        Err(err) => IpcResponse::err(request_id, err),
-    };
+    let response =
+        match mneme_set_edge_existence_interval_inner(state.inner(), request.payload).await {
+            Ok(result) => IpcResponse::ok(request_id, result),
+            Err(err) => IpcResponse::err(request_id, err),
+        };
     Ok(response)
 }
 
@@ -1820,11 +1820,10 @@ pub async fn mneme_store_trigger_refresh_analytics_projections(
     request: IpcRequest<TriggerProcessingPayload>,
 ) -> Result<IpcResponse<()>, HostError> {
     let request_id = request.request_id;
-    let response =
-        match mneme_trigger_refresh_analytics_projections(state, request.payload).await {
-            Ok(()) => IpcResponse::ok(request_id, ()),
-            Err(err) => IpcResponse::err(request_id, err),
-        };
+    let response = match mneme_trigger_refresh_analytics_projections(state, request.payload).await {
+        Ok(()) => IpcResponse::ok(request_id, ()),
+        Err(err) => IpcResponse::err(request_id, err),
+    };
     Ok(response)
 }
 

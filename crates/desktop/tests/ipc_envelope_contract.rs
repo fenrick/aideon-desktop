@@ -29,4 +29,3 @@ fn ipc_response_serializes_error_shape_with_details() {
     assert!(json.contains("\"error\""));
     assert!(json.contains("\"details\""));
 }
-

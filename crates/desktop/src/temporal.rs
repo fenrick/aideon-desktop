@@ -310,7 +310,10 @@ pub async fn praxis_metamodel_get(
     request: IpcRequest<EmptyPayload>,
 ) -> Result<IpcResponse<MetaModelDocument>, HostError> {
     let request_id = request.request_id;
-    let response = IpcResponse::ok(request_id, temporal_metamodel_get_inner(state.engine()).await);
+    let response = IpcResponse::ok(
+        request_id,
+        temporal_metamodel_get_inner(state.engine()).await,
+    );
     Ok(response)
 }
 
